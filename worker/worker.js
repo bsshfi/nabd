@@ -189,7 +189,7 @@ export default {
       /* --- الأجهزة: الحالة والتحديث والحذف --- */
       if (p === '/admin/devices' && req.method === 'GET') {
         if (!actorAdmin(q.get('member'))) return json({ error: 'forbidden' }, 403);
-        const ds = await famDevices(env, F.id);
+        const ds = (await env.DB.prepare('SELECT id, members, endpoint, last_seen, ver, plat, notif, created FROM devices WHERE fam=?').bind(F.id).all()).results || [];
         return json({
           now, owner: F.owner, auto_del: F.auto_del, update_req: F.update_req, online_ms: ONLINE_MS,
           members: M.map((m) => ({ id: m.id, kind: m.kind, admin: !!m.admin || m.id === F.owner, owner: m.id === F.owner, pin: !!m.pin, removed: !!m.removed })),
