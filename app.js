@@ -1226,6 +1226,26 @@ var A = (function () {
   setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(); }, 10 * 60e3);
 
   /* منع التكبير: الضغط مرتين وقرصة الإصبعين (آيفون يتجاهل user-scalable أحياناً) */
+  /* التطبيق بالطول فقط: أندرويد يثبّت الاتجاه، والآيفون (ما يسمح بالتثبيت) تطلع له شاشة "لف الجهاز" */
+  function lockPortrait() {
+    try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}
+  }
+  function checkTurn() {
+    // اتجاه الجهاز نفسه (مو حجم الشاشة، عشان الكيبورد ما يخدعنا)
+    var t = screen.orientation && screen.orientation.type;
+    var land = plat() !== 'desktop' && (t ? /landscape/.test(t) : Math.abs(window.orientation || 0) === 90);
+    var el = document.getElementById('turn');
+    if (land && !el) {
+      el = document.createElement('div'); el.id = 'turn';
+      el.innerHTML = '<div style="font-size:64px;line-height:1;transform:rotate(-90deg)">📱</div><b style="font-size:22px;font-family:var(--fd)">نَبْض يشتغل بالطول</b><span class="muted">لفّ الجهاز عشان تكمل</span>';
+      document.body.appendChild(el);
+    } else if (!land && el) el.remove();
+  }
+  lockPortrait();
+  window.addEventListener('resize', checkTurn);
+  window.addEventListener('orientationchange', function () { setTimeout(checkTurn, 200); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') lockPortrait(); });
+  setTimeout(checkTurn, 0);
   document.addEventListener('contextmenu', function (e) { if (!e.target.closest('input,textarea')) e.preventDefault(); });
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
   document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
