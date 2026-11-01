@@ -80,7 +80,7 @@
   function paintStorage() {
     Promise.all([navigator.storage && navigator.storage.estimate ? navigator.storage.estimate() : Promise.resolve(null), NB.msgs.all()]).then(function (r) {
       var e = r[0], n = r[1].length, el = $('#sz'); if (!el) return;
-      var used = e && e.usage ? e.usage : r[1].reduce(function (t, m) { return t + (m.blob ? m.blob.size : 0) + ((m.text || '').length * 2); }, 0);
+      var used = e && e.usage ? e.usage : r[1].reduce(function (t, m) { return t + NB.mediaSize(m) + ((m.text || '').length * 2); }, 0);
       el.textContent = mb(used) + ' · ' + A.num(n) + ' رسالة';
       if (e && e.quota) $('#szb').style.width = Math.max(1, Math.min(100, used / e.quota * 100 * 20)) + '%';
     });
@@ -268,7 +268,7 @@
         '<span class="tiny muted">الرسائل ما تنحفظ في السيرفر، فهذي النسخة هي الطريقة الوحيدة لترجيعها لو انحذف التطبيق.</span></div>' +
         '<button class="card row" id="rem" style="text-align:start"><span class="grow col" style="gap:0"><span>تذكير أسبوعي بالنسخ</span><span class="tiny muted">إشعار كل جمعة الساعة ٨ مساءً</span></span><span class="tog' + (S.reminder ? ' on' : '') + '" id="remT"></span></button>');
       bindBack(A.settings);
-      NB.msgs.all().then(function (all) { var b = all.reduce(function (t, m) { return t + (m.blob ? m.blob.size : 0) + (m.text || '').length * 2; }, 0); var e = $('#bs'); if (e) e.textContent = 'الحجم: ' + mb(b * 1.35) + ' · ' + A.num(all.length) + ' رسالة'; });
+      NB.msgs.all().then(function (all) { var b = all.reduce(function (t, m) { return t + NB.mediaSize(m) + (m.text || '').length * 2; }, 0); var e = $('#bs'); if (e) e.textContent = 'الحجم: ' + mb(b * 1.35) + ' · ' + A.num(all.length) + ' رسالة'; });
       if (admin) {
         $('#cc').onclick = function () { A.copy(S.acct.code); };
         $('#cs').onclick = A.shareCode;
@@ -309,7 +309,7 @@
       return all.reduce(function (p, m) {
         return p.then(function () {
           var o = { id: m.id, chat: m.chat, s: m.s, k: m.k, t: m.t, text: m.text, mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h, st: m.st, r: m.r };
-          return (m.blob ? blobB64(m.blob) : Promise.resolve(null)).then(function (d) { if (d) o.data = d; parts.push((i++ ? ',' : '') + JSON.stringify(o)); });
+          return (NB.media(m) ? blobB64(NB.media(m)) : Promise.resolve(null)).then(function (d) { if (d) o.data = d; parts.push((i++ ? ',' : '') + JSON.stringify(o)); });
         });
       }, Promise.resolve()).then(function () {
         parts.push(']}');
@@ -341,7 +341,7 @@
             var m = { id: o.id, chat: o.chat, s: o.s, k: o.k, t: o.t, st: o.st || {}, r: o.r || [] };
             if (o.text != null) m.text = o.text;
             ['mime', 'dur', 'wf', 'w', 'h'].forEach(function (k) { if (o[k] != null) m[k] = o[k]; });
-            if (o.data) { var bin = atob(o.data), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); m.blob = new Blob([u], { type: o.mime || '' }); }
+            if (o.data) { var bin = atob(o.data), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); m.buf = u.buffer; m.mime = o.mime || ''; }
             n++; return NB.msgs.put(m);
           });
         });

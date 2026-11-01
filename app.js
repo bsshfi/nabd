@@ -568,7 +568,7 @@ var A = (function () {
     var body = '';
     if (m.k === 'text') body = '<div class="bub">' + esc(m.text || '') + '</div>';
     else if (m.k === 'photo' || m.k === 'draw') {
-      var u = m.blob ? URL.createObjectURL(m.blob) : ''; if (u) urls.push(u);
+      var mb = NB.media(m), u = mb ? URL.createObjectURL(mb) : ''; if (u) urls.push(u);
       body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
     } else if (m.k === 'voice') {
       var wf = m.wf || [], played = (m.st || {});
@@ -619,10 +619,10 @@ var A = (function () {
     if (audioEl) { $('.pl', audioEl).innerHTML = PLAY; audioEl.querySelectorAll('.wave i').forEach(function (i) { i.classList.remove('on'); }); audioEl = null; }
   }
   function playVoice(m, el) {
-    if (!m || !m.blob) return;
+    if (!m || !NB.media(m)) return;
     if (audioEl === el) { stopAudio(); return; }
     stopAudio();
-    var u = URL.createObjectURL(m.blob);
+    var u = URL.createObjectURL(NB.media(m));
     audio = new Audio(u); audioEl = el;
     $('.pl', el).innerHTML = PAUSE;
     var bars = el.querySelectorAll('.wave i');
@@ -659,7 +659,7 @@ var A = (function () {
     t.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && plat() === 'desktop') { e.preventDefault(); mic.click(); } };
     mic.onclick = function () {
       var v = t.value.trim();
-      if (v) { t.value = ''; sync(); sendMsg('text', { text: v }); t.focus(); }
+      if (v) { t.value = ''; sync(); sendMsg('text', { text: v }); if (plat() === 'desktop') t.focus(); else t.blur(); }
       else startRec();
     };
     $('#drB').onclick = drawScreen;
@@ -682,11 +682,11 @@ var A = (function () {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: Date.now(), st: {}, r: [S.me], out: 1 };
     var head = {};
     if (kind === 'text') { m.text = o.text; head.text = o.text; }
-    else { m.blob = blob; m.mime = blob.type; head.mime = blob.type; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (o[k] != null) { m[k] = o[k]; head[k] = o[k]; } }); }
-    return NB.msgs.put(m).then(function () { renderMsgs(true); return upload(m); });
+    else { m.mime = blob.type; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (o[k] != null) m[k] = o[k]; }); }
+    return (blob ? blob.arrayBuffer().then(function (b) { m.buf = b; }) : Promise.resolve()).then(function () { return NB.msgs.put(m); }).then(function () { renderMsgs(true); return upload(m); });
   }
   function upload(m) {
-    var bytesP = m.blob ? m.blob.arrayBuffer().then(function (b) { return new Uint8Array(b); }) : Promise.resolve(null);
+    var mb = NB.media(m), bytesP = mb ? mb.arrayBuffer().then(function (b) { return new Uint8Array(b); }) : Promise.resolve(null);
     var head = m.k === 'text' ? { text: m.text } : { mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h };
     return bytesP.then(function (bytes) {
       return Promise.all([NB.enc(pack(head, bytes)), m.k === 'text' ? NB.encJSON({ x: m.text.slice(0, 80) }) : Promise.resolve('')]);
@@ -874,10 +874,10 @@ var A = (function () {
     document.body.appendChild(el);
     var chat = pairId(d.f, d.to);
     NB.msgs.chat(chat).then(function (ms) {
-      var lastV = ms.filter(function (m) { return m.s === d.f && m.k === 'voice' && m.blob; }).pop();
+      var lastV = ms.filter(function (m) { return m.s === d.f && m.k === 'voice' && NB.mediaSize(m); }).pop();
       if (lastV && Date.now() - lastV.t < 30 * 60e3) {
         var b = $('#nl', el); b.hidden = false; b.innerHTML = PLAY + ' اسمع الرسالة · ' + fmtDur(lastV.dur || 0);
-        b.onclick = function () { stopBeat(); var a = new Audio(URL.createObjectURL(lastV.blob)); a.play().catch(function () {}); seenNudge(); };
+        b.onclick = function () { stopBeat(); var a = new Audio(URL.createObjectURL(NB.media(lastV))); a.play().catch(function () {}); seenNudge(); };
       }
     });
     el.querySelectorAll('[data-r]').forEach(function (b) {
@@ -944,7 +944,7 @@ var A = (function () {
             var x = unpack(u8), h = x.head;
             var rec = { id: m.id, chat: m.chat, s: m.sender, k: m.kind, t: m.created, st: {}, r: [] };
             if (m.kind === 'text') rec.text = h.text;
-            else { rec.blob = new Blob([x.data], { type: h.mime || '' }); rec.mime = h.mime; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
+            else { rec.buf = x.data.slice().buffer; rec.mime = h.mime || ''; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
             return NB.msgs.get(m.id).then(function (old) { if (!old) { changed = true; return NB.msgs.put(rec); } });
           }).then(function () { S.acks.push(m.id); }, function (e) { if (e && e.status === 404) S.acks.push(m.id); });
         });

@@ -99,5 +99,9 @@ var NB = (function () {
   function chatParts(chat) { if (chat === 'g') return null; var m = /^p:([^:]+):([^:]+)$/.exec(chat || ''); return m ? [m[1], m[2]] : null; }
   var KIND = { text: 'رسالة', voice: '🎤 رسالة صوتية', photo: '📷 صورة', draw: '🎨 رسمة' };
 
-  return { kv: kv, msgs: msgs, b64e: b64e, b64d: b64d, te: te, td: td, enc: enc, dec: dec, encJSON: encJSON, decJSON: decJSON, profile: profile, nameOf: nameOf, chatParts: chatParts, KIND: KIND, db: db };
+  /* الوسائط تنحفظ كبايتات (ArrayBuffer) مو Blob: آيفون يضيّع الـBlob المحفوظ في IndexedDB أحياناً */
+  function media(m) { if (!m) return null; if (m.buf) return new Blob([m.buf], { type: m.mime || '' }); return m.blob || null; }
+  function mediaSize(m) { return m.buf ? m.buf.byteLength : m.blob ? m.blob.size : 0; }
+
+  return { media: media, mediaSize: mediaSize, kv: kv, msgs: msgs, b64e: b64e, b64d: b64d, te: te, td: td, enc: enc, dec: dec, encJSON: encJSON, decJSON: decJSON, profile: profile, nameOf: nameOf, chatParts: chatParts, KIND: KIND, db: db };
 })();
