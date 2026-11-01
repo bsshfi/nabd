@@ -1,0 +1,19 @@
+# سيرفر نَبْض (nabd-api) — نشر تلقائي من GitHub عبر Cloudflare Workers Builds
+# التطبيق نفسه على GitHub Pages (nabd.wamdarc.com)، هذا الملف للسيرفر فقط.
+# مفاتيح الإشعارات محفوظة في جدول config داخل قاعدة nabd، فما يحتاج متغيرات سرية.
+name = "nabd-api"
+main = "worker/worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+keep_vars = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nabd"
+database_id = "96b1fce2-6ab3-4180-9c03-bfe09baa7fda"
+
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
