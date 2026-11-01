@@ -42,14 +42,7 @@
     if ($('#goDev')) $('#goDev').onclick = A.devices;
     if ($('#goLink')) $('#goLink').onclick = linkSheet;
     if ($('#goBak')) $('#goBak').onclick = A.backup;
-    if ($('#myAv')) $('#myAv').onclick = function () {
-      var me = S.me, m = A.member(me);
-      A.memberForm(Object.assign({ id: me }, m), function (dd) {
-        var old = JSON.stringify(S.prof.members[me]);
-        S.prof.members[me] = Object.assign({}, m, { av: dd.av, name: parent ? dd.name : m.name });
-        A.saveProfile().then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[me] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
-      }, { lockKind: true, avatarOnly: true, lockName: !parent });
-    };
+    if ($('#myAv')) $('#myAv').onclick = A.editMe;
     if ($('#chPin')) $('#chPin').onclick = function () {
       A.setPin('رمزك السري الجديد', function (p) { A.api('/pin', { member: S.me, pin: p }).then(function () { A.toast('تغيّر الرمز ✓'); }, function () { A.toast('ما قدرنا نغيّره'); }); });
     };
@@ -126,8 +119,8 @@
     sh.querySelectorAll('[data-gc]').forEach(function (b) { b.onclick = function () { g.c = b.dataset.gc; sh.querySelectorAll('[data-gc]').forEach(function (x) { x.style.outline = x === b ? '3px solid var(--ink)' : '0'; }); pv(); }; });
     $('#gs', sh).onclick = function () {
       var oldG = S.prof.group, oldN = S.prof.name, nn = $('#fn2', sh).value.trim();
-      S.prof.group = { name: g.name || '', e: g.e || '', c: g.c || '' }; if (nn) S.prof.name = nn;
-      A.saveProfile().then(function () { sh.remove(); A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.group = oldG; S.prof.name = oldN; A.toast('ما قدرنا نحفظ'); });
+      A.saveProfile({}, function () { S.prof.group = { name: g.name || '', e: g.e || '', c: g.c || '' }; if (nn) S.prof.name = nn; })
+        .then(function () { sh.remove(); A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.group = oldG; S.prof.name = oldN; A.toast('ما قدرنا نحفظ'); });
     };
     pv();
   }
@@ -145,9 +138,10 @@
   /* ================= إدارة فرد ================= */
   function addMember() {
     A.memberForm(null, function (m) {
-      S.prof.members[m.id] = { name: m.name, kind: m.kind, g: m.g, av: m.av };
-      S.prof.order = (S.prof.order || []).concat([m.id]);
-      A.saveProfile({ add: [{ id: m.id, kind: m.kind }] }).then(function () { A.toast('انضاف ' + m.name + ' ✓'); A.settings(); }, function () {
+      A.saveProfile({ add: [{ id: m.id, kind: m.kind }] }, function () {
+        S.prof.members[m.id] = { name: m.name, kind: m.kind, g: m.g, av: m.av };
+        S.prof.order = (S.prof.order || []).filter(function (x) { return x !== m.id; }).concat([m.id]);
+      }).then(function () { A.toast('انضاف ' + m.name + ' ✓'); A.settings(); }, function () {
         delete S.prof.members[m.id]; A.toast('ما قدرنا نضيفه، جرّب مرة ثانية');
       });
     });
@@ -162,13 +156,12 @@
       (meOwner && !owner && r.pin ? '<button id="rp">' + ic('lock') + '<span class="grow">تصفير الرمز السري</span></button>' : '') +
       (canTouch ? '<button id="wp" style="color:var(--danger)">' + ic('trash') + '<span class="grow">حذف محادثات ' + esc(nm(id)) + ' من أجهزته</span></button>' : '') +
       (!owner && canTouch && id !== S.me ? '<button id="rm" style="color:var(--danger)">' + ic('close') + '<span class="grow">حذف ' + esc(nm(id)) + ' من العائلة</span></button>' : '') +
-      '</div><span class="tiny muted" style="text-align:center">' + (owner && !meOwner ? 'المدير الأساسي محمي، ما أحد يقدر يغيّر صلاحياته.' : 'الصورة الرمزية تتحدّث عند كل العائلة، والأطفال ما يقدرون يغيّرونها.') + '</span>');
+      '</div><span class="tiny muted" style="text-align:center">' + (owner && !meOwner ? 'المدير الأساسي محمي، ما أحد يقدر يغيّر صلاحياته.' : 'الصورة الرمزية تتحدّث عند كل العائلة.') + '</span>');
     $('#ed', sh).onclick = function () {
       sh.remove();
       A.memberForm(Object.assign({ id: id }, m), function (d) {
         var old = JSON.stringify(S.prof.members[id]);
-        S.prof.members[id] = Object.assign({}, m, { name: d.name, av: d.av, g: d.g });
-        A.saveProfile().then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[id] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
+        A.saveProfile({}, function () { S.prof.members[id] = Object.assign({}, S.prof.members[id] || m, { name: d.name, av: d.av, g: d.g }); }).then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[id] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
       }, { lockKind: true });
     };
     if ($('#adm', sh)) $('#adm', sh).onclick = function () {
@@ -183,8 +176,7 @@
     if ($('#wp', sh)) $('#wp', sh).onclick = function () { sh.remove(); wipeMember(id); };
     if ($('#rm', sh)) $('#rm', sh).onclick = function () {
       if (!confirm('تحذف ' + nm(id) + ' من العائلة؟ ما يقدر يرسل أو يستقبل بعدها.')) return;
-      S.prof.order = (S.prof.order || []).filter(function (x) { return x !== id; });
-      A.saveProfile({ remove: [id] }).then(function () { sh.remove(); A.toast('انحذف'); A.settings(); }, function () { A.toast('ما قدرنا نحذفه'); });
+      A.saveProfile({ remove: [id] }, function () { S.prof.order = (S.prof.order || []).filter(function (x) { return x !== id; }); }).then(function () { sh.remove(); A.toast('انحذف'); A.settings(); }, function () { A.toast('ما قدرنا نحذفه'); });
     };
   }
   function wipeMember(id) {

@@ -39,8 +39,9 @@
 html,body{height:100%;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 *{touch-action:manipulation}
 .drawwrap,.drawwrap canvas{touch-action:none}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.5;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
-input,textarea,select{-webkit-user-select:text;user-select:text;font-size:max(16px,1em)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.5;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+*{-webkit-user-select:none;user-select:none}
+input,textarea,select{-webkit-user-select:text!important;user-select:text!important;-webkit-touch-callout:default;font-size:max(16px,1em)}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
 a{color:var(--accent-ink)}
 [hidden]{display:none!important}
@@ -123,7 +124,7 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 .m{display:flex;gap:8px;align-items:flex-end;max-width:84%}
 .m.me{align-self:flex-end;flex-direction:row-reverse}
 .m .who2{font-size:12px;font-weight:600;margin:0 6px 2px}
-.bub{background:var(--card);border-radius:20px 20px 20px 6px;padding:9px 13px;box-shadow:0 1px 0 var(--line);font-size:17px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap;-webkit-user-select:text;user-select:text;position:relative}
+.bub{background:var(--card);border-radius:20px 20px 20px 6px;padding:9px 13px;box-shadow:0 1px 0 var(--line);font-size:17px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap;position:relative}
 .m.me .bub{background:var(--accent);color:#fff;border-radius:20px 20px 6px 20px;box-shadow:none}
 .bub.media{padding:6px}
 .bub img{display:block;max-width:min(240px,62vw);max-height:300px;border-radius:14px;background:#fff}
@@ -179,6 +180,8 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 
 /* النوافذ السفلية */
 .sheet{position:fixed;inset:0;z-index:40;background:rgba(27,35,51,.45);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.sheet>div>*{flex-shrink:0}
+.sheet #ok,.sheet #gs{position:sticky;bottom:0;height:56px;font-size:18px;box-shadow:0 -10px 16px var(--bg)}
 .sheet>div{background:var(--bg);width:100%;max-width:560px;border-radius:28px 28px 0 0;padding:18px 16px calc(var(--safe-b) + 18px);max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;animation:up .2s}
 @keyframes fade{from{opacity:0}}
 @keyframes up{from{transform:translateY(40px)}}
@@ -210,11 +213,11 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 <body>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=1.2.1"></script>
-<script src="core.js?v=1.2.1"></script>
-<script src="avatars.js?v=1.2.1"></script>
-<script src="app.js?v=1.2.1"></script>
-<script src="admin.js?v=1.2.1"></script>
+<script src="config.js?v=1.2.2"></script>
+<script src="core.js?v=1.2.2"></script>
+<script src="avatars.js?v=1.2.2"></script>
+<script src="app.js?v=1.2.2"></script>
+<script src="admin.js?v=1.2.2"></script>
 <script src="wamd-stats.js" data-app="nabd" defer></script>
 </body>
 </html>

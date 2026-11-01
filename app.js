@@ -174,17 +174,36 @@ var A = (function () {
       });
     });
   }
-  function saveProfile(extra) {
+  function saveProfile(extra, apply, retried) {
     extra = extra || {};
+    if (apply) apply();
     var rev = S.rev + 1;
     return NB.encJSON(S.prof).then(function (blob) {
       return api('/profile', { member: S.me, blob: blob, rev: rev, add: extra.add || [], remove: extra.remove || [] });
     }).then(function () {
       S.rev = rev; return NB.kv.set('profile', { rev: rev, data: S.prof });
     }).then(function () { return refreshRoles(); }).catch(function (e) {
-      if (e && e.error === 'stale') return loadFamily().then(function () { throw { error: 'stale' }; });
+      if (e && e.error === 'stale') return loadFamily().then(function () {
+        if (apply && !retried) return saveProfile(extra, apply, true);
+        throw { error: 'stale' };
+      });
       throw e;
     });
+  }
+  /* تعديل صورتي (واسمي للوالدين) من الرئيسية أو الإعدادات */
+  function editMe() {
+    var me = S.me, m = member(me); if (!m) return;
+    var adminMe = isAdmin(me), parentMe = isParent(me) && S.dev.trusted.indexOf(me) >= 0;
+    memberForm(Object.assign({ id: me }, m), function (d) {
+      var before = JSON.stringify(S.prof.members[me]);
+      saveProfile({}, function () {
+        var cur = S.prof.members[me] || m;
+        S.prof.members[me] = Object.assign({}, cur, { av: d.av, name: (adminMe || parentMe) ? d.name : cur.name, g: adminMe ? d.g : cur.g });
+      }).then(function () { toast('انحفظ ✓'); if (S.view === 'home') home(); else if (A.settings && S.view === 'settings') A.settings(); }, function (e) {
+        S.prof.members[me] = JSON.parse(before);
+        toast(e && e.error === 'network' ? 'ما فيه اتصال بالإنترنت' : 'ما قدرنا نحفظ، جرّب مرة ثانية');
+      });
+    }, { lockKind: true, avatarOnly: !adminMe, lockName: !(adminMe || parentMe) });
   }
   function refreshRoles() { return api('/sync', syncBody()).then(applySync); }
 
@@ -525,10 +544,11 @@ var A = (function () {
   function home() {
     if (!S.me || live().indexOf(S.me) < 0 || S.dev.members.indexOf(S.me) < 0) return picker();
     S.view = 'home'; S.chat = null;
-    var el = show('<div class="row">' + av(S.me, 52) + '<div class="grow col" style="gap:0"><span class="small muted">' + greet() + '</span><span class="fd" style="font-size:26px;font-weight:800;line-height:1.1">' + esc(nm(S.me)) + '</span></div>' +
+    var el = show('<div class="row"><button id="meB" class="row grow" style="gap:10px;text-align:start" aria-label="تغيير صورتي">' + av(S.me, 52) + '<span class="grow col" style="gap:0"><span class="small muted">' + greet() + '</span><span class="fd" style="font-size:26px;font-weight:800;line-height:1.1">' + esc(nm(S.me)) + '</span></span></button>' +
       '<button class="icb" id="sw" aria-label="تبديل الشخص">' + ic('swap') + '</button><button class="icb" id="st" aria-label="الإعدادات">' + ic('gear') + '</button></div>' +
       '<div class="col" id="chats" style="gap:12px"></div><div id="hn" style="margin-top:auto"></div>');
     $('#sw', el).onclick = function () { picker(); };
+    $('#meB', el).onclick = editMe;
     $('#st', el).onclick = function () { A.settings(); };
     renderChats(); renderHomeNotice();
   }
@@ -579,7 +599,7 @@ var A = (function () {
   function openChat(chat, mode) {
     if (chatsFor(S.me).indexOf(chat) < 0) return home();
     S.view = 'chat'; S.chat = chat;
-    urls.forEach(URL.revokeObjectURL); urls = [];
+    Object.keys(urlCache).forEach(function (k) { URL.revokeObjectURL(urlCache[k]); }); urlCache = {};
     var o = otherOf(chat), canNudge = o && (isParent(S.me) || isAdmin(S.me)) && S.dev.trusted.indexOf(S.me) >= 0;
     app.innerHTML = '<section class="chat">' +
       '<div class="chathead"><button class="icb flat" id="bk" aria-label="رجوع">' + ic('back') + '</button>' +
@@ -602,8 +622,7 @@ var A = (function () {
     var chat = S.chat;
     NB.msgs.chat(chat).then(function (ms) {
       if (S.chat !== chat || S.view !== 'chat') return;
-      var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-      urls.forEach(URL.revokeObjectURL); urls = [];
+      var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120, fromBottom = box.scrollHeight - box.scrollTop;
       var html = '', lastDay = '';
       ms.forEach(function (m) {
         var d = new Date(m.t).toDateString();
@@ -612,9 +631,13 @@ var A = (function () {
       });
       if (!ms.length) html = '<div class="col center" style="margin:auto;gap:6px;color:var(--muted)">' + (chat === 'g' ? '<span style="font-size:44px">' + (grp().e || '👨‍👩‍👧‍👦') + '</span><b>' + esc(grp().name) + '</b><span class="small">ابدأوا السوالف 👋</span>' : av(otherOf(chat), 80) + '<b>' + esc(nm(otherOf(chat))) + '</b><span class="small">ابدأ السوالف 👋</span>') + '</div>';
       html += nudgeCardHTML();
+      var stick = scroll || atBottom;
       box.innerHTML = html;
       bindMsgs(box, ms);
-      if (scroll || atBottom) box.scrollTop = box.scrollHeight;
+      var settle = function () { if (stick) box.scrollTop = box.scrollHeight; else box.scrollTop = box.scrollHeight - fromBottom; };
+      settle();
+      box.querySelectorAll('img').forEach(function (im) { if (!im.complete) im.addEventListener('load', settle, { once: true }); });
+      requestAnimationFrame(settle);
       markRead(ms);
     });
   }
@@ -625,13 +648,19 @@ var A = (function () {
     if (!any && !all) return '<svg class="tick" viewBox="0 0 24 24" stroke="#8A93A6" aria-label="انرسلت"><path d="M4 12l5 5L20 6"/></svg>';
     return '<svg class="tick" viewBox="0 0 24 24" stroke="' + (all ? 'var(--accent)' : '#8A93A6') + '" aria-label="' + (all ? 'شافوها' : 'وصلت') + '"><path d="M2 12l5 5L18 6"/><path d="M9 17l1 1L22 6"/></svg>';
   }
+  var urlCache = {};
+  function mediaUrl(m) {
+    if (urlCache[m.id]) return urlCache[m.id];
+    var mb = NB.media(m); if (!mb) return '';
+    return (urlCache[m.id] = URL.createObjectURL(mb));
+  }
   function msgHTML(m) {
     var mine = m.s === S.me, group = m.chat === 'g';
     var body = '';
     if (m.k === 'text') body = '<div class="bub">' + esc(m.text || '') + '</div>';
     else if (m.k === 'photo' || m.k === 'draw') {
-      var mb = NB.media(m), u = mb ? URL.createObjectURL(mb) : ''; if (u) urls.push(u);
-      body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
+      var u = mediaUrl(m);
+      body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
     } else if (m.k === 'voice') {
       var wf = m.wf || [], played = (m.st || {});
       body = '<div class="bub"><div class="voice" data-voice="' + m.id + '"><button class="pl" aria-label="تشغيل الرسالة الصوتية" style="color:' + (mine ? 'var(--accent)' : '#fff') + '">' + PLAY + '</button>' +
@@ -726,7 +755,7 @@ var A = (function () {
     t.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && plat() === 'desktop') { e.preventDefault(); mic.click(); } };
     mic.onclick = function () {
       var v = t.value.trim();
-      if (v) { t.value = ''; sync(); sendMsg('text', { text: v }); if (plat() === 'desktop') t.focus(); else t.blur(); }
+      if (v) { t.value = ''; sync(); sendMsg('text', { text: v }); if (plat() === 'desktop') t.focus(); else { t.blur(); setTimeout(function () { var b = $('#msgs'); if (b) b.scrollTop = b.scrollHeight; }, 350); } }
       else startRec();
     };
     $('#drB').onclick = drawScreen;
@@ -1197,6 +1226,7 @@ var A = (function () {
   setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(); }, 10 * 60e3);
 
   /* منع التكبير: الضغط مرتين وقرصة الإصبعين (آيفون يتجاهل user-scalable أحياناً) */
+  document.addEventListener('contextmenu', function (e) { if (!e.target.closest('input,textarea')) e.preventDefault(); });
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
   document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
   document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
@@ -1287,7 +1317,7 @@ var A = (function () {
     S: S, $: $, esc: esc, rid: rid, api: api, ic: ic, IC: IC, av: av, nm: nm, fem: fem, live: live, role: role, member: member, toast: toast, sheet: sheet, show: show,
     fmtDate: fmtDate, fmtTime: fmtTime, ago: ago, num: num, plat: plat, isParent: isParent, isOwner: isOwner, isAdmin: isAdmin, kindLabel: kindLabel,
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
-    copy: copy, shareCode: shareCode, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
+    copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };

@@ -171,7 +171,10 @@ export default {
       /* --- بيانات العائلة المشفّرة (الأسماء والصور الرمزية) --- */
       if (p === '/profile' && req.method === 'POST') {
         const b = await req.json().catch(() => ({}));
-        if (!actorAdmin(b.member)) return json({ error: 'forbidden' }, 403);
+        // المشرف يعدّل الكل · أي فرد يعدّل صورته (والأب/الأم اسمهم) من جهازه، بدون إضافة أو حذف أفراد
+        const isAdm = !!actorAdmin(b.member), self = actor(b.member);
+        if (!isAdm && !(self && devTrusted.includes(self.id))) return json({ error: 'forbidden' }, 403);
+        if (!isAdm && ((b.add && b.add.length) || (b.remove && b.remove.length))) return json({ error: 'forbidden' }, 403);
         if (!okB64(b.blob, MAX_PROFILE) || !Number.isInteger(b.rev)) return json({ error: 'bad' }, 400);
         if (b.rev <= F.rev) return json({ error: 'stale', rev: F.rev }, 409);
         const stmts = [env.DB.prepare('UPDATE families SET blob=?, rev=? WHERE id=?').bind(b.blob, b.rev, F.id)];
