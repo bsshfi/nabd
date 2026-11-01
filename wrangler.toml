@@ -12,6 +12,12 @@ binding = "DB"
 database_name = "nabd"
 database_id = "96b1fce2-6ab3-4180-9c03-bfe09baa7fda"
 
+# جداول إحصائيات ومض آرك المشتركة (نفس قاعدة push-wamdarc) — للوحة admin.wamdarc.com
+[[d1_databases]]
+binding = "STATS"
+database_name = "falaq"
+database_id = "3cb52fee-bfc3-4ee8-a362-15f5788ec267"
+
 # تشغيل السيرفر قرب قاعدة البيانات = ردود وإشعارات أسرع
 [placement]
 mode = "smart"

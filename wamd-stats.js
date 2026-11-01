@@ -3,8 +3,9 @@
    لا أسماء ولا موقع جغرافي ولا كوكيز. الاستخدام: <script src="wamd-stats.js" data-app="nabd" defer></script> */
 (function () {
   'use strict';
-  var API = 'https://push-wamdarc.bsshfi.workers.dev/hit';
   var me = document.currentScript, APP = (me && me.getAttribute('data-app')) || '';
+  // الخادم الافتراضي push-wamdarc، ويقدر أي تطبيق يحدد خادم ثاني بـ data-api
+  var API = (me && me.getAttribute('data-api')) || 'https://push-wamdarc.bsshfi.workers.dev/hit';
   if (!APP || !window.fetch) return;
   var dev = '';
   try {

@@ -1,7 +1,7 @@
 /* نَبْض | NABD — يشغّل التطبيق بدون إنترنت، ويحدّثه تلقائيًا، ويعرض الإشعارات والنبضة
    مع كل تحديث: غيّر CACHE هنا و VERSION في config.js و ?v= في index.html */
 importScripts('config.js', 'core.js');
-const CACHE = 'nabd-v1.2.2';
+const CACHE = 'nabd-v1.2.3';
 const FILES = ['./', 'index.html', 'config.js', 'core.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 

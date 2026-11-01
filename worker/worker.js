@@ -57,6 +57,18 @@ export default {
         return json({ ok: true, sent: rows.length });
       }
 
+      /* ===== إحصائيات ومض آرك (لكل التطبيقات، قاعدة STATS) ===== */
+      if (p === '/wamd/hit' && req.method === 'POST') {
+        if (!env.STATS) return json({ ok: false, error: 'no-stats-db' });
+        const b = await req.json().catch(() => ({}));
+        return json(await wamdHit(env, b));
+      }
+      if (p === '/wamd/analytics' && req.method === 'GET') {
+        if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
+        if (!env.STATS) return json({ error: 'no-stats-db' }, 503);
+        return json(await wamdAnalytics(env, parseInt(q.get('days'), 10)));
+      }
+
       /* ===== إنشاء عائلة ===== */
       if (p === '/family/create' && req.method === 'POST') {
         const b = await req.json().catch(() => ({}));
@@ -682,3 +694,61 @@ async function sha(s) {
 }
 function b64uEnc(bytes) { let s = ''; bytes.forEach((b) => (s += String.fromCharCode(b))); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function b64uDec(str) { const s = atob(str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((str.length + 3) % 4)); return Uint8Array.from(s, (c) => c.charCodeAt(0)); }
+
+/* ---------- إحصائيات ومض آرك (لكل التطبيقات) ----------
+   تقرأ وتكتب جداول الإحصائيات في قاعدة falaq (الربط STATS)، وهي نفس الجداول اللي يكتب فيها push-wamdarc.
+   - POST /wamd/hit        عدّاد مجهول من التطبيقات (نَبْض يرسل هنا)
+   - GET  /wamd/analytics  لوحة الإدارة (يحتاج مفتاح الإدارة) ?days=7|30|90 */
+const W_APPS = /^[a-z]{2,16}$/;
+const W_ONLINE = 150e3;
+const W_DAY = 864e5;
+const wDay = (t) => new Date(t + 3 * 36e5).toISOString().slice(0, 10);   // اليوم بتوقيت الرياض
+let wReady = false;
+async function wInit(env) {
+  if (wReady) return;
+  await env.STATS.batch([
+    env.STATS.prepare('CREATE TABLE IF NOT EXISTS devices (app TEXT NOT NULL, dev TEXT NOT NULL, first INTEGER, last INTEGER, inst INTEGER DEFAULT 0, plat TEXT, ver TEXT, lang TEXT, opens INTEGER DEFAULT 0, PRIMARY KEY (app, dev))'),
+    env.STATS.prepare('CREATE TABLE IF NOT EXISTS days (day TEXT NOT NULL, app TEXT NOT NULL, dev TEXT NOT NULL, opens INTEGER DEFAULT 0, PRIMARY KEY (day, app, dev))'),
+    env.STATS.prepare('CREATE TABLE IF NOT EXISTS pages (day TEXT NOT NULL, path TEXT NOT NULL, n INTEGER DEFAULT 0, PRIMARY KEY (day, path))')
+  ]);
+  wReady = true;
+}
+async function wamdHit(env, b) {
+  const app = String(b.app || ''), dev = String(b.dev || '');
+  if (!W_APPS.test(app) || !/^[a-z0-9]{8,32}$/.test(dev)) return { ok: false };
+  await wInit(env);
+  const now = Date.now(), day = wDay(now), open = b.ev === 'open' ? 1 : 0, inst = b.inst ? 1 : 0;
+  const plat = ['ios', 'android', 'desktop'].includes(b.plat) ? b.plat : 'other';
+  const ver = String(b.ver || '').slice(0, 12), lang = b.lang === 'en' ? 'en' : 'ar';
+  const st = [env.STATS.prepare("INSERT INTO devices (app, dev, first, last, inst, plat, ver, lang, opens) VALUES (?1, ?2, ?3, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(app, dev) DO UPDATE SET last = ?3, inst = MAX(inst, ?4), plat = ?5, ver = CASE WHEN ?6 <> '' THEN ?6 ELSE ver END, lang = ?7, opens = opens + ?8")
+    .bind(app, dev, now, inst, plat, ver, lang, open)];
+  if (open) st.push(env.STATS.prepare('INSERT INTO days (day, app, dev, opens) VALUES (?, ?, ?, 1) ON CONFLICT(day, app, dev) DO UPDATE SET opens = opens + 1').bind(day, app, dev));
+  await env.STATS.batch(st);
+  return { ok: true };
+}
+async function wamdAnalytics(env, days) {
+  await wInit(env);
+  const R = [7, 30, 90].includes(days) ? days : 30;
+  const now = Date.now(), today = wDay(now), d = (n) => wDay(now - n * W_DAY);
+  const from = d(R - 1), prevFrom = d(2 * R - 1), prevTo = d(R);
+  const q = (sql, ...a) => env.STATS.prepare(sql).bind(...a).all().then((r) => r.results || []).catch(() => []);
+  const startToday = Date.parse(today + 'T00:00:00+03:00');
+  const [totals, active, prev, ret, plat, ver, langs, series, fresh, pages, recent, subs, dow] = await Promise.all([
+    q('SELECT app, COUNT(*) total, SUM(inst) inst, SUM(last >= ?) online, SUM(first >= ?) new_today, SUM(opens) opens, SUM(last < ?) dormant FROM devices GROUP BY app', now - W_ONLINE, startToday, now - 14 * W_DAY),
+    q('SELECT app, COUNT(DISTINCT CASE WHEN day = ? THEN dev END) today, COUNT(DISTINCT CASE WHEN day >= ? THEN dev END) d7, COUNT(DISTINCT dev) rng, SUM(opens) opens FROM days WHERE day >= ? GROUP BY app', today, d(6), from),
+    q('SELECT app, COUNT(DISTINCT dev) rng, SUM(opens) opens FROM days WHERE day >= ? AND day <= ? GROUP BY app', prevFrom, prevTo),
+    q('SELECT app, SUM(c >= 2) back, COUNT(*) n, AVG(c) avg_days FROM (SELECT app, dev, COUNT(*) c FROM days WHERE day >= ? GROUP BY app, dev) GROUP BY app', from),
+    q('SELECT app, plat, COUNT(*) n, SUM(inst) inst FROM devices GROUP BY app, plat'),
+    q("SELECT app, ver, COUNT(*) n FROM devices WHERE ver <> '' AND last >= ? GROUP BY app, ver ORDER BY n DESC", now - 30 * W_DAY),
+    q('SELECT app, lang, COUNT(*) n FROM devices GROUP BY app, lang'),
+    q('SELECT day, app, COUNT(*) n, SUM(opens) opens FROM days WHERE day >= ? GROUP BY day, app ORDER BY day', from),
+    q('SELECT app, first FROM devices WHERE first >= ?', now - R * W_DAY),
+    q('SELECT path, SUM(n) n FROM pages WHERE day >= ? GROUP BY path ORDER BY n DESC LIMIT 15', from),
+    q('SELECT app, plat, inst, ver, lang, first, last, opens FROM devices ORDER BY last DESC LIMIT 60'),
+    q('SELECT app, COUNT(*) n FROM subs GROUP BY app'),
+    q("SELECT app, CAST(strftime('%w', day) AS INTEGER) w, COUNT(*) n FROM days WHERE day >= ? GROUP BY app, w", from)
+  ]);
+  const newByDay = {};
+  fresh.forEach((r) => { const k = wDay(r.first) + '|' + r.app; newByDay[k] = (newByDay[k] || 0) + 1; });
+  return { now, today, days: R, from, online_ms: W_ONLINE, totals, active, prev, ret, plat, ver, langs, series, newByDay, pages, recent, subs, dow };
+}
