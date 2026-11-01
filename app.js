@@ -1094,6 +1094,11 @@ var A = (function () {
   setInterval(function () { if (wantReload && !busy()) doReload(); }, 4000);
   setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(); }, 10 * 60e3);
 
+  /* منع التكبير: الضغط مرتين وقرصة الإصبعين (آيفون يتجاهل user-scalable أحياناً) */
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
+
   /* ================= شاشة التثبيت (إجبارية مثل سهم) ================= */
   function installWall() {
     S.view = 'install';

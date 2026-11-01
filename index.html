@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>نَبْض | NABD</title>
 <meta name="description" content="تواصل العائلة فقط: صوت وكتابة وصور ورسم">
 <meta name="theme-color" content="#F4F7FC">
@@ -26,9 +26,11 @@
   color-scheme:light
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
+html,body{height:100%;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+*{touch-action:manipulation}
+.drawwrap,.drawwrap canvas{touch-action:none}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.5;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
-input,textarea{-webkit-user-select:text;user-select:text}
+input,textarea,select{-webkit-user-select:text;user-select:text;font-size:max(16px,1em)}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
 a{color:var(--accent-ink)}
 [hidden]{display:none!important}
@@ -196,11 +198,11 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 <body>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=1.0.1"></script>
-<script src="core.js?v=1.0.1"></script>
-<script src="avatars.js?v=1.0.1"></script>
-<script src="app.js?v=1.0.1"></script>
-<script src="admin.js?v=1.0.1"></script>
+<script src="config.js?v=1.0.2"></script>
+<script src="core.js?v=1.0.2"></script>
+<script src="avatars.js?v=1.0.2"></script>
+<script src="app.js?v=1.0.2"></script>
+<script src="admin.js?v=1.0.2"></script>
 <script src="wamd-stats.js" data-app="nabd" defer></script>
 </body>
 </html>
