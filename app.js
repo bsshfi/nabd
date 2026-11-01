@@ -571,8 +571,8 @@ var A = (function () {
           (fam ? grpIcon(62, 22) : av(o, 62)) +
           '<span class="grow col" style="gap:3px"><span class="row" style="gap:8px;align-items:baseline;flex-wrap:wrap"><span class="nm">' + (fam ? esc(grp().name) : esc(nm(o))) + '</span>' +
           (fam ? '<span class="tiny" style="color:#D2EFEF">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
-          '<span class="pv">' + pv + '</span></span>' +
-          (it.unread ? '<span class="badge">' + num(it.unread) + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, fam) : '') + '</button>';
+          '<span class="pv"' + (it.unread ? ' style="font-weight:700;color:' + (fam ? '#fff' : 'var(--ink)') + '"' : '') + '>' + pv + '</span></span>' +
+          (it.unread ? '<span class="badge" aria-label="' + num(it.unread) + ' رسالة جديدة">' + num(it.unread) + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, fam) : '') + '</button>';
       }).join('');
       box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.c); }; });
     });
@@ -1227,13 +1227,16 @@ var A = (function () {
 
   /* منع التكبير: الضغط مرتين وقرصة الإصبعين (آيفون يتجاهل user-scalable أحياناً) */
   /* التطبيق بالطول فقط: أندرويد يثبّت الاتجاه، والآيفون (ما يسمح بالتثبيت) تطلع له شاشة "لف الجهاز" */
+  // الجوال بالطول فقط · التابلت والآيباد يلفّون عادي
+  function isTablet() { return Math.min(screen.width, screen.height) >= 600; }
   function lockPortrait() {
+    if (isTablet() || plat() === 'desktop') return;
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}
   }
   function checkTurn() {
     // اتجاه الجهاز نفسه (مو حجم الشاشة، عشان الكيبورد ما يخدعنا)
     var t = screen.orientation && screen.orientation.type;
-    var land = plat() !== 'desktop' && (t ? /landscape/.test(t) : Math.abs(window.orientation || 0) === 90);
+    var land = plat() !== 'desktop' && !isTablet() && (t ? /landscape/.test(t) : Math.abs(window.orientation || 0) === 90);
     var el = document.getElementById('turn');
     if (land && !el) {
       el = document.createElement('div'); el.id = 'turn';

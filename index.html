@@ -107,8 +107,10 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 .chatcard .nm{font-family:var(--fd);font-size:22px;font-weight:700;line-height:1.1}
 .chatcard .pv{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chatcard.fam .pv{color:#E6F6F6}
-.badge{min-width:28px;height:28px;padding:0 8px;border-radius:99px;background:var(--orange);color:#fff;font-weight:700;font-size:14px;display:inline-flex;align-items:center;justify-content:center;flex:none}
-.chatcard.fam .badge{background:#fff;color:var(--accent-ink)}
+.badge{min-width:36px;height:36px;padding:0 10px;border-radius:99px;background:#E5252A;color:#fff;font-weight:800;font-size:18px;display:inline-flex;align-items:center;justify-content:center;flex:none;border:3px solid var(--card);box-shadow:0 3px 10px rgba(229,37,42,.45);animation:bpop 1.8s ease-in-out infinite}
+.chatcard.fam .badge{border-color:#fff;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+@keyframes bpop{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.badge{animation:none}}
 .homeic{width:62px;height:62px;border-radius:22px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex:none}
 .notice{border-radius:20px;padding:14px 16px;display:flex;align-items:center;gap:12px;font-size:14px;line-height:1.55}
 .notice.warm{background:var(--warm-bg);color:var(--warm-ink)}
@@ -214,11 +216,11 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 <body>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=1.2.4"></script>
-<script src="core.js?v=1.2.4"></script>
-<script src="avatars.js?v=1.2.4"></script>
-<script src="app.js?v=1.2.4"></script>
-<script src="admin.js?v=1.2.4"></script>
-<script src="wamd-stats.js?v=1.2.4" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
+<script src="config.js?v=1.2.5"></script>
+<script src="core.js?v=1.2.5"></script>
+<script src="avatars.js?v=1.2.5"></script>
+<script src="app.js?v=1.2.5"></script>
+<script src="admin.js?v=1.2.5"></script>
+<script src="wamd-stats.js?v=1.2.5" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
 </body>
 </html>
