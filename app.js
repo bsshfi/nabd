@@ -1094,8 +1094,45 @@ var A = (function () {
   setInterval(function () { if (wantReload && !busy()) doReload(); }, 4000);
   setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(); }, 10 * 60e3);
 
+  /* ================= شاشة التثبيت (إجبارية مثل سهم) ================= */
+  function installWall() {
+    S.view = 'install';
+    var ua = navigator.userAgent, ios = plat() === 'ios';
+    var inSafari = ios && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram|Line|WhatsApp|Snapchat/i.test(ua);
+    var inChromeIOS = ios && /CriOS|EdgiOS/.test(ua);
+    var SH = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+    var PL = '<svg class="ic" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
+    var DT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+    var APPI = '<img src="icons/icon-192.png" width="26" height="26" style="border-radius:7px" alt="">';
+    var st = function (n, i, t) { return '<div class="row" style="gap:12px;font-size:16px;line-height:1.5"><span class="av" style="width:30px;height:30px;background:var(--brand);font-size:15px;font-family:var(--fb)">' + n + '</span>' + (i ? '<span class="av" style="width:36px;height:36px;border-radius:10px;background:var(--bg);color:#0a84ff">' + i + '</span>' : '') + '<span class="grow">' + t + '</span></div>'; };
+    var steps;
+    if (inChromeIOS) steps = st('١', SH, 'اضغط زر <b>المشاركة</b> فوق جنب شريط العنوان') + st('٢', PL, 'اختر <b>إضافة إلى الشاشة الرئيسية</b> ثم <b>إضافة</b>') + st('٣', APPI, 'افتح <b>نَبْض</b> من الشاشة الرئيسية');
+    else if (ios && !inSafari) steps = st('١', '', 'افتح هذا الرابط في <b>سفاري</b>، التطبيق اللي أنت فيه ما يسمح بالإضافة للشاشة الرئيسية') + st('٢', SH, 'في سفاري اضغط زر <b>المشاركة</b>') + st('٣', PL, 'اختر <b>إضافة إلى الشاشة الرئيسية</b>');
+    else if (ios) steps = st('١', SH, 'اضغط زر <b>المشاركة</b> تحت في سفاري') + st('٢', PL, 'اختر <b>إضافة إلى الشاشة الرئيسية</b> ثم <b>إضافة</b>') + st('٣', APPI, 'افتح <b>نَبْض</b> من الشاشة الرئيسية');
+    else steps = st('١', DT, 'افتح قائمة المتصفح <b>⋮</b>') + st('٢', PL, 'اختر <b>تثبيت التطبيق</b> أو <b>إضافة إلى الشاشة الرئيسية</b>') + st('٣', APPI, 'افتح <b>نَبْض</b> من الشاشة الرئيسية');
+    var hc = /[#&]j=([A-Za-z0-9-]+)/.exec(location.hash), code = hc ? prettyCode(normCode(hc[1])) : '';
+    var el = show('<div class="col center" style="gap:8px;margin-top:12px;text-align:center">' + LOGO.replace('class="logo"', 'class="logo" style="width:84px;height:84px"') +
+      '<h1 style="font-size:26px;margin-top:6px">أضف نَبْض إلى الشاشة الرئيسية</h1>' +
+      '<p class="muted" style="margin:0;line-height:1.7">نَبْض يشتغل كتطبيق من الشاشة الرئيسية، وكذا بس توصلك التنبيهات والنبضة حتى والتطبيق مقفل.</p></div>' +
+      '<div class="card col" style="gap:14px">' + steps + '</div>' +
+      (code ? '<div class="card col" style="gap:10px"><span class="small muted">انسخ كود العائلة قبل، وبتحتاجه داخل التطبيق:</span><div class="inp code" style="height:auto;padding:12px;border-style:dashed">' + esc(code) + '</div><button class="btn sm ghost" id="cpc">' + ic('copy') + ' نسخ الكود</button></div>' : '') +
+      '<button class="btn block brand" id="instNow"' + (deferredInstall ? '' : ' hidden') + '>ثبّت نَبْض الآن</button>' +
+      (ios && inSafari ? '<div style="text-align:center;font-size:30px;animation:beat 1.4s ease-in-out infinite;margin-top:auto">⬇️</div>' : ''));
+    if ($('#cpc', el)) $('#cpc', el).onclick = function () { copy(code); };
+    $('#instNow', el).onclick = function () {
+      if (!deferredInstall) return;
+      deferredInstall.prompt();
+      deferredInstall.userChoice.then(function () { deferredInstall = null; $('#instNow').hidden = true; });
+    };
+    window.addEventListener('beforeinstallprompt', function () { var b = $('#instNow'); if (b) b.hidden = false; });
+  }
+
   /* ================= التشغيل ================= */
   function boot() {
+    if (!standalone() && !/[?&]browser\b/.test(location.search)) {
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+      return installWall();
+    }
     if ('serviceWorker' in navigator) {
       var hadCtl = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.register('sw.js').then(function (reg) { S.reg = reg; }).catch(function () {});
