@@ -29,6 +29,7 @@
       '<div>' + ic('trash') + '<span class="grow col" style="gap:0"><span>الحذف التلقائي لهذا الجهاز</span><span class="tiny muted">' + autoDelText() + '</span></span></div></div>' +
       '<span class="label">المظهر</span><div class="seg" id="thm">' + [['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(function (t) { return '<button data-th="' + t[0] + '" class="' + (A.theme() === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       '<span class="label">' + esc(nm(S.me)) + '</span><div class="list">' +
+      (admin ? '' : '<button id="myAv">' + av(S.me, 28) + '<span class="grow">' + (parent ? 'تغيير اسمي وصورتي' : 'تغيير صورتي') + '</span></button>') +
       (parent ? '<button id="chPin">' + ic('lock') + '<span class="grow">تغيير رمزي السري</span></button>' : '') +
       '<button id="swp">' + ic('swap') + '<span class="grow">تبديل الشخص</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button>' +
       '<button id="out" style="color:var(--danger)">' + ic('close') + '<span class="grow">خروج ' + esc(nm(S.me)) + ' من هذا الجهاز</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button></div>' +
@@ -41,6 +42,14 @@
     if ($('#goDev')) $('#goDev').onclick = A.devices;
     if ($('#goLink')) $('#goLink').onclick = linkSheet;
     if ($('#goBak')) $('#goBak').onclick = A.backup;
+    if ($('#myAv')) $('#myAv').onclick = function () {
+      var me = S.me, m = A.member(me);
+      A.memberForm(Object.assign({ id: me }, m), function (dd) {
+        var old = JSON.stringify(S.prof.members[me]);
+        S.prof.members[me] = Object.assign({}, m, { av: dd.av, name: parent ? dd.name : m.name });
+        A.saveProfile().then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[me] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
+      }, { lockKind: true, avatarOnly: true, lockName: !parent });
+    };
     if ($('#chPin')) $('#chPin').onclick = function () {
       A.setPin('رمزك السري الجديد', function (p) { A.api('/pin', { member: S.me, pin: p }).then(function () { A.toast('تغيّر الرمز ✓'); }, function () { A.toast('ما قدرنا نغيّره'); }); });
     };

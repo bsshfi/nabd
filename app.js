@@ -334,8 +334,8 @@ var A = (function () {
     var tab = d.av && d.av.photo ? 'photo' : d.av && d.av.e ? 'emoji' : 'draw';
     var keep = S.prof; 
     var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">' + (m ? 'تعديل ' + esc(m.name) : 'فرد جديد') + '</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<div class="row" style="gap:14px"><span id="pv"></span><label class="field grow"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"></label></div>' +
-      '<div class="field"><span>' + (opts.lockKind ? (d.kind === 'parent' ? 'أب أو أم' : 'ولد أو بنت') : 'النوع') + '</span><div class="chips" style="display:grid;grid-template-columns:repeat(' + types.length + ',minmax(0,1fr))">' + types.map(function (t) { return '<button class="chip' + (d.kind === t[0] && d.g === t[1] ? ' on' : '') + '" data-t="' + t[0] + '|' + t[1] + '">' + t[2] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="row" style="gap:14px"><span id="pv"></span><label class="field grow"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"' + (opts.lockName ? ' readonly style="opacity:.6"' : '') + '></label></div>' +
+      '<div class="field"' + (opts.avatarOnly ? ' hidden' : '') + '><span>' + (opts.lockKind ? (d.kind === 'parent' ? 'أب أو أم' : 'ولد أو بنت') : 'النوع') + '</span><div class="chips" style="display:grid;grid-template-columns:repeat(' + types.length + ',minmax(0,1fr))">' + types.map(function (t) { return '<button class="chip' + (d.kind === t[0] && d.g === t[1] ? ' on' : '') + '" data-t="' + t[0] + '|' + t[1] + '">' + t[2] + '</button>'; }).join('') + '</div></div>' +
       '<div class="field"><span>الصورة الرمزية</span><div class="seg"><button data-tab="draw">رسومات</button><button data-tab="emoji">إيموجي</button><button data-tab="photo">صورة</button></div></div>' +
       '<div id="avbox"></div><div class="err" id="me"></div><button class="btn block" id="ok">' + (m ? 'حفظ' : 'إضافة') + '</button>');
     function paintPv() { S.prof = { members: {} }; S.prof.members[d.id] = d; $('#pv', sh).innerHTML = av(d.id, 72); S.prof = keep; }
@@ -958,7 +958,10 @@ var A = (function () {
     $('#nlater', el).onclick = function () { seenNudge(); closeNudge(); };
     startBeat();
   }
-  function seenNudge() { if (!nudgeOn) return; S.nudgeShown[nudgeOn.id] = 1; api('/nudge/state', { id: nudgeOn.id, state: 'seen' }).catch(function () {}); }
+  function clearNudgeNotif(id) {
+    try { if (S.reg && S.reg.getNotifications) S.reg.getNotifications({ tag: 'nudge-' + id }).then(function (l) { l.forEach(function (x) { x.close(); }); }); } catch (e) {}
+  }
+  function seenNudge() { if (!nudgeOn) return; S.nudgeShown[nudgeOn.id] = 1; clearNudgeNotif(nudgeOn.id); api('/nudge/state', { id: nudgeOn.id, state: 'seen' }).catch(function () {}); }
   function closeNudge(keep) {
     stopBeat();
     var el = document.querySelector('.nudgein'); if (el) el.remove();
@@ -1037,6 +1040,9 @@ var A = (function () {
   }
   function handleEvents(evs) {
     var changed = false;
+    // نبضات انتهت (وقّفها الأب أو انشافت) ما نعرضها
+    var ended = {};
+    evs.forEach(function (e) { if (e.t === 'nudge_state' && e.d && /stopped|seen|expired/.test(e.d.state)) ended[e.d.id] = 1; });
     return evs.reduce(function (p, e) {
       return p.then(function () {
         S.evAcks.push(e.id);
@@ -1054,7 +1060,7 @@ var A = (function () {
         if (e.t === 'settings') { S.fam.auto_del = d.auto_del; if (d.links) S.fam.links = d.links; changed = true; return autoDelete(); }
         if (e.t === 'update') { checkUpdate(); return; }
         if (e.t === 'wipe') return wipe(d.m).then(function (n) { if (n) { changed = true; if (d.m === S.me) toast('انحذفت المحادثات من هذا الجهاز'); } });
-        if (e.t === 'nudge') { if (Date.now() - (d.at || e.at) < 10 * 60e3) showNudge(d); return; }
+        if (e.t === 'nudge') { if (!ended[d.id] && Date.now() - (d.at || e.at) < 10 * 60e3) showNudge(d); return; }
         if (e.t === 'nudge_state') {
           if (S.nudges[d.id] || S.dev.members.indexOf(d.f) >= 0) {
             var n = S.nudges[d.id] || (S.nudges[d.id] = { id: d.id, to: d.to, at: e.at });
@@ -1062,7 +1068,8 @@ var A = (function () {
             n.n = Math.max(n.n || 1, d.n || 1); changed = true;
             if (d.state === 'seen' && S.chat === pairId(d.f, d.to) && navigator.vibrate) navigator.vibrate(80);
           }
-          if (nudgeOn && nudgeOn.id === d.id && d.state === 'stopped') closeNudge();
+          if (nudgeOn && nudgeOn.id === d.id && d.state === 'stopped') { closeNudge(); toast(nm(d.f) + (fem(d.f) ? ' وقّفت' : ' وقّف') + ' النبضة'); }
+          if (d.state === 'stopped') { S.nudgeShown[d.id] = 1; clearNudgeNotif(d.id); }
           return;
         }
         if (e.t === 'profile' || e.t === 'roles') { changed = true; return loadFamily(); }

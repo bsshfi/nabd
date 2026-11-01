@@ -1,7 +1,7 @@
 /* نَبْض | NABD — يشغّل التطبيق بدون إنترنت، ويحدّثه تلقائيًا، ويعرض الإشعارات والنبضة
    مع كل تحديث: غيّر CACHE هنا و VERSION في config.js و ?v= في index.html */
 importScripts('config.js', 'core.js');
-const CACHE = 'nabd-v1.2.0';
+const CACHE = 'nabd-v1.2.1';
 const FILES = ['./', 'index.html', 'config.js', 'core.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 
@@ -84,6 +84,16 @@ async function onPush(data) {
       title = '💓 ' + from + ' ' + (many ? (fem ? 'تنادي ' : 'ينادي ') + NB.nameOf(prof, it.to) : (fem ? 'تناديك' : 'يناديك'));
       body = 'افتح نَبْض ورد ' + (fem ? 'عليها' : 'عليه') + ' بصوت أو كتابة أو صورة أو رسمة';
       Object.assign(opt, { tag: 'nudge-' + it.id, renotify: true, requireInteraction: true, vibrate: [600, 200, 600, 200, 900], silent: false });
+    } else if (it.t === 'ns') {
+      // النبضة انوقفت: نستبدل الإشعار بإشعار هادي ونشيله بعد ثواني
+      const from = NB.nameOf(prof, it.f), fem = ((prof.members || {})[it.f] || {}).g === 'f';
+      const old = await self.registration.getNotifications({ tag: 'nudge-' + it.id });
+      old.forEach((x) => x.close());
+      shown.push(self.registration.showNotification('نَبْض', { body: from + (fem ? ' وقّفت' : ' وقّف') + ' النبضة', tag: 'nudge-' + it.id, silent: true, renotify: false, icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', lang: 'ar', dir: 'rtl', data: it })
+        .then(() => new Promise((r) => setTimeout(r, 4000)))
+        .then(() => self.registration.getNotifications({ tag: 'nudge-' + it.id }))
+        .then((l) => l.forEach((x) => x.close())));
+      continue;
     } else if (it.t === 'b') {
       title = '💾 وقت النسخة الاحتياطية';
       body = 'احفظ نسخة كاملة من رسائل العائلة وصورها على جهازك';

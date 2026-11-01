@@ -385,6 +385,8 @@ export default {
         const ds = await famDevices(env, F.id);
         const tell = ds.filter((d) => d.id !== D.id && (jarr(d.members).includes(n.src) || (st !== 'delivered' && jarr(d.members).includes(n.dst))));
         await event(env, tell.map((d) => d.id), 'nudge_state', { id: n.id, state: st, n: n.n, f: n.src, to: n.dst }, now);
+        // الأب وقّف النبضة ← نوقّف الإشعار على أجهزة الطفل فوراً (حتى لو التطبيق مقفل)
+        if (st === 'stopped') ctx.waitUntil(push(env, ds.filter((d) => d.endpoint && d.id !== D.id && jarr(d.members).includes(n.dst)), { t: 'ns', id: n.id, f: n.src, to: n.dst }));
         return json({ ok: true, state: st });
       }
 
