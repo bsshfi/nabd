@@ -105,10 +105,11 @@ var A = (function () {
     var list = ['g'];
     live().forEach(function (id) {
       if (id === me) return;
-      if (isParent(me) || isParent(id)) list.push(pairId(me, id));
+      if (isParent(me) || isParent(id) || linked(me, id)) list.push(pairId(me, id));
     });
     return list;
   }
+  function linked(a, b) { var k = a < b ? a + ':' + b : b + ':' + a; return (S.fam.links || []).indexOf(k) >= 0; }
   function otherOf(chat) { var p = NB.chatParts(chat); return p ? (p[0] === S.me ? p[1] : p[0]) : null; }
   function chatTitle(chat) { return chat === 'g' ? 'العائلة' : nm(otherOf(chat)); }
 
@@ -147,7 +148,7 @@ var A = (function () {
   function saveDev() { return NB.kv.set('dev', S.dev); }
   function loadFamily() {
     return api('/family').then(function (f) {
-      S.roles = f.roles || []; S.fam = { created: f.created, owner: f.owner, auto_del: f.auto_del, update_req: f.update_req };
+      S.roles = f.roles || []; S.fam = { created: f.created, owner: f.owner, auto_del: f.auto_del, update_req: f.update_req, links: f.links || [] };
       S.dev = { members: f.dev.members || [], trusted: f.dev.trusted || [] };
       S.reminder = !!f.dev.reminder;
       return NB.decJSON(f.blob).then(function (p) {
@@ -236,7 +237,7 @@ var A = (function () {
         S.acct = { fam: j.fam, dev: j.dev, token: j.token, key: key, code: prettyCode(norm), created: j.created };
         return NB.kv.set('acct', S.acct);
       }).then(function () {
-        S.roles = j.roles; S.fam = { created: j.created, owner: j.owner, auto_del: j.auto_del, update_req: j.update_req };
+        S.roles = j.roles; S.fam = { created: j.created, owner: j.owner, auto_del: j.auto_del, update_req: j.update_req, links: j.links || [] };
         S.dev = { members: [], trusted: [] };
         return NB.decJSON(j.blob).then(function (p) { S.prof = p; S.rev = j.rev; });
       }).then(function () {
@@ -613,8 +614,12 @@ var A = (function () {
 
   /* ----- الصوت ----- */
   var audio = null, audioEl = null, audioTimer = null;
+  function clearNowPlaying(a) {
+    try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) {}
+    try { if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; } } catch (e) {}
+  }
   function stopAudio() {
-    if (audio) { audio.pause(); audio = null; }
+    if (audio) { clearNowPlaying(audio); audio = null; }
     if (audioTimer) clearInterval(audioTimer);
     if (audioEl) { $('.pl', audioEl).innerHTML = PLAY; audioEl.querySelectorAll('.wave i').forEach(function (i) { i.classList.remove('on'); }); audioEl = null; }
   }
@@ -626,7 +631,8 @@ var A = (function () {
     audio = new Audio(u); audioEl = el;
     $('.pl', el).innerHTML = PAUSE;
     var bars = el.querySelectorAll('.wave i');
-    audio.onended = function () { URL.revokeObjectURL(u); stopAudio(); };
+    audio.onended = function () { stopAudio(); URL.revokeObjectURL(u); };
+    try { if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: 'رسالة من ' + nm(m.s), artist: 'نَبْض' }); } catch (e) {}
     audio.onerror = function () { stopAudio(); toast('ما قدرنا نشغّل الرسالة على هذا الجهاز'); };
     audio.play().catch(function () { stopAudio(); });
     audioTimer = setInterval(function () {
@@ -877,7 +883,7 @@ var A = (function () {
       var lastV = ms.filter(function (m) { return m.s === d.f && m.k === 'voice' && NB.mediaSize(m); }).pop();
       if (lastV && Date.now() - lastV.t < 30 * 60e3) {
         var b = $('#nl', el); b.hidden = false; b.innerHTML = PLAY + ' اسمع الرسالة · ' + fmtDur(lastV.dur || 0);
-        b.onclick = function () { stopBeat(); var a = new Audio(URL.createObjectURL(NB.media(lastV))); a.play().catch(function () {}); seenNudge(); };
+        b.onclick = function () { stopBeat(); var a = new Audio(URL.createObjectURL(NB.media(lastV))); a.onended = function () { clearNowPlaying(a); }; a.play().catch(function () {}); seenNudge(); };
       }
     });
     el.querySelectorAll('[data-r]').forEach(function (b) {
@@ -932,7 +938,7 @@ var A = (function () {
   function doSync() {
     if (!S.acct || !S.acct.token) return;
     syncing = true;
-    var changed = false, needFam = false;
+    var changed = false, needFam = false, fresh = [];
     var body = syncBody();
     api('/sync', body).then(function (r) {
       applySync(r);
@@ -945,7 +951,7 @@ var A = (function () {
             var rec = { id: m.id, chat: m.chat, s: m.sender, k: m.kind, t: m.created, st: {}, r: [] };
             if (m.kind === 'text') rec.text = h.text;
             else { rec.buf = x.data.slice().buffer; rec.mime = h.mime || ''; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
-            return NB.msgs.get(m.id).then(function (old) { if (!old) { changed = true; return NB.msgs.put(rec); } });
+            return NB.msgs.get(m.id).then(function (old) { if (!old) { changed = true; fresh.push(rec); return NB.msgs.put(rec); } });
           }).then(function () { S.acks.push(m.id); }, function (e) { if (e && e.status === 404) S.acks.push(m.id); });
         });
       }, Promise.resolve()).then(function () { return handleEvents(r.evs || []); }).then(function (c2) { changed = changed || c2; return r; });
@@ -953,6 +959,7 @@ var A = (function () {
       if (needFam) return loadFamily().then(function () { changed = true; });
     }).then(function () {
       if (changed) refreshView();
+      if (fresh.length) inAppAlert(fresh);
       if (S.view === 'home' && !S.me) home();
     }).catch(function (e) {
       if (e && e.status === 401) return lostDevice();
@@ -983,7 +990,7 @@ var A = (function () {
             });
           }));
         }
-        if (e.t === 'settings') { S.fam.auto_del = d.auto_del; return autoDelete(); }
+        if (e.t === 'settings') { S.fam.auto_del = d.auto_del; if (d.links) S.fam.links = d.links; changed = true; return autoDelete(); }
         if (e.t === 'update') { checkUpdate(); return; }
         if (e.t === 'wipe') return wipe(d.m).then(function (n) { if (n) { changed = true; if (d.m === S.me) toast('انحذفت المحادثات من هذا الجهاز'); } });
         if (e.t === 'nudge') { if (Date.now() - (d.at || e.at) < 10 * 60e3) showNudge(d); return; }
@@ -1000,6 +1007,32 @@ var A = (function () {
         if (e.t === 'profile' || e.t === 'roles') { changed = true; return loadFamily(); }
       });
     }, Promise.resolve()).then(function () { return changed; });
+  }
+  /* رسالة جديدة والتطبيق مفتوح: صوت واهتزاز وشريط واضح */
+  function ding(strong) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.resume) actx.resume();
+      [0, .14].forEach(function (off, i) {
+        var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + off;
+        o.type = 'sine'; o.frequency.value = i ? 1046 : 784; o.connect(g); g.connect(actx.destination);
+        g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(strong ? .4 : .18, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+        o.start(t); o.stop(t + .25);
+      });
+    } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate(strong ? [200, 80, 200] : 60);
+  }
+  function inAppAlert(list) {
+    var mine = list.filter(function (m) { return m.s !== S.me && S.dev.members.some(function (x) { return x !== m.s && chatMembers(m.chat).indexOf(x) >= 0; }); });
+    if (!mine.length || document.visibilityState !== 'visible') return;
+    var m = mine[mine.length - 1], here = S.view === 'chat' && S.chat === m.chat;
+    ding(!here);
+    if (here) return;
+    var old = document.querySelector('.inbanner'); if (old) old.remove();
+    var b = document.createElement('button'); b.className = 'inbanner';
+    b.innerHTML = av(m.s, 44) + '<span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + esc(nm(m.s)) + (m.chat === 'g' ? ' · العائلة' : '') + '</b><span class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (m.k === 'text' ? esc((m.text || '').slice(0, 70)) : NB.KIND[m.k]) + '</span></span>';
+    b.onclick = function () { b.remove(); var parts = NB.chatParts(m.chat) || []; if (S.me && chatsFor(S.me).indexOf(m.chat) >= 0) openChat(m.chat); else { var w = parts.filter(function (x) { return S.dev.members.indexOf(x) >= 0 && !needsPin(x); })[0]; if (w) { S.me = w; NB.kv.set('me', w); openChat(m.chat); } } };
+    document.body.appendChild(b);
+    setTimeout(function () { b.remove(); }, 6000);
   }
   function wipe(m) {
     if (!m || S.dev.members.indexOf(m) < 0) return Promise.resolve(0);
@@ -1061,9 +1094,10 @@ var A = (function () {
         return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: NB.b64d(CONFIG.VAPID) });
       });
     }).then(function (s) {
-      return NB.kv.get('endpoint').then(function (old) {
+      return NB.kv.get('endpoint2').then(function (old) {
         if (!force && old === s.endpoint) return;
-        return api('/sub', { endpoint: s.endpoint }).then(function () { return NB.kv.set('endpoint', s.endpoint); });
+        var j = s.toJSON ? s.toJSON() : {};
+        return api('/sub', { endpoint: s.endpoint, keys: j.keys || {} }).then(function () { return NB.kv.set('endpoint2', s.endpoint); });
       });
     }).catch(function () {});
   }

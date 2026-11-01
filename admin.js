@@ -201,12 +201,22 @@
         '<span class="label">الحذف التلقائي للمحادثات</span><div class="card col" style="gap:10px"><span class="small muted">تنحذف الرسائل والوسائط الأقدم من:</span>' +
         '<div class="chips" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr))">' + [[7, '٧ أيام'], [30, '٣٠ يوم'], [90, '٩٠ يوم'], [0, 'أبداً']].map(function (o) { return '<button class="chip' + (j.auto_del === o[0] ? ' on' : '') + '" data-ad="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' +
         '<span class="tiny muted">ينطبق على كل الأجهزة ما عدا المشرفين. قبل ما تختار مدة قصيرة، خذ نسخة كاملة من «النسخ الاحتياطي».</span></div>' +
+        whoTalks() +
         '<span class="label">صلاحيات الإدارة</span><div class="list">' + ids.filter(function (id) { return A.isParent(id) || (A.role(id) || {}).admin || A.isOwner(id); }).concat(ids.filter(function (id) { return !A.isParent(id) && !(A.role(id) || {}).admin && !A.isOwner(id); })).map(function (id) {
           var owner = A.isOwner(id), r = A.role(id) || {};
           return '<div>' + av(id, 36) + '<span class="grow col" style="gap:0"><b style="font-size:15px">' + esc(nm(id)) + (owner ? '' : A.fem(id) ? ' مشرفة' : ' مشرف') + '</b>' + (owner ? '' : '<span class="tiny muted">بدونها تنطبق ' + (A.fem(id) ? 'عليها' : 'عليه') + ' إعدادات الإدارة مثل الأبناء</span>') + '</span>' +
             (owner ? '<span class="pill" style="background:var(--brand-soft);color:var(--brand-ink);font-weight:600">المدير الأساسي</span>' : meOwner ? '<button class="tog' + (r.admin ? ' on' : '') + '" data-ad2="' + id + '" role="switch" aria-checked="' + !!r.admin + '" aria-label="' + esc(nm(id)) + ' مشرف"></button>' : '<span class="tiny muted">' + (r.admin ? (A.fem(id) ? 'مشرفة' : 'مشرف') : '—') + '</span>') + '</div>';
         }).join('') + '</div>' +
         (meOwner ? '' : '<span class="tiny muted" style="text-align:center">المدير الأساسي بس يعطي ويشيل الإشراف.</span>');
+      document.querySelectorAll('[data-lk]').forEach(function (b) {
+        b.onclick = function () {
+          var p = b.dataset.lk.split('|'), on = !b.classList.contains('on');
+          A.api('/admin/links', { member: S.me, a: p[0], b: p[1], on: on }).then(function (r) {
+            S.fam.links = r.links; b.classList.toggle('on', on); b.setAttribute('aria-checked', on);
+            A.toast(on ? A.nm(p[0]) + ' و' + A.nm(p[1]) + ' يقدرون يتراسلون ✓' : 'انقفلت المحادثة بينهم');
+          }, function () { A.toast('ما قدرنا'); });
+        };
+      });
       $('#updAll').onclick = function () {
         var b = this; b.disabled = true;
         A.api('/admin/update', { member: S.me, ver: CONFIG.VERSION }).then(function () { A.toast('الأجهزة المتصلة تتحدّث الحين، والباقي أول ما تتصل ✓', 3500); setTimeout(load, 9000); }, function () { A.toast('ما قدرنا'); }).then(function () { b.disabled = false; });
@@ -229,6 +239,18 @@
       });
     }
   };
+  /* مين يكلّم مين: الأب والأم مع الكل دائماً، وبين الأبناء حسب اختيار المدير */
+  function whoTalks() {
+    var kids = A.live().filter(function (id) { return !A.isParent(id); }), rows = '';
+    for (var i = 0; i < kids.length; i++) for (var j = i + 1; j < kids.length; j++) {
+      var a = kids[i], b = kids[j], k = a < b ? a + ':' + b : b + ':' + a, on = (S.fam.links || []).indexOf(k) >= 0;
+      rows += '<div>' + av(a, 34) + '<span style="color:var(--soft)">⇄</span>' + av(b, 34) + '<b class="grow" style="font-size:15px">' + esc(nm(a)) + ' و' + esc(nm(b)) + '</b>' +
+        '<button class="tog' + (on ? ' on' : '') + '" data-lk="' + a + '|' + b + '" role="switch" aria-checked="' + on + '" aria-label="محادثة بين ' + esc(nm(a)) + ' و' + esc(nm(b)) + '"></button></div>';
+    }
+    if (!rows) return '';
+    return '<span class="label">مين يكلّم مين</span><div class="list">' + rows + '</div>' +
+      '<span class="tiny muted" style="margin:-6px 6px 0">الأب والأم يتكلمون مع الكل دائماً. فعّل المحادثة الخاصة بين الأبناء اللي تبيهم يتراسلون.</span>';
+  }
   function devSheet(id, ds, reload) {
     var meOwner = A.isOwner(S.me);
     var sh = A.sheet('<div class="row">' + av(id, 52) + '<h2 class="grow fd" style="font-size:22px">أجهزة ' + esc(nm(id)) + '</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +

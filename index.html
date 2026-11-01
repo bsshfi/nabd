@@ -180,6 +180,8 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 .dots.shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 .toast{position:fixed;left:50%;bottom:calc(var(--safe-b) + 90px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:14px;font-size:15px;z-index:60;max-width:90vw;text-align:center;animation:fade .2s}
+.inbanner{position:fixed;top:calc(var(--safe-t) + 10px);left:50%;transform:translateX(-50%);width:min(520px,calc(100% - 20px));z-index:58;background:#fff;border-radius:22px;box-shadow:0 12px 30px rgba(27,35,51,.25);padding:12px 14px;display:flex;align-items:center;gap:12px;animation:drop .25s}
+@keyframes drop{from{transform:translate(-50%,-30px);opacity:0}}
 .viewer{position:fixed;inset:0;z-index:55;background:#000;display:flex;align-items:center;justify-content:center}
 .viewer img{max-width:100%;max-height:100%}
 .avgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;justify-items:center}
@@ -198,11 +200,11 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 <body>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=1.0.3"></script>
-<script src="core.js?v=1.0.3"></script>
-<script src="avatars.js?v=1.0.3"></script>
-<script src="app.js?v=1.0.3"></script>
-<script src="admin.js?v=1.0.3"></script>
+<script src="config.js?v=1.1.0"></script>
+<script src="core.js?v=1.1.0"></script>
+<script src="avatars.js?v=1.1.0"></script>
+<script src="app.js?v=1.1.0"></script>
+<script src="admin.js?v=1.1.0"></script>
 <script src="wamd-stats.js" data-app="nabd" defer></script>
 </body>
 </html>

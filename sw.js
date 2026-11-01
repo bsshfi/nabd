@@ -1,7 +1,7 @@
 /* نَبْض | NABD — يشغّل التطبيق بدون إنترنت، ويحدّثه تلقائيًا، ويعرض الإشعارات والنبضة
    مع كل تحديث: غيّر CACHE هنا و VERSION في config.js و ?v= في index.html */
 importScripts('config.js', 'core.js');
-const CACHE = 'nabd-v1.0.3';
+const CACHE = 'nabd-v1.1.0';
 const FILES = ['./', 'index.html', 'config.js', 'core.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 
@@ -38,10 +38,14 @@ self.addEventListener('fetch', (e) => {
 /* ---------- الإشعارات ---------- */
 const isIOS = /iphone|ipad|ipod|macintosh/i.test(self.navigator.userAgent || '') && !/android/i.test(self.navigator.userAgent || '');
 
-async function onPush() {
+async function onPush(data) {
   let items = [];
   const acct = await NB.kv.get('acct').catch(() => null);
-  try {
+  if (data) {
+    // المحتوى وصل مع الإشعار نفسه (أسرع)
+    items = [data];
+    if (data.t === 'n' && acct && acct.token) fetch(CONFIG.API + '/nudge/state', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + acct.token }, body: JSON.stringify({ id: data.id, state: 'delivered' }) }).catch(() => {});
+  } else try {
     if (acct && acct.token) {
       const r = await fetch(CONFIG.API + '/pending', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + acct.token }, body: '{}' });
       items = (await r.json()).items || [];
@@ -72,7 +76,7 @@ async function onPush() {
       }
       body = NB.KIND[it.k] || 'رسالة';
       if (it.k === 'text' && it.p) { try { body = (await NB.decJSON(it.p)).x || body; } catch (e) {} }
-      opt.tag = 'chat-' + it.chat; opt.renotify = true;
+      Object.assign(opt, { tag: 'chat-' + it.chat, renotify: true, silent: false, vibrate: [300, 120, 300], requireInteraction: !isIOS, timestamp: Date.now() });
     } else if (it.t === 'n') {
       const from = NB.nameOf(prof, it.f);
       const many = (dev.members || []).length > 1;
@@ -92,7 +96,7 @@ async function onPush() {
   if (!shown.length && !(visible && !isIOS)) shown.push(self.registration.showNotification('نَبْض', { body: 'عندك جديد في نَبْض', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'nabd' }));
   await Promise.all(shown);
 }
-self.addEventListener('push', (e) => e.waitUntil(onPush()));
+self.addEventListener('push', (e) => { let d = null; try { d = e.data ? e.data.json() : null; } catch (x) {} e.waitUntil(onPush(d)); });
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();

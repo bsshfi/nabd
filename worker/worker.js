@@ -51,7 +51,7 @@ export default {
         const src = b.ar || b;
         const title = String(src.title || '').trim().slice(0, 80), text = String(src.body || '').trim().slice(0, 300);
         if (!title) return json({ error: 'missing' }, 400);
-        const rows = (await env.DB.prepare('SELECT id, endpoint, pending FROM devices WHERE endpoint IS NOT NULL').all()).results || [];
+        const rows = (await env.DB.prepare('SELECT id, endpoint, p256dh, auth, pending FROM devices WHERE endpoint IS NOT NULL').all()).results || [];
         await env.DB.prepare('INSERT INTO bcast (created, title, body, total) VALUES (?,?,?,?)').bind(now, title, text, rows.length).run();
         ctx.waitUntil(push(env, rows, { t: 'x', title, body: text }));
         return json({ ok: true, sent: rows.length });
@@ -100,9 +100,8 @@ export default {
       /* ===== من هنا: طلبات الأجهزة (توكن) ===== */
       const D = await authDevice(req, env);
       if (!D) return json({ error: 'auth' }, 401);
-      const F = await env.DB.prepare('SELECT * FROM families WHERE id=?').bind(D.fam).first();
+      const [F, M] = await Promise.all([env.DB.prepare('SELECT * FROM families WHERE id=?').bind(D.fam).first(), members(env, D.fam)]);
       if (!F) return json({ error: 'auth' }, 401);
-      const M = await members(env, F.id);
       const byId = Object.fromEntries(M.map((m) => [m.id, m]));
       const devMembers = jarr(D.members), devTrusted = jarr(D.trusted);
       // العضو اللي يتصرف الحين (لازم يكون مضاف لهذا الجهاز)
@@ -204,6 +203,19 @@ export default {
         await event(env, (await famDevices(env, F.id)).map((d) => d.id), 'settings', { auto_del: days }, now);
         return json({ ok: true, auto_del: days });
       }
+      if (p === '/admin/links' && req.method === 'POST') {
+        // مين يكلّم مين: السماح بمحادثة خاصة بين طفلين
+        const b = await req.json().catch(() => ({}));
+        if (!actorAdmin(b.member)) return json({ error: 'forbidden' }, 403);
+        const x = byId[b.a], y = byId[b.b];
+        if (!x || !y || x.id === y.id || x.kind === 'parent' || y.kind === 'parent') return json({ error: 'bad' }, 400);
+        const key = x.id < y.id ? x.id + ':' + y.id : y.id + ':' + x.id;
+        const links = jarr(F.links).filter((k) => k !== key);
+        if (b.on) links.push(key);
+        await env.DB.prepare('UPDATE families SET links=? WHERE id=?').bind(JSON.stringify(links), F.id).run();
+        await event(env, (await famDevices(env, F.id)).map((d) => d.id), 'settings', { auto_del: F.auto_del, links }, now);
+        return json({ ok: true, links });
+      }
       if (p === '/admin/update' && req.method === 'POST') {
         const b = await req.json().catch(() => ({}));
         if (!actorAdmin(b.member)) return json({ error: 'forbidden' }, 403);
@@ -245,20 +257,21 @@ export default {
         const chat = q.get('chat') || '', id = q.get('id') || '', kind = q.get('kind') || '', prev = q.get('prev') || '';
         if (!a) return json({ error: 'forbidden' }, 403);
         if (!okId(id) || !['text', 'voice', 'photo', 'draw'].includes(kind) || (prev && !okB64(prev, 900))) return json({ error: 'bad' }, 400);
-        const parts = chatMembers(chat, M);
+        const parts = chatMembers(chat, M, F);
         if (!parts || !parts.includes(a.id)) return json({ error: 'badchat' }, 400);
         const body = await req.text();
         if (!body || body.length > MAX_MEDIA || !/^[A-Za-z0-9_-]+$/.test(body.slice(0, 64))) return json({ error: 'toolarge' }, 413);
-        if (await env.DB.prepare('SELECT 1 FROM msgs WHERE id=?').bind(id).first()) return json({ ok: true, dup: true });
         const targets = (await famDevices(env, F.id)).filter((d) => d.id !== D.id && jarr(d.members).some((m) => parts.includes(m)));
-        const stmts = [env.DB.prepare('INSERT INTO msgs (id, fam, chat, sender, sdev, kind, body, prev, size, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
+        const stmts = [env.DB.prepare('INSERT OR IGNORE INTO msgs (id, fam, chat, sender, sdev, kind, body, prev, size, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
           .bind(id, F.id, chat, a.id, D.id, kind, body, prev || null, body.length, now)];
         for (const t of targets) stmts.push(env.DB.prepare('INSERT OR IGNORE INTO box (dev, msg, created) VALUES (?,?,?)').bind(t.id, id, now));
         stmts.push(env.DB.prepare('UPDATE families SET active=? WHERE id=?').bind(now, F.id));
         await env.DB.batch(stmts);
-        if (!targets.length) await env.DB.prepare('DELETE FROM msgs WHERE id=?').bind(id).run();
-        await count(env, 'msg_' + kind, 1);
         ctx.waitUntil(push(env, targets.filter((t) => t.endpoint), { t: 'm', id, chat, s: a.id, k: kind, p: prev || '' }));
+        ctx.waitUntil((async () => {
+          if (!targets.length) await env.DB.prepare('DELETE FROM msgs WHERE id=?').bind(id).run();
+          await count(env, 'msg_' + kind, 1);
+        })());
         return json({ ok: true, created: now, to: targets.length });
       }
       /* --- تنزيل محتوى رسالة --- */
@@ -288,7 +301,7 @@ export default {
           // "وصلت" ← لأجهزة المرسل فقط
           const groups = {};
           for (const g of got) {
-            const who = devMembers.filter((x) => x !== g.sender && (chatMembers(g.chat, M) || []).includes(x));
+            const who = devMembers.filter((x) => x !== g.sender && (chatMembers(g.chat, M, F) || []).includes(x));
             if (!who.length) continue;
             const k = g.sender + '|' + who.join(',');
             (groups[k] = groups[k] || { sender: g.sender, who, ids: [] }).ids.push(g.id);
@@ -308,7 +321,7 @@ export default {
         const evs = (await env.DB.prepare('SELECT id, t, d, created FROM ev WHERE dev=? ORDER BY id LIMIT 100').bind(D.id).all()).results || [];
         return json({
           ok: true, now, msgs, evs: evs.map((e) => ({ id: e.id, t: e.t, d: JSON.parse(e.d || '{}'), at: e.created })),
-          fam: { rev: F.rev, auto_del: F.auto_del, update_req: F.update_req, owner: F.owner, created: F.created },
+          fam: { rev: F.rev, auto_del: F.auto_del, update_req: F.update_req, owner: F.owner, created: F.created, links: jarr(F.links) },
           roles: M.map((m) => ({ id: m.id, kind: m.kind, admin: !!m.admin || m.id === F.owner, removed: !!m.removed, pin: !!m.pin })),
           dev: { members: devMembers, trusted: devTrusted }
         });
@@ -321,7 +334,7 @@ export default {
         if (!a || !Array.isArray(b.items)) return json({ error: 'bad' }, 400);
         const byChat = {};
         for (const it of b.items.slice(0, 100)) {
-          if (!okId(it.id) || !byId[it.s] || !chatMembers(it.chat, M)) continue;
+          if (!okId(it.id) || !byId[it.s] || !chatMembers(it.chat, M, F)) continue;
           (byChat[it.s] = byChat[it.s] || []).push(it.id);
         }
         const ds = await famDevices(env, F.id);
@@ -366,7 +379,9 @@ export default {
         const b = await req.json().catch(() => ({}));
         if (b.off) { await env.DB.prepare('UPDATE devices SET endpoint=NULL WHERE id=?').bind(D.id).run(); return json({ ok: true }); }
         if (typeof b.endpoint !== 'string' || !/^https:\/\//.test(b.endpoint) || b.endpoint.length > 1000) return json({ error: 'bad' }, 400);
-        await env.DB.prepare("UPDATE devices SET endpoint=?, notif='granted' WHERE id=?").bind(b.endpoint, D.id).run();
+        const k = b.keys || {};
+        await env.DB.prepare("UPDATE devices SET endpoint=?, p256dh=?, auth=?, notif='granted' WHERE id=?")
+          .bind(b.endpoint, okB64(k.p256dh, 120) ? k.p256dh : null, okB64(k.auth, 40) ? k.auth : null, D.id).run();
         return json({ ok: true });
       }
       if (p === '/pending' && req.method === 'POST') {
@@ -409,7 +424,7 @@ export default {
       ctx.waitUntil(push(env, ds.filter((d) => d.endpoint), { t: 'n', id: n.id, f: n.src, to: n.dst, n: n.n + 1 }));
     }
     // تذكير النسخ الاحتياطي: كل جمعة ٨ مساءً بتوقيت الجهاز
-    const rem = (await env.DB.prepare('SELECT id, endpoint, pending, tz, last_rem FROM devices WHERE reminder=1 AND endpoint IS NOT NULL').all()).results || [];
+    const rem = (await env.DB.prepare('SELECT id, endpoint, p256dh, auth, pending, tz, last_rem FROM devices WHERE reminder=1 AND endpoint IS NOT NULL').all()).results || [];
     const remDue = [];
     for (const r of rem) {
       const local = new Date(now + (r.tz || 180) * 60000);
@@ -458,6 +473,9 @@ async function ensureSchema(env) {
     env.DB.prepare('CREATE TABLE IF NOT EXISTS daily (day TEXT NOT NULL, k TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, k))'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS bcast (n INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER, title TEXT, body TEXT, total INTEGER)')
   ]);
+  for (const sql of ["ALTER TABLE families ADD COLUMN links TEXT DEFAULT '[]'", 'ALTER TABLE devices ADD COLUMN p256dh TEXT', 'ALTER TABLE devices ADD COLUMN auth TEXT']) {
+    try { await env.DB.prepare(sql).run(); } catch (e) {}
+  }
   schemaReady = true;
 }
 
@@ -486,22 +504,24 @@ async function authDevice(req, env) {
   return null;
 }
 async function members(env, fam) { return (await env.DB.prepare('SELECT * FROM members WHERE fam=?').bind(fam).all()).results || []; }
-async function famDevices(env, fam) { return (await env.DB.prepare('SELECT id, members, endpoint, pending, last_seen FROM devices WHERE fam=?').bind(fam).all()).results || []; }
+async function famDevices(env, fam) { return (await env.DB.prepare('SELECT id, members, endpoint, p256dh, auth, pending, last_seen FROM devices WHERE fam=?').bind(fam).all()).results || []; }
 async function famView(env, f) {
   const M = await members(env, f.id);
   return {
-    blob: f.blob, rev: f.rev, created: f.created, owner: f.owner, auto_del: f.auto_del, update_req: f.update_req,
+    blob: f.blob, rev: f.rev, created: f.created, owner: f.owner, auto_del: f.auto_del, update_req: f.update_req, links: jarr(f.links),
     roles: M.map((m) => ({ id: m.id, kind: m.kind, admin: !!m.admin || m.id === f.owner, removed: !!m.removed, pin: !!m.pin }))
   };
 }
 /* المحادثات: g = العائلة كلها · p:أ:ب = خاصة (لازم يكون فيها أب أو أم؛ ما فيه محادثة بين طفلين) */
-function chatMembers(chat, M) {
+function chatMembers(chat, M, F) {
   const live = M.filter((m) => !m.removed);
   if (chat === 'g') return live.map((m) => m.id);
   const m = /^p:([A-Za-z0-9_-]{6,40}):([A-Za-z0-9_-]{6,40})$/.exec(chat || '');
   if (!m || m[1] >= m[2]) return null;
   const a = live.find((x) => x.id === m[1]), b = live.find((x) => x.id === m[2]);
-  if (!a || !b || (a.kind !== 'parent' && b.kind !== 'parent')) return null;
+  if (!a || !b) return null;
+  // بين طفلين: فقط إذا سمح المدير (مين يكلّم مين)
+  if (a.kind !== 'parent' && b.kind !== 'parent' && !jarr(F && F.links).includes(a.id + ':' + b.id)) return null;
   return [a.id, b.id];
 }
 async function event(env, devs, t, d, now) {
@@ -575,34 +595,67 @@ async function vapid(env) {
 async function push(env, rows, item) {
   if (!rows.length) return;
   const v = await vapid(env);
-  for (const r of rows) {
+  // الأجهزة القديمة (بدون مفاتيح): نحفظ التفاصيل في pending ويسحبها الجهاز
+  const old = rows.filter((r) => !(r.p256dh && r.auth));
+  for (const r of old) {
     let q = [];
     try { q = r.pending ? JSON.parse(r.pending) : []; } catch (e) {}
     q.push(item);
     await env.DB.prepare('UPDATE devices SET pending=? WHERE id=?').bind(JSON.stringify(q.slice(-15)), r.id).run();
   }
   if (!v.priv) return;
-  const jwts = {};
+  const body = new TextEncoder().encode(JSON.stringify(item));
   await Promise.all(rows.map(async (r) => {
     try {
       const aud = new URL(r.endpoint).origin;
-      jwts[aud] = jwts[aud] || await vapidJWT(v, aud);
-      const res = await fetch(r.endpoint, {
-        method: 'POST',
-        headers: { Authorization: `vapid t=${jwts[aud]}, k=${v.pub}`, TTL: item.t === 'n' ? '600' : '86400', Urgency: 'high', 'Content-Length': '0' }
-      });
+      const jwt = await vapidJWT(v, aud);
+      const h = { Authorization: `vapid t=${jwt}, k=${v.pub}`, TTL: item.t === 'n' ? '600' : '86400', Urgency: 'high' };
+      let payload = null;
+      if (r.p256dh && r.auth) {
+        payload = await encryptPush(body, r.p256dh, r.auth);
+        h['Content-Encoding'] = 'aes128gcm'; h['Content-Type'] = 'application/octet-stream';
+      } else h['Content-Length'] = '0';
+      const res = await fetch(r.endpoint, { method: 'POST', headers: h, body: payload });
       if ([401, 403, 404, 410].includes(res.status)) await env.DB.prepare('UPDATE devices SET endpoint=NULL WHERE id=?').bind(r.id).run();
     } catch (e) {}
   }));
 }
+/* تشفير محتوى الإشعار (Web Push, aes128gcm) */
+async function hmac(key, data) {
+  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
+}
+const cat = (...a) => { const n = a.reduce((t, x) => t + x.length, 0), o = new Uint8Array(n); let i = 0; for (const x of a) { o.set(x, i); i += x.length; } return o; };
+async function encryptPush(plain, p256dh, authB64) {
+  const ua = b64uDec(p256dh), auth = b64uDec(authB64), te = new TextEncoder();
+  const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const as = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', ua, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, kp.privateKey, 256));
+  const prkKey = await hmac(auth, shared);
+  const ikm = (await hmac(prkKey, cat(te.encode('WebPush: info\0'), ua, as, new Uint8Array([1])))).slice(0, 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const prk = await hmac(salt, ikm);
+  const cek = (await hmac(prk, cat(te.encode('Content-Encoding: aes128gcm\0'), new Uint8Array([1])))).slice(0, 16);
+  const nonce = (await hmac(prk, cat(te.encode('Content-Encoding: nonce\0'), new Uint8Array([1])))).slice(0, 12);
+  const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, cat(plain, new Uint8Array([2]))));
+  const head = new Uint8Array(21 + as.length); head.set(salt); new DataView(head.buffer).setUint32(16, 4096); head[20] = as.length; head.set(as, 21);
+  return cat(head, ct);
+}
+const jwtCache = {};
 async function vapidJWT(v, aud) {
+  const c = jwtCache[aud];
+  if (c && c.exp > Date.now()) return c.t;
   const pub = b64uDec(v.pub);
   const jwk = { kty: 'EC', crv: 'P-256', x: b64uEnc(pub.slice(1, 33)), y: b64uEnc(pub.slice(33, 65)), d: v.priv, ext: true };
   const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
   const enc = (o) => b64uEnc(new TextEncoder().encode(JSON.stringify(o)));
   const data = enc({ typ: 'JWT', alg: 'ES256' }) + '.' + enc({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: 'mailto:hello@wamdarc.com' });
   const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(data));
-  return data + '.' + b64uEnc(new Uint8Array(sig));
+  const t = data + '.' + b64uEnc(new Uint8Array(sig));
+  jwtCache[aud] = { t, exp: Date.now() + 10 * 3600e3 };
+  return t;
 }
 async function sha(s) {
   const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));

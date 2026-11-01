@@ -12,6 +12,10 @@ binding = "DB"
 database_name = "nabd"
 database_id = "96b1fce2-6ab3-4180-9c03-bfe09baa7fda"
 
+# تشغيل السيرفر قرب قاعدة البيانات = ردود وإشعارات أسرع
+[placement]
+mode = "smart"
+
 [triggers]
 crons = ["* * * * *"]
 
