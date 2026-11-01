@@ -139,6 +139,20 @@ export default {
         await env.DB.prepare('UPDATE devices SET members=?, trusted=? WHERE id=?').bind(JSON.stringify(mem), JSON.stringify(tr), D.id).run();
         return json({ ok: true, members: mem });
       }
+      if (p === '/pin/check' && req.method === 'POST') {
+        // رمز وليّ الأمر لفتح خيارات محمية على جهاز الأطفال (أي أب أو أم أو مشرف)
+        const b = await req.json().catch(() => ({}));
+        if (D.pin_lock > now) return json({ error: 'locked', wait: Math.ceil((D.pin_lock - now) / 60000) }, 429);
+        if (!okPin(b.pin)) return json({ error: 'bad' }, 400);
+        const cands = M.filter((m) => !m.removed && m.pin && (m.kind === 'parent' || m.admin || m.id === F.owner));
+        for (const m of cands) if (await pinHash(F.id, m.id, b.pin) === m.pin) {
+          await env.DB.prepare('UPDATE devices SET pin_fail=0 WHERE id=?').bind(D.id).run();
+          return json({ ok: true, member: m.id });
+        }
+        const fails = (D.pin_fail || 0) + 1;
+        await env.DB.prepare('UPDATE devices SET pin_fail=?, pin_lock=? WHERE id=?').bind(fails >= 5 ? 0 : fails, fails >= 5 ? now + 10 * 60e3 : 0, D.id).run();
+        return json({ error: 'bad_pin', left: 5 - fails }, 403);
+      }
       if (p === '/pin' && req.method === 'POST') {
         // تغيير رمزي (من جهاز موثوق) أو المالك يصفّر رمز غيره
         const b = await req.json().catch(() => ({}));

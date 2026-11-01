@@ -15,7 +15,8 @@
     var admin = canAdmin(), parent = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
     var ids = A.live();
     var el = A.show(head('الإعدادات', null, admin ? (A.isOwner(S.me) ? 'المدير الأساسي' : A.fem(S.me) ? 'مشرفة' : 'مشرف') : parent ? 'وليّ أمر' : '') +
-      '<div class="card col" style="gap:12px"><div class="row" style="align-items:baseline;gap:8px"><span class="fd" style="font-size:22px;font-weight:800">' + esc(S.prof.name) + '</span><span class="tiny soft">منذ ' + A.fmtDate(S.fam.created || S.acct.created) + '</span></div>' +
+      '<div class="card col" style="gap:12px"><div class="row" style="gap:10px">' + A.grpIcon(44, 14) + '<span class="grow col" style="gap:0"><span class="row" style="align-items:baseline;gap:8px;flex-wrap:wrap"><span class="fd" style="font-size:22px;font-weight:800">' + esc(S.prof.name) + '</span><span class="tiny soft">منذ ' + A.fmtDate(S.fam.created || S.acct.created) + '</span></span><span class="tiny muted">القروب: ' + esc(A.grp().name) + '</span></span>' +
+      (admin ? '<button class="btn sm ghost" id="edG">' + ic('pen') + ' تعديل</button>' : '') + '</div>' +
       '<div class="row" style="flex-wrap:wrap;gap:8px">' + ids.map(function (id) { return '<button data-m="' + id + '" aria-label="' + esc(nm(id)) + '" class="col center" style="gap:2px;width:62px">' + av(id, 48) + '<span class="tiny" style="max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(nm(id)) + '</span></button>'; }).join('') +
       (admin ? '<button id="addM" class="col center" style="gap:2px;width:62px"><span class="av" style="width:48px;height:48px;background:var(--accent-soft);color:var(--accent-ink)">' + ic('plus') + '</span><span class="tiny">إضافة</span></button>' : '') + '</div>' +
       (admin ? '<span class="tiny muted">اضغط على أي فرد لتعديل اسمه وصورته وصلاحياته</span>' : '') + '</div>' +
@@ -26,10 +27,11 @@
       '<span class="label">التخزين</span><div class="list"><div class="col" style="align-items:stretch;gap:8px"><span class="row" style="justify-content:space-between"><span>على هذا الجهاز</span><span class="small muted" id="sz">…</span></span><span class="bar"><i id="szb" style="display:block;width:0;background:var(--accent)"></i></span></div>' +
       '<div>' + ic('shield') + '<span class="grow col" style="gap:0"><span>الرسالة في السيرفر</span><span class="tiny muted">مشفّرة، وتنحذف أول ما توصل، وبحد أقصى ٣ أيام</span></span></div>' +
       '<div>' + ic('trash') + '<span class="grow col" style="gap:0"><span>الحذف التلقائي لهذا الجهاز</span><span class="tiny muted">' + autoDelText() + '</span></span></div></div>' +
+      '<span class="label">المظهر</span><div class="seg" id="thm">' + [['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(function (t) { return '<button data-th="' + t[0] + '" class="' + (A.theme() === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       '<span class="label">' + esc(nm(S.me)) + '</span><div class="list">' +
       (parent ? '<button id="chPin">' + ic('lock') + '<span class="grow">تغيير رمزي السري</span></button>' : '') +
-      '<button id="swp">' + ic('swap') + '<span class="grow">تبديل الشخص</span></button>' +
-      '<button id="out" style="color:var(--danger)">' + ic('close') + '<span class="grow">خروج ' + esc(nm(S.me)) + ' من هذا الجهاز</span></button></div>' +
+      '<button id="swp">' + ic('swap') + '<span class="grow">تبديل الشخص</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button>' +
+      '<button id="out" style="color:var(--danger)">' + ic('close') + '<span class="grow">خروج ' + esc(nm(S.me)) + ' من هذا الجهاز</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button></div>' +
       '<span class="label">التطبيق</span><div class="list"><button id="upd">' + ic('refresh') + '<span class="grow">حدّث التطبيق الآن</span><span class="tiny muted" dir="ltr">v' + CONFIG.VERSION + '</span></button>' +
       '<button id="shareApp">' + ic('share') + '<span class="grow">شارك نَبْض مع عائلة ثانية</span></button></div>' +
       '<div class="row center" style="gap:8px;margin-top:6px"><span class="tiny muted">نَبْض · الإصدار ' + CONFIG.VERSION + '</span><a href="https://wamdarc.com" target="_blank" rel="noopener" class="wamd" style="text-decoration:none">WAMD ARC</a></div>');
@@ -42,11 +44,14 @@
     if ($('#chPin')) $('#chPin').onclick = function () {
       A.setPin('رمزك السري الجديد', function (p) { A.api('/pin', { member: S.me, pin: p }).then(function () { A.toast('تغيّر الرمز ✓'); }, function () { A.toast('ما قدرنا نغيّره'); }); });
     };
-    $('#swp').onclick = function () { A.picker(); };
-    $('#out').onclick = function () {
+    $('#swp').onclick = function () { A.parentGate(function () { A.picker(true); }, 'تبديل الشخص يحتاج رمز الأب أو الأم'); };
+    if ($('#edG')) $('#edG').onclick = groupSheet;
+    el.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { A.setTheme(b.dataset.th); el.querySelectorAll('[data-th]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    $('#out').onclick = function () { A.parentGate(leaveDevice, 'خروج الشخص من الجهاز يحتاج رمز الأب أو الأم'); };
+    function leaveDevice() {
       if (!confirm('تطلّع ' + nm(S.me) + ' من هذا الجهاز؟ ما توصله رسائله هنا بعدها.')) return;
       A.api('/unuse', { member: S.me }).then(function (r) { S.dev.members = r.members; S.dev.trusted = S.dev.trusted.filter(function (x) { return x !== S.me; }); S.me = null; NB.kv.set('dev', S.dev); NB.kv.del('me'); A.picker(true); }, function () { A.toast('ما فيه اتصال'); });
-    };
+    }
     $('#upd').onclick = function () {
       var b = this; b.disabled = true;
       A.checkUpdate(true).then(function (has) {
@@ -87,6 +92,37 @@
   }
   function mb(b) { return b < 1048576 ? A.num(Math.max(1, Math.round(b / 1024))) + ' ك.ب' : A.num(Math.round(b / 104857.6) / 10) + ' م.ب'; }
 
+  /* ----- قروب العائلة: الاسم والرمز واللون ----- */
+  var GE = ['', '🏠', '🏡', '👨‍👩‍👧‍👦', '👨‍👩‍👧', '❤️', '💙', '💚', '🧡', '💜', '🌟', '🌙', '☀️', '🌴', '🐪', '🦅', '🌸', '🍉', '☕', '🎉', '⚽', '🎮', '🕌', '📚', '✈️', '🏕️', '🦁', '🐱'];
+  var GC = ['#0F8B8D', '#3C5BD6', '#6C4BD6', '#A13D8F', '#C2410C', '#D4552B', '#23854D', '#1B2333'];
+  function groupSheet() {
+    var g = Object.assign({}, S.prof.group || {}), fam = S.prof.name;
+    var sh = A.sheet('<div class="row"><h2 class="grow fd" style="font-size:22px">قروب العائلة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<div id="gpv"></div>' +
+      '<label class="field"><span>اسم القروب</span><input class="inp" id="gn" maxlength="24" placeholder="العائلة" value="' + esc(g.name || '') + '"></label>' +
+      '<label class="field"><span>اسم العائلة (يظهر تحت «مين معنا؟»)</span><input class="inp" id="fn2" maxlength="30" value="' + esc(fam) + '"></label>' +
+      '<div class="field"><span>الرمز</span><div class="avgrid" style="grid-template-columns:repeat(7,minmax(0,1fr));gap:8px">' + GE.map(function (e, i) {
+        return '<button data-ge="' + i + '" class="' + ((g.e || '') === e ? 'on' : '') + '" style="width:44px;height:44px;font-size:24px;line-height:1;background:var(--card);box-shadow:0 1px 0 var(--line)" aria-label="' + (e || 'بيت') + '">' + (e || '<svg class="ic" viewBox="0 0 24 24">' + A.IC.home + '</svg>') + '</button>';
+      }).join('') + '</div></div>' +
+      '<div class="field"><span>اللون</span><div class="row" style="justify-content:space-between">' + GC.map(function (c) { return '<button data-gc="' + c + '" aria-label="لون" style="width:38px;height:38px;border-radius:50%;background:' + c + ';border:3px solid var(--card);outline:' + ((g.c || GC[0]) === c ? '3px solid var(--ink)' : '0') + '"></button>'; }).join('') + '</div></div>' +
+      '<button class="btn block" id="gs">حفظ</button>');
+    function pv() {
+      var keep = S.prof.group; S.prof.group = g;
+      $('#gpv', sh).innerHTML = '<div class="chatcard fam" style="background:' + A.grp().c + ';pointer-events:none">' + A.grpIcon(56, 20) + '<span class="grow col" style="gap:2px"><span class="nm">' + esc(A.grp().name) + '</span><span class="pv">معاينة</span></span></div>';
+      S.prof.group = keep;
+    }
+    $('#x', sh).onclick = function () { sh.remove(); };
+    $('#gn', sh).oninput = function () { g.name = this.value.trim(); pv(); };
+    sh.querySelectorAll('[data-ge]').forEach(function (b) { b.onclick = function () { g.e = GE[+b.dataset.ge]; sh.querySelectorAll('[data-ge]').forEach(function (x) { x.classList.toggle('on', x === b); }); pv(); }; });
+    sh.querySelectorAll('[data-gc]').forEach(function (b) { b.onclick = function () { g.c = b.dataset.gc; sh.querySelectorAll('[data-gc]').forEach(function (x) { x.style.outline = x === b ? '3px solid var(--ink)' : '0'; }); pv(); }; });
+    $('#gs', sh).onclick = function () {
+      var oldG = S.prof.group, oldN = S.prof.name, nn = $('#fn2', sh).value.trim();
+      S.prof.group = { name: g.name || '', e: g.e || '', c: g.c || '' }; if (nn) S.prof.name = nn;
+      A.saveProfile().then(function () { sh.remove(); A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.group = oldG; S.prof.name = oldN; A.toast('ما قدرنا نحفظ'); });
+    };
+    pv();
+  }
+
   /* ----- ربط جهاز ----- */
   function linkSheet() {
     var sh = A.sheet('<h2 class="fd" style="font-size:22px">ربط جهاز جديد</h2>' +
@@ -112,8 +148,7 @@
     var canTouch = meOwner || (!owner && !(r.admin && id !== S.me));
     var sh = A.sheet('<div class="col center" style="gap:6px">' + av(id, 96) + '<h2 class="fd" style="font-size:24px">' + esc(nm(id)) + '</h2><span class="small muted">' + A.kindLabel(m) + (owner ? ' · المدير الأساسي' : r.admin ? ' · مشرف' : '') + '</span></div>' +
       '<div class="list">' +
-      '<button id="ed">' + ic('pen') + '<span class="grow">تعديل الاسم والصورة الرمزية</span></button>' +
-      '<label style="cursor:pointer">' + ic('image') + '<span class="grow">صورة من الجهاز</span><input type="file" accept="image/*" id="ph" hidden></label>' +
+      '<button id="ed">' + ic('pen') + '<span class="grow">تعديل الاسم والنوع والصورة الرمزية</span></button>' +
       (meOwner && !owner ? '<button id="adm">' + ic('shield') + '<span class="grow col" style="gap:0"><span>مشرف</span><span class="tiny muted">بدونها تنطبق عليه إعدادات الإدارة مثل الأبناء</span></span><span class="tog' + (r.admin ? ' on' : '') + '"></span></button>' : '') +
       (meOwner && !owner && r.pin ? '<button id="rp">' + ic('lock') + '<span class="grow">تصفير الرمز السري</span></button>' : '') +
       (canTouch ? '<button id="wp" style="color:var(--danger)">' + ic('trash') + '<span class="grow">حذف محادثات ' + esc(nm(id)) + ' من أجهزته</span></button>' : '') +
@@ -126,18 +161,6 @@
         S.prof.members[id] = Object.assign({}, m, { name: d.name, av: d.av, g: d.g });
         A.saveProfile().then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[id] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
       }, { lockKind: true });
-    };
-    $('#ph', sh).onchange = function () {
-      var f = this.files[0]; if (!f) return;
-      A.compress(f, 256, 60000).then(function (r2) {
-        var fr = new FileReader();
-        fr.onload = function () {
-          var old = JSON.stringify(S.prof.members[id]);
-          S.prof.members[id] = Object.assign({}, m, { av: { photo: fr.result } });
-          A.saveProfile().then(function () { sh.remove(); A.toast('انحفظت الصورة ✓'); A.settings(); }, function () { S.prof.members[id] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
-        };
-        fr.readAsDataURL(r2.blob);
-      });
     };
     if ($('#adm', sh)) $('#adm', sh).onclick = function () {
       var on = !r.admin;
@@ -189,7 +212,7 @@
         '<div style="background:var(--brand);border-radius:24px;padding:16px;color:#fff" class="col">' +
         '<div class="row">' + ic('refresh', 'style="width:26px;height:26px"') + '<span class="grow col" style="gap:0"><b style="font-size:17px">الإصدار ' + esc(latest) + '</b><span class="tiny" style="color:#D8DEFA">التحديث التلقائي شغال · ' + A.num(upd) + ' من ' + A.num(devs.length) + ' أجهزة محدّثة</span></span></div>' +
         '<div class="row" style="gap:6px">' + devs.map(function (d) { return '<span style="flex:1;height:8px;border-radius:99px;background:' + (d.ver === latest ? '#fff' : '#6F84E2') + '"></span>'; }).join('') + '</div>' +
-        '<button class="btn" id="updAll" style="background:#fff;color:var(--brand-ink)">حدّث كل الأجهزة الآن</button></div>' +
+        '<button class="btn" id="updAll" style="background:#fff;color:#2B3FA8">حدّث كل الأجهزة الآن</button></div>' +
         '<span class="label">الأفراد</span><div class="list">' + ids.map(function (id) {
           var s = stat(id), owner = A.isOwner(id), r = A.role(id) || {};
           var canWipe = meOwner || (!owner && !(r.admin && id !== S.me));

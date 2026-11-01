@@ -15,6 +15,16 @@ var A = (function () {
   function rid(n) { var a = crypto.getRandomValues(new Uint8Array(n || 12)); return NB.b64e(a).slice(0, Math.ceil((n || 12) * 4 / 3)); }
   function plat() { var ua = navigator.userAgent; return /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? 'ios' : /android/i.test(ua) ? 'android' : 'desktop'; }
   function standalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+  /* المظهر: تلقائي · فاتح · داكن (لكل جهاز) */
+  function theme() { try { return localStorage.getItem('nabd-theme') || 'auto'; } catch (e) { return 'auto'; } }
+  function applyTheme() {
+    var t = theme(), d = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = d ? 'dark' : 'light';
+    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = d ? '#0E1218' : '#F4F7FC';
+  }
+  function setTheme(t) { try { localStorage.setItem('nabd-theme', t); } catch (e) {} applyTheme(); }
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}
+  applyTheme();
   function toast(t, ms) {
     var el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el);
     setTimeout(function () { el.remove(); }, ms || 2600);
@@ -94,6 +104,7 @@ var A = (function () {
     var m = member(id) || {}, s = size || 48, a = m.av || {};
     var st = 'width:' + s + 'px;height:' + s + 'px;';
     if (a.photo) return '<span class="av" style="' + st + '"' + (extra || '') + '><img src="' + esc(a.photo) + '" alt=""></span>';
+    if (a.e) return '<span class="av" style="' + st + 'background:' + esc(a.bg || '#FFE3B3') + ';font-size:' + Math.round(s * .56) + 'px;line-height:1;font-family:\'Apple Color Emoji\',\'Segoe UI Emoji\',\'Noto Color Emoji\',sans-serif"' + (extra || '') + '>' + esc(a.e) + '</span>';
     if (a.a && AVATARS[a.a]) return '<span class="av" style="' + st + 'background:' + esc(a.bg || AVATARS[a.a].bg) + '"' + (extra || '') + '><svg viewBox="0 0 64 64" aria-hidden="true">' + AVATARS[a.a].s + '</svg></span>';
     return '<span class="av" style="' + st + 'background:' + colorOf(id) + ';font-size:' + Math.round(s * .46) + 'px"' + (extra || '') + '>' + esc((m.name || '؟').trim().charAt(0)) + '</span>';
   }
@@ -111,7 +122,13 @@ var A = (function () {
   }
   function linked(a, b) { var k = a < b ? a + ':' + b : b + ':' + a; return (S.fam.links || []).indexOf(k) >= 0; }
   function otherOf(chat) { var p = NB.chatParts(chat); return p ? (p[0] === S.me ? p[1] : p[0]) : null; }
-  function chatTitle(chat) { return chat === 'g' ? 'العائلة' : nm(otherOf(chat)); }
+  function grp() { var g = S.prof.group || {}; return { name: g.name || 'العائلة', e: g.e || '', c: g.c || '#0F8B8D' }; }
+  function grpIcon(size, radius) {
+    var g = grp();
+    return '<span class="homeic" style="width:' + size + 'px;height:' + size + 'px;border-radius:' + radius + 'px;background:' + (radius > 20 ? 'rgba(255,255,255,.18)' : g.c) + '">' +
+      (g.e ? '<span style="font-size:' + Math.round(size * .55) + 'px;line-height:1">' + esc(g.e) + '</span>' : '<svg class="ic" viewBox="0 0 24 24" style="width:' + Math.round(size * .52) + 'px;height:' + Math.round(size * .52) + 'px;stroke:#fff">' + IC.home + '</svg>') + '</span>';
+  }
+  function chatTitle(chat) { return chat === 'g' ? grp().name : nm(otherOf(chat)); }
 
   /* ---------- التشفير: كود العائلة ---------- */
   var ALPH = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -308,26 +325,55 @@ var A = (function () {
   }
   function kindLabel(m) { return m.kind === 'parent' ? (m.g === 'f' ? 'أم' : 'أب') : (m.g === 'f' ? 'بنت' : 'ولد'); }
 
-  /* نموذج فرد (إضافة أو تعديل) */
+  /* نموذج فرد (إضافة أو تعديل): النوع، والصورة الرمزية (رسومات · إيموجي · صورة) */
   function memberForm(m, done, opts) {
     opts = opts || {};
-    var d = m ? JSON.parse(JSON.stringify(m)) : { id: rid(9), name: '', kind: 'child', g: 'f', av: { a: 'cat', bg: '#FFE3B3' } };
-    var types = [['parent', 'm', 'أب'], ['parent', 'f', 'أم'], ['child', 'f', 'بنت'], ['child', 'm', 'ولد']];
-    var keys = Object.keys(AVATARS);
+    var d = m ? JSON.parse(JSON.stringify(m)) : { id: rid(9), name: '', kind: null, g: null, av: { a: 'cat', bg: AVATARS.cat.bg } };
+    var types = [['parent', 'm', 'أب'], ['parent', 'f', 'أم'], ['child', 'm', 'ولد'], ['child', 'f', 'بنت']];
+    if (opts.lockKind) types = types.filter(function (t) { return t[0] === d.kind; });
+    var tab = d.av && d.av.photo ? 'photo' : d.av && d.av.e ? 'emoji' : 'draw';
+    var keep = S.prof; 
     var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">' + (m ? 'تعديل ' + esc(m.name) : 'فرد جديد') + '</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<label class="field"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"></label>' +
-      (opts.lockKind ? '' : '<div class="field"><span>النوع</span><div class="chips">' + types.map(function (t, i) { return '<button class="chip' + (d.kind === t[0] && d.g === t[1] ? ' on' : '') + '" data-t="' + i + '">' + t[2] + '</button>'; }).join('') + '</div></div>') +
-      '<div class="field"><span>الصورة الرمزية</span><div class="avgrid">' + keys.map(function (k) {
-        return '<button data-a="' + k + '" class="' + (d.av && d.av.a === k ? 'on' : '') + '" aria-label="' + AVATARS[k].n + '"><span class="av" style="width:64px;height:64px;background:' + AVATARS[k].bg + '"><svg viewBox="0 0 64 64">' + AVATARS[k].s + '</svg></span></button>';
-      }).join('') + '</div></div><div class="err" id="me"></div><button class="btn block" id="ok">' + (m ? 'حفظ' : 'إضافة') + '</button>');
+      '<div class="row" style="gap:14px"><span id="pv"></span><label class="field grow"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"></label></div>' +
+      '<div class="field"><span>' + (opts.lockKind ? (d.kind === 'parent' ? 'أب أو أم' : 'ولد أو بنت') : 'النوع') + '</span><div class="chips" style="display:grid;grid-template-columns:repeat(' + types.length + ',minmax(0,1fr))">' + types.map(function (t) { return '<button class="chip' + (d.kind === t[0] && d.g === t[1] ? ' on' : '') + '" data-t="' + t[0] + '|' + t[1] + '">' + t[2] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="field"><span>الصورة الرمزية</span><div class="seg"><button data-tab="draw">رسومات</button><button data-tab="emoji">إيموجي</button><button data-tab="photo">صورة</button></div></div>' +
+      '<div id="avbox"></div><div class="err" id="me"></div><button class="btn block" id="ok">' + (m ? 'حفظ' : 'إضافة') + '</button>');
+    function paintPv() { S.prof = { members: {} }; S.prof.members[d.id] = d; $('#pv', sh).innerHTML = av(d.id, 72); S.prof = keep; }
+    function colors() { return '<div class="row" style="justify-content:space-between;margin-top:12px">' + AV_BGS.map(function (c) { return '<button data-bg="' + c + '" aria-label="لون" style="width:36px;height:36px;border-radius:50%;background:' + c + ';border:3px solid var(--card);outline:' + (d.av && d.av.bg === c ? '3px solid var(--ink)' : '0') + '"></button>'; }).join('') + '</div>'; }
+    function paintTab() {
+      sh.querySelectorAll('[data-tab]').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
+      var box = $('#avbox', sh), h = '';
+      if (tab === 'draw') h = '<div class="avgrid">' + Object.keys(AVATARS).map(function (k) {
+        return '<button data-a="' + k + '" class="' + (d.av && d.av.a === k ? 'on' : '') + '" aria-label="' + AVATARS[k].n + '"><span class="av" style="width:60px;height:60px;background:' + (d.av && d.av.a === k && d.av.bg ? d.av.bg : AVATARS[k].bg) + '"><svg viewBox="0 0 64 64">' + AVATARS[k].s + '</svg></span></button>';
+      }).join('') + '</div>' + colors();
+      else if (tab === 'emoji') h = '<div class="avgrid" style="grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">' + AV_EMOJI.map(function (e, i) {
+        return '<button data-e="' + i + '" class="' + (d.av && d.av.e === e ? 'on' : '') + '" style="width:48px;height:48px;font-size:28px;line-height:1;background:var(--card);box-shadow:0 1px 0 var(--line)">' + e + '</button>';
+      }).join('') + '</div>' + colors();
+      else h = '<div class="card col center" style="gap:10px;text-align:center"><label class="btn brand" style="cursor:pointer">' + ic('image') + ' اختر صورة من الجهاز<input type="file" accept="image/*" id="avf" hidden></label>' +
+        '<span class="tiny muted" style="line-height:1.7">الصورة تتصغّر (٢٥٦ بكسل) وتنحفظ مشفّرة مع بيانات العائلة، وتوصل لكل أجهزة العائلة. ما تنحفظ في أي مكان ثاني، والسيرفر ما يقدر يشوفها.</span></div>';
+      box.innerHTML = h;
+      box.querySelectorAll('[data-a]').forEach(function (b) { b.onclick = function () { d.av = { a: b.dataset.a, bg: AVATARS[b.dataset.a].bg }; paintTab(); paintPv(); }; });
+      box.querySelectorAll('[data-e]').forEach(function (b) { b.onclick = function () { d.av = { e: AV_EMOJI[+b.dataset.e], bg: (d.av && d.av.bg) || AV_BGS[0] }; paintTab(); paintPv(); }; });
+      box.querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { if (!d.av || d.av.photo) return; d.av.bg = b.dataset.bg; paintTab(); paintPv(); }; });
+      var f = $('#avf', box);
+      if (f) f.onchange = function () {
+        var file = this.files[0]; if (!file) return;
+        compress(file, 256, 60000).then(function (r) {
+          var fr = new FileReader(); fr.onload = function () { d.av = { photo: fr.result }; paintPv(); toast('تمام ✓ اضغط ' + (m ? 'حفظ' : 'إضافة')); }; fr.readAsDataURL(r.blob);
+        }, function () { toast('ما قدرنا نفتح الصورة'); });
+      };
+    }
     $('#x', sh).onclick = function () { sh.remove(); };
-    sh.querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () { var t = types[+b.dataset.t]; d.kind = t[0]; d.g = t[1]; sh.querySelectorAll('[data-t]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
-    sh.querySelectorAll('[data-a]').forEach(function (b) { b.onclick = function () { d.av = { a: b.dataset.a, bg: AVATARS[b.dataset.a].bg }; sh.querySelectorAll('[data-a]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    sh.querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () { var t = b.dataset.t.split('|'); d.kind = t[0]; d.g = t[1]; sh.querySelectorAll('[data-t]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    sh.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { tab = b.dataset.tab; paintTab(); }; });
+    $('#nn', sh).oninput = function () { d.name = this.value; paintPv(); };
     $('#ok', sh).onclick = function () {
       d.name = $('#nn', sh).value.trim();
       if (!d.name) return ($('#me', sh).textContent = 'اكتب الاسم');
+      if (!d.kind || !d.g) return ($('#me', sh).textContent = 'اختر ' + (opts.lockKind ? 'النوع' : 'أب أو أم أو ولد أو بنت'));
       sh.remove(); done(d);
     };
+    paintTab(); paintPv();
     setTimeout(function () { if (!m) $('#nn', sh).focus(); }, 250);
   }
 
@@ -416,6 +462,18 @@ var A = (function () {
     });
   }
 
+  /* ----- رمز وليّ الأمر ----- */
+  function parentGate(fn, why) {
+    if (isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0) return fn();
+    pinPad('رمز وليّ الأمر', why || 'هذا الخيار يحتاج رمز الأب أو الأم', function (p, pad) {
+      api('/pin/check', { pin: p }).then(function () { pad.close(); fn(); }, function (e) {
+        if (e && e.error === 'bad_pin') pad.fail('رمز غلط' + (e.left > 0 ? ' · باقي ' + num(e.left) + ' محاولات' : ''));
+        else if (e && e.error === 'locked') { pad.close(); toast('انقفل مؤقتاً، جرّب بعد ' + num(e.wait) + ' دقائق', 4000); }
+        else pad.fail('ما فيه اتصال');
+      });
+    });
+  }
+
   /* ----- مين معنا؟ ----- */
   function picker(all) {
     S.view = 'picker';
@@ -429,7 +487,10 @@ var A = (function () {
       (list.length < ids.length ? '<button class="btn line" id="more">شخص آخر يستخدم هذا الجهاز</button>' : '') +
       '<div class="col center" style="margin-top:auto;gap:2px"><p class="small muted" style="margin:0">هذا الجهاز مربوط بعائلة <b style="color:var(--ink)">' + esc(S.prof.name) + '</b> <span class="soft tiny">· منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span></p><p class="tiny soft" style="margin:0">ما فيه أحد من خارج العائلة يقدر يدخل</p></div>');
     el.querySelectorAll('[data-id]').forEach(function (b) { b.onclick = function () { pick(b.dataset.id); }; });
-    if ($('#more')) $('#more').onclick = function () { picker(true); };
+    if ($('#more')) $('#more').onclick = function () {
+      var hasParent = S.dev.trusted.some(function (x) { return isParent(x); });
+      if (hasParent || !S.dev.members.length) picker(true); else parentGate(function () { picker(true); }, 'إضافة شخص لهذا الجهاز تحتاج رمز الأب أو الأم');
+    };
   }
   function pick(id) {
     var useIt = function (pin, pad) {
@@ -486,9 +547,9 @@ var A = (function () {
       box.innerHTML = items.map(function (it) {
         var fam = it.c === 'g', o = otherOf(it.c);
         var pv = it.last ? previewOf(it.last) : (fam ? 'ابدأوا السوالف 👋' : 'ابدأ السوالف 👋');
-        return '<button class="chatcard' + (fam ? ' fam' : '') + '" data-c="' + esc(it.c) + '">' +
-          (fam ? '<span class="homeic"><svg class="ic" viewBox="0 0 24 24" style="width:32px;height:32px;stroke:#fff">' + IC.home + '</svg></span>' : av(o, 62)) +
-          '<span class="grow col" style="gap:3px"><span class="row" style="gap:8px;align-items:baseline"><span class="nm">' + (fam ? 'العائلة' : esc(nm(o))) + '</span>' +
+        return '<button class="chatcard' + (fam ? ' fam' : '') + '" data-c="' + esc(it.c) + '"' + (fam ? ' style="background:' + grp().c + '"' : '') + '>' +
+          (fam ? grpIcon(62, 22) : av(o, 62)) +
+          '<span class="grow col" style="gap:3px"><span class="row" style="gap:8px;align-items:baseline;flex-wrap:wrap"><span class="nm">' + (fam ? esc(grp().name) : esc(nm(o))) + '</span>' +
           (fam ? '<span class="tiny" style="color:#D2EFEF">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
           '<span class="pv">' + pv + '</span></span>' +
           (it.unread ? '<span class="badge">' + num(it.unread) + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, fam) : '') + '</button>';
@@ -522,7 +583,7 @@ var A = (function () {
     var o = otherOf(chat), canNudge = o && (isParent(S.me) || isAdmin(S.me)) && S.dev.trusted.indexOf(S.me) >= 0;
     app.innerHTML = '<section class="chat">' +
       '<div class="chathead"><button class="icb flat" id="bk" aria-label="رجوع">' + ic('back') + '</button>' +
-      (chat === 'g' ? '<span class="homeic" style="width:46px;height:46px;border-radius:16px;background:var(--accent)"><svg class="ic" viewBox="0 0 24 24" style="stroke:#fff;width:26px;height:26px">' + IC.home + '</svg></span>' : av(o, 46)) +
+      (chat === 'g' ? grpIcon(46, 16) : av(o, 46)) +
       '<span class="grow col" style="gap:0;min-width:0"><span class="row" style="gap:8px;align-items:baseline"><span class="t">' + esc(chatTitle(chat)) + '</span>' + (chat === 'g' ? '<span class="tiny soft">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
       '<span class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (chat === 'g' ? live().map(nm).map(esc).join('، ') : kindLabel(member(o) || {})) + '</span></span>' +
       (canNudge ? '<button class="btn sm orange" id="nudgeB" aria-label="أرسل نبضة لـ' + esc(nm(o)) + '">' + ic('pulse') + ' نبضة</button>' : '') + '</div>' +
@@ -549,7 +610,7 @@ var A = (function () {
         if (d !== lastDay) { html += '<span class="day">' + fmtDay(m.t) + '</span>'; lastDay = d; }
         html += msgHTML(m);
       });
-      if (!ms.length) html = '<div class="col center" style="margin:auto;gap:6px;color:var(--muted)">' + (chat === 'g' ? '<b>محادثة العائلة كلها</b><span class="small">ابدأوا السوالف 👋</span>' : av(otherOf(chat), 80) + '<b>' + esc(nm(otherOf(chat))) + '</b><span class="small">ابدأ السوالف 👋</span>') + '</div>';
+      if (!ms.length) html = '<div class="col center" style="margin:auto;gap:6px;color:var(--muted)">' + (chat === 'g' ? '<span style="font-size:44px">' + (grp().e || '👨‍👩‍👧‍👦') + '</span><b>' + esc(grp().name) + '</b><span class="small">ابدأوا السوالف 👋</span>' : av(otherOf(chat), 80) + '<b>' + esc(nm(otherOf(chat))) + '</b><span class="small">ابدأ السوالف 👋</span>') + '</div>';
       html += nudgeCardHTML();
       box.innerHTML = html;
       bindMsgs(box, ms);
@@ -1029,7 +1090,7 @@ var A = (function () {
     if (here) return;
     var old = document.querySelector('.inbanner'); if (old) old.remove();
     var b = document.createElement('button'); b.className = 'inbanner';
-    b.innerHTML = av(m.s, 44) + '<span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + esc(nm(m.s)) + (m.chat === 'g' ? ' · العائلة' : '') + '</b><span class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (m.k === 'text' ? esc((m.text || '').slice(0, 70)) : NB.KIND[m.k]) + '</span></span>';
+    b.innerHTML = av(m.s, 44) + '<span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + esc(nm(m.s)) + (m.chat === 'g' ? ' · ' + esc(grp().name) : '') + '</b><span class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (m.k === 'text' ? esc((m.text || '').slice(0, 70)) : NB.KIND[m.k]) + '</span></span>';
     b.onclick = function () { b.remove(); var parts = NB.chatParts(m.chat) || []; if (S.me && chatsFor(S.me).indexOf(m.chat) >= 0) openChat(m.chat); else { var w = parts.filter(function (x) { return S.dev.members.indexOf(x) >= 0 && !needsPin(x); })[0]; if (w) { S.me = w; NB.kv.set('me', w); openChat(m.chat); } } };
     document.body.appendChild(b);
     setTimeout(function () { b.remove(); }, 6000);
@@ -1219,7 +1280,7 @@ var A = (function () {
     S: S, $: $, esc: esc, rid: rid, api: api, ic: ic, IC: IC, av: av, nm: nm, fem: fem, live: live, role: role, member: member, toast: toast, sheet: sheet, show: show,
     fmtDate: fmtDate, fmtTime: fmtTime, ago: ago, num: num, plat: plat, isParent: isParent, isOwner: isOwner, isAdmin: isAdmin, kindLabel: kindLabel,
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
-    copy: copy, shareCode: shareCode, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
+    copy: copy, shareCode: shareCode, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };
