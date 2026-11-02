@@ -657,7 +657,7 @@ var A = (function () {
   function msgHTML(m) {
     var mine = m.s === S.me, group = m.chat === 'g';
     var body = '';
-    if (m.k === 'text') body = '<div class="bub">' + esc(m.text || '') + '</div>';
+    if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
     else if (m.k === 'photo' || m.k === 'draw') {
       var u = mediaUrl(m);
       body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
@@ -669,6 +669,16 @@ var A = (function () {
     var meta = '<span class="meta">' + fmtTime(m.t) + (mine ? ' ' + tickSvg(m, group) + voiceNote(m) : '') + '</span>';
     return '<div class="m' + (mine ? ' me' : '') + '" data-id="' + m.id + '">' + (!mine && group ? av(m.s, 32) : '') +
       '<div class="col" style="gap:0;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';min-width:0">' + (!mine && group ? '<span class="who2" style="color:' + colorOf(m.s) + '">' + esc(nm(m.s)) + '</span>' : '') + body + meta + '</div></div>';
+  }
+  /* رسالة كلها إيموجي (بدون كتابة) ← عددها، وإلا 0 */
+  var EMO_RE = null;
+  try { EMO_RE = new RegExp('^(?:\\p{Extended_Pictographic}|\\p{Emoji_Component}|\\p{Emoji_Modifier}|\\u200d|\\ufe0f|\\s)+$', 'u'); } catch (e) {}
+  function emojiOnly(t) {
+    t = (t || '').trim();
+    if (!t || !EMO_RE || !EMO_RE.test(t) || /^[\d\s#*]+$/.test(t)) return 0;
+    var n = 0;
+    try { var sg = new Intl.Segmenter('ar', { granularity: 'grapheme' }); for (var x of sg.segment(t.replace(/\s+/g, ''))) n++; } catch (e) { n = Array.from(t.replace(/\s+/g, '')).length; }
+    return n <= 12 ? n : 0;
   }
   function voiceNote(m) {
     if (m.k !== 'voice' || m.out) return '';
@@ -810,22 +820,30 @@ var A = (function () {
   function startRec() {
     if (rec) return;
     if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل غير مدعوم على هذا الجهاز');
+    // نشغّل محلّل الصوت هنا (داخل ضغطة الزر) عشان الآيفون ما يبدأه موقوف
+    var ac = null;
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.resume) ac.resume(); } catch (e) { ac = null; }
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
       var types = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
       var type = ''; for (var i = 0; i < types.length; i++) if (MediaRecorder.isTypeSupported(types[i])) { type = types[i]; break; }
       var mr = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 });
-      var chunks = [], peaks = [], t0 = Date.now(), ac, an, buf;
-      try { ac = new (window.AudioContext || window.webkitAudioContext)(); an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(stream).connect(an); buf = new Uint8Array(an.fftSize); } catch (e) {}
+      var chunks = [], peaks = [], t0 = Date.now(), an, buf;
+      try { if (ac.resume) ac.resume(); an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(stream).connect(an); buf = new Uint8Array(an.fftSize); } catch (e) {}
       rec = { mr: mr, stream: stream, cancel: false };
       mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
       mr.onstop = function () {
         stream.getTracks().forEach(function (tr) { tr.stop(); });
-        try { ac && ac.close(); } catch (e) {}
         clearInterval(rec.tick); clearInterval(rec.samp);
         var cancel = rec.cancel, dur = (Date.now() - t0) / 1000; rec = null; composer();
-        if (cancel || dur < 0.7) return;
+        if (cancel || dur < 0.7) { try { ac && ac.close(); } catch (e) {} return; }
         var blob = new Blob(chunks, { type: (mr.mimeType || type || 'audio/webm').split(';')[0] });
-        sendMsg('voice', { dur: Math.round(dur), wf: shrink(peaks, 32) }, blob);
+        // شكل الموجة من التسجيل نفسه (أدق)، ونتأكد إن فيه صوت فعلاً
+        analyze(blob, ac).then(function (r) {
+          try { ac && ac.close(); } catch (e) {}
+          var wf = r ? r.wf : shrink(peaks, 32);
+          var send = function () { sendMsg('voice', { dur: Math.round(r && r.dur ? r.dur : dur), wf: wf }, blob); };
+          if (r && r.silent) silentSheet(send); else send();
+        });
       };
       mr.start(250);
       var c = $('#comp');
@@ -841,6 +859,29 @@ var A = (function () {
         peaks.push(Math.min(1, mx / 64));
       }, 100);
     }).catch(function () { toast('اسمح لنَبْض باستخدام الميكروفون من إعدادات المتصفح', 4000); });
+  }
+  function analyze(blob, ac) {
+    return blob.arrayBuffer().then(function (ab) {
+      return new Promise(function (res, rej) {
+        var ctx = ac || new (window.AudioContext || window.webkitAudioContext)();
+        var p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej);
+      });
+    }).then(function (audio) {
+      var d = audio.getChannelData(0), n = 32, step = Math.max(1, Math.floor(d.length / n)), out = [], mx = 0;
+      for (var i = 0; i < n; i++) {
+        var pk = 0, s = i * step, e = Math.min(d.length, s + step);
+        for (var j = s; j < e; j += 16) { var v = Math.abs(d[j]); if (v > pk) pk = v; }
+        out.push(pk); if (pk > mx) mx = pk;
+      }
+      return { silent: mx < 0.012, dur: audio.duration, wf: out.map(function (v) { return Math.round(Math.max(.15, v / (mx || 1)) * 100) / 100; }) };
+    }).catch(function () { return null; });
+  }
+  function silentSheet(send) {
+    var sh = sheet('<div class="col center" style="gap:10px;text-align:center"><span style="font-size:48px">🎤</span><h2 style="font-size:22px">التسجيل طلع بدون صوت</h2>' +
+      '<p class="muted" style="margin:0;line-height:1.7">يمكن الميكروفون مقفل أو مستخدَم في تطبيق ثاني. تأكد إن زر الميكروفون في إعدادات الجهاز السريعة شغّال، وجرّب مرة ثانية.</p></div>' +
+      '<button class="btn block" id="sr">سجّل من جديد</button><button class="btn line block" id="ss">أرسله كذا</button>');
+    $('#sr', sh).onclick = function () { sh.remove(); startRec(); };
+    $('#ss', sh).onclick = function () { sh.remove(); send(); };
   }
   function shrink(a, n) {
     if (!a.length) return [];
