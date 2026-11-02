@@ -18,6 +18,17 @@ binding = "STATS"
 database_name = "falaq"
 database_id = "3cb52fee-bfc3-4ee8-a362-15f5788ec267"
 
+# سجل رسائل سِراج (قراءة فقط) — لسجل الرسائل الكامل والنسخة الاحتياطية في لوحة الإدارة
+[[d1_databases]]
+binding = "SIRAJDB"
+database_name = "siraj"
+database_id = "6f6b4874-c611-4e63-a658-a5ea568af868"
+
+# ربط مباشر بخادم سِراج للتحقق من مفتاح الإدارة (fetch العادي بين خوادم workers.dev ممنوع)
+[[services]]
+binding = "SIRAJ"
+service = "siraj-api"
+
 # تشغيل السيرفر قرب قاعدة البيانات = ردود وإشعارات أسرع
 [placement]
 mode = "smart"

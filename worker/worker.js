@@ -63,6 +63,11 @@ export default {
         const b = await req.json().catch(() => ({}));
         return json(await wamdHit(env, b));
       }
+      if ((p === '/wamd/log' || p === '/wamd/backup') && req.method === 'GET') {
+        if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
+        if (p === '/wamd/log') return json(await wamdLog(env, parseInt(q.get('before'), 10) || 0, parseInt(q.get('limit'), 10) || 30));
+        return json(await wamdBackup(env));
+      }
       if (p === '/wamd/analytics' && req.method === 'GET') {
         if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
         if (!env.STATS) return json({ error: 'no-stats-db' }, 503);
@@ -607,7 +612,9 @@ async function isAdmin(req, env) {
   const h = await sha('adm:' + a), hit = adminOk.get(h);
   if (hit && hit > Date.now()) return true;
   try {
-    const r = await fetch(SIRAJ_API + '/stats', { headers: { Authorization: 'Bearer ' + encodeURIComponent(a) } });
+    // Cloudflare يمنع خادم يكلّم خادم ثاني على workers.dev بنفس الحساب بـ fetch العادي، فنستخدم الربط المباشر SIRAJ
+    const init = { headers: { Authorization: 'Bearer ' + encodeURIComponent(a) } };
+    const r = env.SIRAJ ? await env.SIRAJ.fetch('https://siraj-api/stats', init) : await fetch(SIRAJ_API + '/stats', init);
     if (r.ok) { adminOk.set(h, Date.now() + 10 * 60e3); return true; }
   } catch (e) {}
   return false;
@@ -751,4 +758,48 @@ async function wamdAnalytics(env, days) {
   const newByDay = {};
   fresh.forEach((r) => { const k = wDay(r.first) + '|' + r.app; newByDay[k] = (newByDay[k] || 0) + 1; });
   return { now, today, days: R, from, online_ms: W_ONLINE, totals, active, prev, ret, plat, ver, langs, series, newByDay, pages, recent, subs, dow };
+}
+
+/* ---------- سجل الرسائل الكامل والنسخة الاحتياطية (لوحة الإدارة) ----------
+   - GET /wamd/log?before=<ms>&limit=30   كل الرسائل العامة اللي انرسلت من اللوحة (فلق/سهم/خطى + سِراج + نَبْض)
+   - GET /wamd/backup                      نسخة JSON لكل السجلات والإحصائيات (بدون اشتراكات الإشعارات ولا أي محتوى عائلي) */
+async function wamdLog(env, before, limit) {
+  limit = Math.max(1, Math.min(200, limit));
+  const b = before > 0 ? before : 9e15;
+  const safe = (pr) => pr.then((r) => r.results || []).catch(() => []);
+  const [push, siraj, nabd] = await Promise.all([
+    env.STATS ? safe(env.STATS.prepare('SELECT created, apps, body, total FROM messages WHERE created < ? ORDER BY created DESC LIMIT ?').bind(b, limit).all()) : [],
+    env.SIRAJDB ? safe(env.SIRAJDB.prepare('SELECT created, title, body, total FROM messages WHERE created < ? ORDER BY created DESC LIMIT ?').bind(b, limit).all()) : [],
+    safe(env.DB.prepare('SELECT created, title, body, total FROM bcast WHERE created < ? ORDER BY created DESC LIMIT ?').bind(b, limit).all())
+  ]);
+  const out = [];
+  push.forEach((m) => { let j = {}; try { j = JSON.parse(m.body); } catch (e) {} out.push({ t: m.created, apps: String(m.apps || '').split(',').filter(Boolean), title: (j.ar || {}).title || '', body: (j.ar || {}).body || '', en: j.en && j.en.title !== (j.ar || {}).title ? j.en : null, kind: j.kind || 'news', total: m.total }); });
+  siraj.forEach((m) => out.push({ t: m.created, apps: ['siraj'], title: m.title || '', body: m.body || '', total: m.total }));
+  nabd.forEach((m) => out.push({ t: m.created, apps: ['nabd'], title: m.title || '', body: m.body || '', total: m.total }));
+  out.sort((x, y) => y.t - x.t);
+  const items = out.slice(0, limit);
+  const counts = {};
+  const cnt = async (db, sql) => { try { return ((await db.prepare(sql).first()) || {}).n || 0; } catch (e) { return 0; } };
+  counts.push = env.STATS ? await cnt(env.STATS, 'SELECT COUNT(*) n FROM messages') : 0;
+  counts.siraj = env.SIRAJDB ? await cnt(env.SIRAJDB, 'SELECT COUNT(*) n FROM messages') : 0;
+  counts.nabd = await cnt(env.DB, 'SELECT COUNT(*) n FROM bcast');
+  return { items, more: out.length > limit || items.length === limit, next: items.length ? items[items.length - 1].t : 0, counts };
+}
+async function wamdBackup(env) {
+  const all = (db, sql) => db ? db.prepare(sql).all().then((r) => r.results || []).catch(() => []) : Promise.resolve([]);
+  const [devices, days, pages, pushMsgs, sirajMsgs, nabdMsgs, nabdDaily] = await Promise.all([
+    all(env.STATS, 'SELECT * FROM devices'),
+    all(env.STATS, 'SELECT * FROM days ORDER BY day'),
+    all(env.STATS, 'SELECT * FROM pages ORDER BY day'),
+    all(env.STATS, 'SELECT created, apps, body, total FROM messages ORDER BY created'),
+    all(env.SIRAJDB, 'SELECT created, title, body, total FROM messages ORDER BY created'),
+    all(env.DB, 'SELECT created, title, body, total FROM bcast ORDER BY created'),
+    all(env.DB, 'SELECT day, k, n FROM daily ORDER BY day')
+  ]);
+  return {
+    kind: 'wamdarc-admin-backup', version: 1, created: Date.now(),
+    stats: { devices, days, pages },
+    messages: { push: pushMsgs, siraj: sirajMsgs, nabd: nabdMsgs },
+    nabd: { daily: nabdDaily }
+  };
 }
