@@ -1,8 +1,8 @@
 /* نَبْض | NABD — يشغّل التطبيق بدون إنترنت، ويحدّثه تلقائيًا، ويعرض الإشعارات والنبضة
    مع كل تحديث: غيّر CACHE هنا و VERSION في config.js و ?v= في index.html */
 importScripts('config.js', 'core.js');
-const CACHE = 'nabd-v1.2.6';
-const FILES = ['./', 'index.html', 'config.js', 'core.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
+const CACHE = 'nabd-v1.2.7';
+const FILES = ['./', 'index.html', 'config.js', 'core.js', 'chars.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 
 self.addEventListener('install', (e) => {
@@ -19,11 +19,16 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (CONFIG.API && req.url.startsWith(CONFIG.API)) return;            // السيرفر: بدون كاش
   if (url.origin === location.origin) {
-    // ملفات التطبيق: من الإنترنت أولًا (عشان التحديثات توصل)، وبدون إنترنت من الكاش
-    e.respondWith(fetch(req, { cache: 'no-cache' }).then((res) => {
-      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+    // ملفات التطبيق: من الكاش فوراً (فتح سريع حتى لو النت ضعيف)، ونحدّث الكاش من الإنترنت بالخلفية.
+    // التحديثات توصل لأن sw.js نفسه يتغير مع كل نسخة (CACHE جديد) ويحمّل الملفات من جديد.
+    const net = fetch(req, { cache: 'no-cache' }).then((res) => {
+      if (res.ok && url.pathname.indexOf('/sw.js') < 0) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
-    }).catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match('index.html'))));
+    });
+    e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => {
+      if (hit) { e.waitUntil(net.catch(() => {})); return hit; }
+      return net.catch(() => caches.match(req, { ignoreSearch: true }).then((h2) => h2 || caches.match('index.html')));
+    }));
     return;
   }
   // الخطوط: من الكاش أولًا
@@ -37,6 +42,23 @@ self.addEventListener('fetch', (e) => {
 
 /* ---------- الإشعارات ---------- */
 const isIOS = /iphone|ipad|ipod|macintosh/i.test(self.navigator.userAgent || '') && !/android/i.test(self.navigator.userAgent || '');
+
+/* نجيب محتوى الرسالة ونحفظه على الجهاز وقت وصول الإشعار، عشان يكون جاهز أول ما يفتح التطبيق */
+async function prefetch(items, acct) {
+  let added = 0;
+  await Promise.all(items.filter((it) => it.t === 'm' && it.id).map(async (it) => {
+    try {
+      let body = it.b;
+      if (!body && acct && acct.token) {
+        const r = await fetch(CONFIG.API + '/m/' + it.id, { headers: { Authorization: 'Bearer ' + acct.token }, cache: 'no-store' });
+        if (r.ok) body = await r.text();
+      }
+      if (body && await NB.ingest({ id: it.id, chat: it.chat, s: it.s, k: it.k, t: it.at }, body)) added++;
+      else if (!body) added++;
+    } catch (e) { added++; }
+  }));
+  if (added) { const n = (await NB.kv.get('badge').catch(() => 0)) || 0; await NB.badge(n + added); }
+}
 
 async function onPush(data) {
   let items = [];
@@ -62,7 +84,7 @@ async function onPush(data) {
     if (visible && !isIOS) return;
     return self.registration.showNotification('نَبْض', { body: 'عندك جديد في نَبْض', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', lang: 'ar', dir: 'rtl', tag: 'nabd' });
   }
-  const shown = [];
+  const shown = [prefetch(items, acct).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((l) => l.forEach((c) => c.postMessage({ type: 'push', items: [] }))).catch(() => {})];
   for (const it of items.slice(-4)) {
     let title = 'نَبْض', body = '', opt = { icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', lang: 'ar', dir: 'rtl', data: it };
     if (it.t === 'm') {
@@ -103,7 +125,7 @@ async function onPush(data) {
     } else continue;
     shown.push(self.registration.showNotification(title, Object.assign(opt, { body })));
   }
-  if (!shown.length && !(visible && !isIOS)) shown.push(self.registration.showNotification('نَبْض', { body: 'عندك جديد في نَبْض', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'nabd' }));
+  if (shown.length < 2 && !(visible && !isIOS)) shown.push(self.registration.showNotification('نَبْض', { body: 'عندك جديد في نَبْض', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'nabd' }));
   await Promise.all(shown);
 }
 self.addEventListener('push', (e) => { let d = null; try { d = e.data ? e.data.json() : null; } catch (x) {} e.waitUntil(onPush(d)); });

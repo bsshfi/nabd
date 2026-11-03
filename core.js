@@ -103,5 +103,31 @@ var NB = (function () {
   function media(m) { if (!m) return null; if (m.buf) return new Blob([m.buf], { type: m.mime || '' }); return m.blob || null; }
   function mediaSize(m) { return m.buf ? m.buf.byteLength : m.blob ? m.blob.size : 0; }
 
-  return { media: media, mediaSize: mediaSize, kv: kv, msgs: msgs, b64e: b64e, b64d: b64d, te: te, td: td, enc: enc, dec: dec, encJSON: encJSON, decJSON: decJSON, profile: profile, nameOf: nameOf, chatParts: chatParts, KIND: KIND, db: db };
+  /* صيغة الرسالة: [طول الرأس ٤ بايت][رأس JSON][البيانات] */
+  function unpack(u8) {
+    var n = new DataView(u8.buffer, u8.byteOffset).getUint32(0);
+    return { head: JSON.parse(td.decode(u8.subarray(4, 4 + n))), data: u8.subarray(4 + n) };
+  }
+  /* رسالة واصلة (من المزامنة أو من الإشعار نفسه): نفك تشفيرها ونحفظها إذا ما كانت عندنا. يرجّع الرسالة أو null */
+  function ingest(meta, body) {
+    return msgs.get(meta.id).then(function (old) {
+      if (old) return null;
+      return dec(body).then(function (u8) {
+        var x = unpack(u8), h = x.head;
+        var rec = { id: meta.id, chat: meta.chat, s: meta.s, k: meta.k, t: meta.t || Date.now(), st: {}, r: [] };
+        if (meta.k === 'text') rec.text = h.text;
+        else { rec.buf = x.data.slice().buffer; rec.mime = h.mime || ''; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
+        return msgs.get(meta.id).then(function (o2) { return o2 ? null : msgs.put(rec).then(function () { return rec; }); });
+      });
+    });
+  }
+  /* رقم الأيقونة (آيفون/كمبيوتر). أندرويد يعدّ الإشعارات نفسها */
+  function badge(n) {
+    n = Math.max(0, n | 0);
+    var nav = self.navigator;
+    try { if (n && nav.setAppBadge) nav.setAppBadge(n).catch(function () {}); else if (!n && nav.clearAppBadge) nav.clearAppBadge().catch(function () {}); } catch (e) {}
+    return kv.set('badge', n).catch(function () {});
+  }
+
+  return { unpack: unpack, ingest: ingest, badge: badge, media: media, mediaSize: mediaSize, kv: kv, msgs: msgs, b64e: b64e, b64d: b64d, te: te, td: td, enc: enc, dec: dec, encJSON: encJSON, decJSON: decJSON, profile: profile, nameOf: nameOf, chatParts: chatParts, KIND: KIND, db: db };
 })();

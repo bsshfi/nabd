@@ -76,10 +76,14 @@ var A = (function () {
     var init = { method: body === undefined && !opt.raw ? 'GET' : 'POST', headers: h };
     if (opt.raw) { init.body = opt.raw; h['Content-Type'] = 'text/plain'; }
     else if (body !== undefined) { init.body = JSON.stringify(body); h['Content-Type'] = 'application/json'; }
+    // مهلة: طلب علّق (مثلاً بعد ما رجع التطبيق من الخلفية) ما يأخّر الجديد
+    var ac = window.AbortController ? new AbortController() : null, tm = null;
+    if (ac) { init.signal = ac.signal; tm = setTimeout(function () { ac.abort(); }, opt.timeout || (opt.raw ? 60000 : 12000)); }
     return fetch(API + path, init).then(function (r) {
+      if (tm) clearTimeout(tm);
       if (opt.text) return r.ok ? r.text() : Promise.reject({ status: r.status });
       return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { j.status = r.status; throw j; } return j; });
-    }, function () { throw { error: 'network' }; });
+    }, function () { if (tm) clearTimeout(tm); throw { error: 'network' }; });
   }
 
   /* ---------- الأفراد والصلاحيات ---------- */
@@ -105,6 +109,7 @@ var A = (function () {
     var st = 'width:' + s + 'px;height:' + s + 'px;';
     if (a.photo) return '<span class="av" style="' + st + '"' + (extra || '') + '><img src="' + esc(a.photo) + '" alt=""></span>';
     if (a.e) return '<span class="av" style="' + st + 'background:' + esc(a.bg || '#FFE3B3') + ';font-size:' + Math.round(s * .56) + 'px;line-height:1;font-family:\'Apple Color Emoji\',\'Segoe UI Emoji\',\'Noto Color Emoji\',sans-serif"' + (extra || '') + '>' + esc(a.e) + '</span>';
+    if (a.ch && window.CH) return '<span class="av" style="' + st + 'background:' + esc(a.bg || '#DCEBFA') + '"' + (extra || '') + '>' + CH.svg(a.ch) + '</span>';
     if (a.a && AVATARS[a.a]) return '<span class="av" style="' + st + 'background:' + esc(a.bg || AVATARS[a.a].bg) + '"' + (extra || '') + '><svg viewBox="0 0 64 64" aria-hidden="true">' + AVATARS[a.a].s + '</svg></span>';
     return '<span class="av" style="' + st + 'background:' + colorOf(id) + ';font-size:' + Math.round(s * .46) + 'px"' + (extra || '') + '>' + esc((m.name || '؟').trim().charAt(0)) + '</span>';
   }
@@ -309,7 +314,7 @@ var A = (function () {
       b.onclick = function () {
         draft.me.g = b.dataset.g;
         var n = $('#mn'); if (n.value === 'بابا' || n.value === 'ماما' || !n.value) n.value = draft.me.g === 'f' ? 'ماما' : 'بابا';
-        draft.me.av = draft.me.g === 'f' ? { a: 'rabbit', bg: '#FAD9E6' } : { a: 'bear', bg: '#EADBCB' };
+        draft.me.av = charAv('parent', draft.me.g);
         document.querySelectorAll('[data-g]').forEach(function (x) { x.classList.toggle('on', x === b); });
       };
     });
@@ -317,7 +322,7 @@ var A = (function () {
       draft.fam = $('#fn').value.trim(); draft.me.name = $('#mn').value.trim();
       if (!draft.fam) return ($('#e1').textContent = 'اكتب اسم العائلة');
       if (!draft.me.name) return ($('#e1').textContent = 'اكتب اسمك');
-      if (!draft.list.length) draft.list.push({ id: rid(9), name: draft.me.g === 'f' ? 'بابا' : 'ماما', kind: 'parent', g: draft.me.g === 'f' ? 'm' : 'f', av: draft.me.g === 'f' ? { a: 'bear', bg: '#EADBCB' } : { a: 'rabbit', bg: '#FAD9E6' } });
+      if (!draft.list.length) draft.list.push({ id: rid(9), name: draft.me.g === 'f' ? 'بابا' : 'ماما', kind: 'parent', g: draft.me.g === 'f' ? 'm' : 'f', av: charAv('parent', draft.me.g === 'f' ? 'm' : 'f') });
       createStep2();
     };
   }
@@ -342,48 +347,77 @@ var A = (function () {
     $('#add').onclick = function () { memberForm(null, function (m) { draft.list.push(m); createStep2(); }); };
     $('#go').onclick = function () { setPin('اختر رمز سري من ٤ أرقام لحسابك', function (pin) { createFamily(pin); }); };
   }
+  function charAv(kind, g) { var p = CH.presetFor(kind, g); return { ch: JSON.parse(JSON.stringify(p.ch)), bg: p.bg }; }
   function kindLabel(m) { return m.kind === 'parent' ? (m.g === 'f' ? 'أم' : 'أب') : (m.g === 'f' ? 'بنت' : 'ولد'); }
 
-  /* نموذج فرد (إضافة أو تعديل): النوع، والصورة الرمزية (رسومات · إيموجي · صورة) */
+  /* نموذج فرد (إضافة أو تعديل): النوع، والصورة الرمزية (شخصيات · حيوانات · إيموجي) */
   function memberForm(m, done, opts) {
     opts = opts || {};
-    var d = m ? JSON.parse(JSON.stringify(m)) : { id: rid(9), name: '', kind: null, g: null, av: { a: 'cat', bg: AVATARS.cat.bg } };
+    var d = m ? JSON.parse(JSON.stringify(m)) : { id: rid(9), name: '', kind: null, g: null, av: null };
+    var touched = !!m;
     var types = [['parent', 'm', 'أب'], ['parent', 'f', 'أم'], ['child', 'm', 'ولد'], ['child', 'f', 'بنت']];
     if (opts.lockKind) types = types.filter(function (t) { return t[0] === d.kind; });
-    var tab = d.av && d.av.photo ? 'photo' : d.av && d.av.e ? 'emoji' : 'draw';
-    var keep = S.prof; 
+    if (!d.av) { var p0 = CH.presetFor(d.kind || 'child', d.g || 'm'); d.av = { ch: JSON.parse(JSON.stringify(p0.ch)), bg: p0.bg }; }
+    var tab = d.av.e ? 'emoji' : d.av.a ? 'draw' : 'char';
+    var keep = S.prof;
     var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">' + (m ? 'تعديل ' + esc(m.name) : 'فرد جديد') + '</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<div class="row" style="gap:14px"><span id="pv"></span><label class="field grow"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"' + (opts.lockName ? ' readonly style="opacity:.6"' : '') + '></label></div>' +
+      '<div class="row pvbar" style="gap:14px"><span id="pv"></span><label class="field grow"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"' + (opts.lockName ? ' readonly style="opacity:.6"' : '') + '></label></div>' +
       '<div class="field"' + (opts.avatarOnly ? ' hidden' : '') + '><span>' + (opts.lockKind ? (d.kind === 'parent' ? 'أب أو أم' : 'ولد أو بنت') : 'النوع') + '</span><div class="chips" style="display:grid;grid-template-columns:repeat(' + types.length + ',minmax(0,1fr))">' + types.map(function (t) { return '<button class="chip' + (d.kind === t[0] && d.g === t[1] ? ' on' : '') + '" data-t="' + t[0] + '|' + t[1] + '">' + t[2] + '</button>'; }).join('') + '</div></div>' +
-      '<div class="field"><span>الصورة الرمزية</span><div class="seg"><button data-tab="draw">رسومات</button><button data-tab="emoji">إيموجي</button><button data-tab="photo">صورة</button></div></div>' +
+      '<div class="field"><span>الصورة الرمزية</span><div class="seg"><button data-tab="char">شخصيات</button><button data-tab="draw">حيوانات</button><button data-tab="emoji">إيموجي</button></div></div>' +
       '<div id="avbox"></div><div class="err" id="me"></div><button class="btn block" id="ok">' + (m ? 'حفظ' : 'إضافة') + '</button>');
-    function paintPv() { S.prof = { members: {} }; S.prof.members[d.id] = d; $('#pv', sh).innerHTML = av(d.id, 72); S.prof = keep; }
-    function colors() { return '<div class="row" style="justify-content:space-between;margin-top:12px">' + AV_BGS.map(function (c) { return '<button data-bg="' + c + '" aria-label="لون" style="width:36px;height:36px;border-radius:50%;background:' + c + ';border:3px solid var(--card);outline:' + (d.av && d.av.bg === c ? '3px solid var(--ink)' : '0') + '"></button>'; }).join('') + '</div>'; }
+    function paintPv() { S.prof = { members: {} }; S.prof.members[d.id] = d; $('#pv', sh).innerHTML = av(d.id, 84); S.prof = keep; }
+    function colors() { return '<div class="chb"><h4>الخلفية</h4><div class="chrow">' + AV_BGS.concat(['#FFFFFF', '#1B2333']).map(function (c) { return '<button class="sw' + (d.av && d.av.bg === c ? ' on' : '') + '" data-bg="' + c + '" aria-label="لون" style="background:' + c + '"></button>'; }).join('') + '</div></div>'; }
+    function chThumb(patch, label, key) {
+      var c = Object.assign({}, d.av.ch, patch), on = Object.keys(patch).every(function (k) { return (d.av.ch[k] == null ? '' : String(d.av.ch[k])) === String(patch[k]); });
+      return '<button data-chp=\'' + esc(JSON.stringify(patch)) + '\' class="' + (on ? 'on' : '') + '"><span class="av" style="width:58px;height:58px;background:' + esc(d.av.bg || '#DCEBFA') + '">' + CH.svg(c) + '</span>' + label + '</button>';
+    }
+    function swatches(key, list) { return '<div class="chrow">' + list.map(function (c, i) { return '<button class="sw' + ((d.av.ch[key] | 0) === i ? ' on' : '') + '" data-chp=\'{"' + key + '":' + i + '}\' aria-label="لون" style="background:' + c + '"></button>'; }).join('') + '</div>'; }
+    function row(title, html) { return '<div class="chb"><h4>' + title + '</h4>' + html + '</div>'; }
+    function charTab() {
+      var c = d.av.ch, hw = c.hw || 'none', covered = hw === 'shmagh' || hw === 'ghutra' || hw === 'hijab';
+      var h = row('جاهزة', '<div class="chrow">' + CH.PRESETS.map(function (p, i) { if (d.g && p.g !== d.g) return ''; return '<button data-pre="' + i + '"><span class="av" style="width:58px;height:58px;background:' + p.bg + '">' + CH.svg(p.ch) + '</span>' + p.n + '</button>'; }).join('') + '</div>');
+      h += row('البشرة', swatches('s', CH.SKIN));
+      var gm = d.g === 'm', gf = d.g === 'f';
+      var only = function (keys, boy, girl) { return keys.filter(function (k) { return !(gm && girl.indexOf(k) >= 0) && !(gf && boy.indexOf(k) >= 0); }); };
+      h += row('غطاء الراس', '<div class="chrow">' + only(Object.keys(CH.HEADS), ['shmagh', 'ghutra', 'taqiya'], ['hijab', 'bow']).map(function (k) { return chThumb({ hw: k }, CH.HEADS[k]); }).join('') + '</div>');
+      if (hw === 'hijab') h += row('لون الحجاب', swatches('wc', CH.HIJABC));
+      if (hw === 'cap' || hw === 'bow') h += row(hw === 'cap' ? 'لون الكاب' : 'لون الفيونكة', swatches('wc', CH.CLOTH.slice(0, 8)));
+      if (!covered) h += row('الشعر', '<div class="chrow">' + Object.keys(CH.HAIRS).map(function (k) { return chThumb({ h: k }, CH.HAIRS[k]); }).join('') + '</div>');
+      if (!covered || (c.b | 0)) h += row('لون الشعر', swatches('hc', CH.HAIRC));
+      h += row('اللبس', '<div class="chrow">' + only(Object.keys(CH.OUTFITS), ['thobe'], ['dress', 'trad', 'abaya']).map(function (k) { return chThumb({ o: k }, CH.OUTFITS[k]); }).join('') + '</div>');
+      if (['tee', 'dress', 'hoodie'].indexOf(c.o) >= 0) h += row('لون اللبس', swatches('oc', CH.CLOTH));
+      h += row('الوجه', '<div class="chrow">' + Object.keys(CH.FACES).map(function (k) { return chThumb({ e: k }, CH.FACES[k]); }).join('') + '</div>');
+      if (d.g !== 'f') h += row('اللحية والشنب', '<div class="chrow">' + Object.keys(CH.BEARDS).map(function (k) { return chThumb({ b: +k }, CH.BEARDS[k]); }).join('') + '</div>');
+      h += row('نظارة', '<div class="chrow">' + Object.keys(CH.GLASSES).map(function (k) { return chThumb({ gl: +k }, CH.GLASSES[k]); }).join('') + '</div>');
+      return h + colors();
+    }
     function paintTab() {
       sh.querySelectorAll('[data-tab]').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
       var box = $('#avbox', sh), h = '';
-      if (tab === 'draw') h = '<div class="avgrid">' + Object.keys(AVATARS).map(function (k) {
+      if (tab === 'char') { if (!d.av.ch) { var p0 = CH.presetFor(d.kind || 'child', d.g || 'm'); d.av = { ch: JSON.parse(JSON.stringify(p0.ch)), bg: d.av.bg || p0.bg }; paintPv(); } h = charTab(); }
+      else if (tab === 'draw') h = '<div class="avgrid">' + Object.keys(AVATARS).map(function (k) {
         return '<button data-a="' + k + '" class="' + (d.av && d.av.a === k ? 'on' : '') + '" aria-label="' + AVATARS[k].n + '"><span class="av" style="width:60px;height:60px;background:' + (d.av && d.av.a === k && d.av.bg ? d.av.bg : AVATARS[k].bg) + '"><svg viewBox="0 0 64 64">' + AVATARS[k].s + '</svg></span></button>';
       }).join('') + '</div>' + colors();
-      else if (tab === 'emoji') h = '<div class="avgrid" style="grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">' + AV_EMOJI.map(function (e, i) {
+      else h = '<div class="avgrid" style="grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">' + AV_EMOJI.map(function (e, i) {
         return '<button data-e="' + i + '" class="' + (d.av && d.av.e === e ? 'on' : '') + '" style="width:48px;height:48px;font-size:28px;line-height:1;background:var(--card);box-shadow:0 1px 0 var(--line)">' + e + '</button>';
       }).join('') + '</div>' + colors();
-      else h = '<div class="card col center" style="gap:10px;text-align:center"><label class="btn brand" style="cursor:pointer">' + ic('image') + ' اختر صورة من الجهاز<input type="file" accept="image/*" id="avf" hidden></label>' +
-        '<span class="tiny muted" style="line-height:1.7">الصورة تتصغّر (٢٥٦ بكسل) وتنحفظ مشفّرة مع بيانات العائلة، وتوصل لكل أجهزة العائلة. ما تنحفظ في أي مكان ثاني، والسيرفر ما يقدر يشوفها.</span></div>';
+      // نحافظ على مكان التمرير الأفقي لكل صف
+      var sc = [].map.call(box.querySelectorAll('.chrow'), function (r) { return r.scrollLeft; });
       box.innerHTML = h;
-      box.querySelectorAll('[data-a]').forEach(function (b) { b.onclick = function () { d.av = { a: b.dataset.a, bg: AVATARS[b.dataset.a].bg }; paintTab(); paintPv(); }; });
-      box.querySelectorAll('[data-e]').forEach(function (b) { b.onclick = function () { d.av = { e: AV_EMOJI[+b.dataset.e], bg: (d.av && d.av.bg) || AV_BGS[0] }; paintTab(); paintPv(); }; });
-      box.querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { if (!d.av || d.av.photo) return; d.av.bg = b.dataset.bg; paintTab(); paintPv(); }; });
-      var f = $('#avf', box);
-      if (f) f.onchange = function () {
-        var file = this.files[0]; if (!file) return;
-        compress(file, 256, 60000).then(function (r) {
-          var fr = new FileReader(); fr.onload = function () { d.av = { photo: fr.result }; paintPv(); toast('تمام ✓ اضغط ' + (m ? 'حفظ' : 'إضافة')); }; fr.readAsDataURL(r.blob);
-        }, function () { toast('ما قدرنا نفتح الصورة'); });
-      };
+      box.querySelectorAll('.chrow').forEach(function (r, i) { if (sc[i]) r.scrollLeft = sc[i]; });
+      function set(fn) { return function () { touched = true; fn.call(this); paintTab(); paintPv(); }; }
+      box.querySelectorAll('[data-a]').forEach(function (b) { b.onclick = set(function () { d.av = { a: b.dataset.a, bg: AVATARS[b.dataset.a].bg }; }); });
+      box.querySelectorAll('[data-e]').forEach(function (b) { b.onclick = set(function () { d.av = { e: AV_EMOJI[+b.dataset.e], bg: (d.av && d.av.bg) || AV_BGS[0] }; }); });
+      box.querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = set(function () { d.av.bg = b.dataset.bg; }); });
+      box.querySelectorAll('[data-pre]').forEach(function (b) { b.onclick = set(function () { var p = CH.PRESETS[+b.dataset.pre]; d.av = { ch: JSON.parse(JSON.stringify(p.ch)), bg: p.bg }; }); });
+      box.querySelectorAll('[data-chp]').forEach(function (b) { b.onclick = set(function () { Object.assign(d.av.ch, JSON.parse(b.dataset.chp)); }); });
     }
     $('#x', sh).onclick = function () { sh.remove(); };
-    sh.querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () { var t = b.dataset.t.split('|'); d.kind = t[0]; d.g = t[1]; sh.querySelectorAll('[data-t]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    sh.querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () {
+      var t = b.dataset.t.split('|'); d.kind = t[0]; d.g = t[1]; sh.querySelectorAll('[data-t]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      if (!touched) { var p = CH.presetFor(d.kind, d.g); d.av = { ch: JSON.parse(JSON.stringify(p.ch)), bg: p.bg }; tab = 'char'; paintPv(); }
+      paintTab();
+    }; });
     sh.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { tab = b.dataset.tab; paintTab(); }; });
     $('#nn', sh).oninput = function () { d.name = this.value; paintPv(); };
     $('#ok', sh).onclick = function () {
@@ -561,6 +595,7 @@ var A = (function () {
         var unread = ms.filter(function (m) { return m.s !== S.me && (m.r || []).indexOf(S.me) < 0; }).length;
         return { c: c, last: last, unread: unread, t: last ? last.t : 0 };
       });
+      setBadge(items.reduce(function (n, it) { return n + it.unread; }, 0));
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
       items.unshift(g);
@@ -709,7 +744,30 @@ var A = (function () {
       m.r = (m.r || []).concat([S.me]); items.push({ id: m.id, chat: m.chat, s: m.s });
       NB.msgs.put(m);
     });
-    if (items.length) api('/rcpt', { member: S.me, s: 2, items: items }).catch(function () {});
+    if (items.length) {
+      api('/rcpt', { member: S.me, s: 2, items: items }).catch(function () {});
+      NB.kv.get('badge').then(function (n) { setBadge((n || 0) - items.length); });
+    }
+    if (ms.length) closeChatNotifs(ms[0].chat);
+  }
+  /* رقم الأيقونة + نشيل إشعارات المحادثة اللي انقرت (أندرويد يعدّ الإشعارات الموجودة) */
+  function setBadge(n) { NB.badge(n); }
+  function closeChatNotifs(chat) {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then(function (reg) { return reg.getNotifications({ tag: 'chat-' + chat }); }).then(function (l) { l.forEach(function (x) { x.close(); }); }).catch(function () {});
+  }
+  function closeReadNotifs() {
+    if (!('serviceWorker' in navigator) || !S.me) return;
+    navigator.serviceWorker.ready.then(function (reg) { return reg.getNotifications(); }).then(function (l) {
+      l.forEach(function (x) {
+        var d = x.data || {};
+        if (d.t !== 'm') return;
+        NB.msgs.chat(d.chat).then(function (ms) {
+          var left = ms.some(function (m) { return S.dev.members.indexOf(m.s) < 0 && !(m.r || []).some(function (r) { return S.dev.members.indexOf(r) >= 0; }); });
+          if (!left) x.close();
+        });
+      });
+    }).catch(function () {});
   }
 
   /* ----- الصوت ----- */
@@ -780,10 +838,6 @@ var A = (function () {
     new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); if (bytes) out.set(bytes, 4 + h.length);
     return out;
   }
-  function unpack(u8) {
-    var n = new DataView(u8.buffer, u8.byteOffset).getUint32(0);
-    return { head: JSON.parse(NB.td.decode(u8.subarray(4, 4 + n))), data: u8.subarray(4 + n) };
-  }
   function sendMsg(kind, o, blob) {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: Date.now(), st: {}, r: [S.me], out: 1 };
     var head = {};
@@ -815,6 +869,16 @@ var A = (function () {
     });
   }
 
+  /* الميكروفون: أندرويد يسأل كل مرة إذا اختاروا "هذه المرة فقط" — ننبّههم يختارون "أثناء استخدام التطبيق" */
+  function micTip() {
+    var seen = 0; try { seen = +localStorage.getItem('nabd-mic') || 0; } catch (e) {}
+    try { localStorage.setItem('nabd-mic', seen + 1); } catch (e) {}
+    if (!seen || !navigator.permissions || !navigator.permissions.query) return;
+    navigator.permissions.query({ name: 'microphone' }).then(function (p) {
+      if (p.state !== 'prompt') return;
+      toast(plat() === 'ios' ? 'آيفون يسأل عن الميكروفون مرة كل ما ينفتح نَبْض من جديد — اضغط "سماح"' : 'اختر "أثناء استخدام التطبيق" عشان ما يسألك كل مرة 🎤', 5000);
+    }).catch(function () {});
+  }
   /* ----- تسجيل الصوت ----- */
   var rec = null;
   function startRec() {
@@ -823,6 +887,7 @@ var A = (function () {
     // نشغّل محلّل الصوت هنا (داخل ضغطة الزر) عشان الآيفون ما يبدأه موقوف
     var ac = null;
     try { ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.resume) ac.resume(); } catch (e) { ac = null; }
+    micTip();
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
       var types = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
       var type = ''; for (var i = 0; i < types.length; i++) if (MediaRecorder.isTypeSupported(types[i])) { type = types[i]; break; }
@@ -926,43 +991,92 @@ var A = (function () {
   }
 
   /* ----- الرسم ----- */
-  var COLORS = ['#1B2333', '#D4552B', '#F5B62A', '#23854D', '#2F6FDB', '#A13D8F', '#F28AB2', '#8A5A3C'];
-  var CN = ['أسود', 'أحمر', 'أصفر', 'أخضر', 'أزرق', 'بنفسجي', 'وردي', 'بني'];
+  var COLORS = ['#1B2333', '#D4552B', '#F5B62A', '#23854D', '#2F6FDB', '#A13D8F', '#F28AB2', '#8A5A3C', '#FFFFFF', '#3FC1C9', '#8BD346', '#FF8A3D'];
+  var CN = ['أسود', 'أحمر', 'أصفر', 'أخضر', 'أزرق', 'بنفسجي', 'وردي', 'بني', 'أبيض', 'تركوازي', 'ليموني', 'برتقالي'];
+  var BGS = ['#FFFFFF', '#FFF4C7', '#FAD9E6', '#DCEBFA', '#D6F0E0', '#E6E0FA', '#FFE0D6', '#BDE7FF', '#1B2333', '#2B3FA8', '#0F8B8D', '#F5B62A'];
+  var STICKERS = ['⭐', '❤️', '🌈', '🦄', '🐱', '🐶', '🦋', '🌸', '🌻', '☀️', '🌙', '✨', '🎈', '🎁', '👑', '🍦', '🍭', '🍉', '⚽', '🚗', '🚀', '🏠', '🐠', '🦁', '🐰', '😀', '😍', '😎', '🥳', '💖', '🌟', '🎀'];
+  /* الرسم: قلم، قوس قزح، نيون، ملصقات، لون الخلفية، ممحاة — وكل شي يتراجع */
   function drawScreen() {
     var chat = S.chat; S.view = 'draw';
-    var strokes = [], cur = null, color = COLORS[1], size = 10, erase = false;
+    var ops = [], cur = null, color = COLORS[1], size = 10, tool = 'pen', sticker = STICKERS[0];
+    var TOOLS = [['pen', '✏️', 'قلم'], ['rainbow', '🌈', 'قوس قزح'], ['glow', '💡', 'نيون'], ['sticker', '⭐', 'ملصقات'], ['bg', '🪣', 'الخلفية'], ['erase', '🧽', 'ممحاة']];
     var el = show('<div class="row"><button class="icb" id="dx" aria-label="إلغاء">' + ic('close') + '</button><span class="fd grow" style="font-size:23px;font-weight:800">ارسم لـ' + esc(chatTitle(chat)) + '</span>' +
       '<button class="icb" id="du" aria-label="تراجع">' + ic('undo') + '</button></div>' +
       '<div class="drawwrap" id="dw"><canvas id="cv"></canvas></div>' +
-      '<div class="card col" style="gap:12px;padding:14px"><div class="colors">' + COLORS.map(function (c, i) { return '<button data-c="' + c + '" aria-label="' + CN[i] + '" style="background:' + c + '"' + (i === 1 ? ' class="on"' : '') + '></button>'; }).join('') + '</div>' +
-      '<div class="row sizes"><button data-s="4" aria-label="قلم رفيع"><span class="dot8" style="width:6px;height:6px;background:var(--ink)"></span></button><button data-s="10" class="on" aria-label="قلم وسط"><span class="dot8" style="width:12px;height:12px;background:var(--ink)"></span></button><button data-s="22" aria-label="قلم عريض"><span class="dot8" style="width:20px;height:20px;background:var(--ink)"></span></button>' +
-      '<button id="er" aria-label="ممحاة">' + ic('eraser') + '</button><button class="btn grow" id="ds">إرسال ' + ic('send', 'style="transform:scaleX(-1)"') + '</button></div></div>', '');
+      '<div class="card col" style="gap:10px;padding:12px">' +
+      '<div class="dtools">' + TOOLS.map(function (t) { return '<button data-tool="' + t[0] + '"' + (t[0] === tool ? ' class="on"' : '') + '><span>' + t[1] + '</span>' + t[2] + '</button>'; }).join('') + '</div>' +
+      '<div id="dctx"></div>' +
+      '<div class="row sizes"><button data-s="4" aria-label="صغير"><span class="dot8" style="width:6px;height:6px;background:var(--ink)"></span></button><button data-s="10" class="on" aria-label="وسط"><span class="dot8" style="width:12px;height:12px;background:var(--ink)"></span></button><button data-s="22" aria-label="كبير"><span class="dot8" style="width:20px;height:20px;background:var(--ink)"></span></button>' +
+      '<button class="btn grow" id="ds">إرسال ' + ic('send', 'style="transform:scaleX(-1)"') + '</button></div></div>', '');
     el.style.height = '100dvh';
     var cv = $('#cv'), wrap = $('#dw'), ctx = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    function bgColor() { for (var i = ops.length - 1; i >= 0; i--) if (ops[i].t === 'bg') return ops[i].c; return '#FFFFFF'; }
     function fit() { var r = wrap.getBoundingClientRect(); cv.width = r.width * dpr; cv.height = r.height * dpr; redraw(); }
-    function line(s) {
-      ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = s.e ? '#fff' : s.c; ctx.lineWidth = s.w * dpr;
-      ctx.beginPath(); s.p.forEach(function (p, i) { var x = p[0] * cv.width, y = p[1] * cv.height; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
-      if (s.p.length === 1) ctx.lineTo(s.p[0][0] * cv.width + .1, s.p[0][1] * cv.height);
+    function seg(s, from) {
+      ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = s.w * dpr; ctx.shadowBlur = 0;
+      var P = s.p, X = function (p) { return p[0] * cv.width; }, Y = function (p) { return p[1] * cv.height; };
+      if (s.rb) {
+        // قوس قزح: كل جزء بلون
+        for (var i = Math.max(1, from || 1); i < P.length; i++) { ctx.strokeStyle = 'hsl(' + ((s.h + i * 7) % 360) + ',90%,55%)'; ctx.beginPath(); ctx.moveTo(X(P[i - 1]), Y(P[i - 1])); ctx.lineTo(X(P[i]), Y(P[i])); ctx.stroke(); }
+        if (P.length === 1) { ctx.strokeStyle = 'hsl(' + s.h + ',90%,55%)'; ctx.beginPath(); ctx.moveTo(X(P[0]), Y(P[0])); ctx.lineTo(X(P[0]) + .1, Y(P[0])); ctx.stroke(); }
+        return;
+      }
+      ctx.strokeStyle = s.e ? bgColor() : s.c;
+      if (s.g) { ctx.shadowColor = s.c; ctx.shadowBlur = 14 * dpr; }
+      var st = Math.max(0, (from || 0) - 1);
+      ctx.beginPath(); for (var j = st; j < P.length; j++) { if (j === st) ctx.moveTo(X(P[j]), Y(P[j])); else ctx.lineTo(X(P[j]), Y(P[j])); }
+      if (P.length - st === 1) ctx.lineTo(X(P[st]) + .1, Y(P[st]));
       ctx.stroke();
+      if (s.g) { ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(1.5, s.w * .35) * dpr; ctx.stroke(); }
     }
-    function redraw() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); strokes.forEach(line); }
+    function stamp(o) {
+      var px = o.z * cv.width;
+      ctx.shadowBlur = 0; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = px + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.fillText(o.ch, o.x * cv.width, o.y * cv.height);
+    }
+    function redraw() {
+      ctx.shadowBlur = 0; ctx.fillStyle = bgColor(); ctx.fillRect(0, 0, cv.width, cv.height);
+      ops.forEach(function (o) { if (o.t === 's') seg(o); else if (o.t === 'st') stamp(o); });
+    }
     function pt(e) { var r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
-    cv.onpointerdown = function (e) { cv.setPointerCapture(e.pointerId); cur = { c: color, w: erase ? 28 : size, e: erase, p: [pt(e)] }; strokes.push(cur); line(cur); };
-    cv.onpointermove = function (e) { if (!cur) return; cur.p.push(pt(e)); var n = cur.p.length; line({ c: cur.c, w: cur.w, e: cur.e, p: cur.p.slice(n - 2) }); };
+    cv.onpointerdown = function (e) {
+      cv.setPointerCapture(e.pointerId); var p = pt(e);
+      if (tool === 'bg') return;
+      if (tool === 'sticker') { cur = { t: 'st', ch: sticker, x: p[0], y: p[1], z: (size === 4 ? 40 : size === 10 ? 70 : 120) / cv.getBoundingClientRect().width }; ops.push(cur); redraw(); if (navigator.vibrate) navigator.vibrate(15); return; }
+      cur = { t: 's', c: color, w: tool === 'erase' ? Math.max(24, size * 2) : size, e: tool === 'erase', rb: tool === 'rainbow', g: tool === 'glow', h: Math.floor(Math.random() * 360), p: [p] };
+      ops.push(cur); seg(cur);
+    };
+    cv.onpointermove = function (e) {
+      if (!cur) return; var p = pt(e);
+      if (cur.t === 'st') { cur.x = p[0]; cur.y = p[1]; redraw(); return; }   // الملصق يتحرك مع الإصبع
+      cur.p.push(p); if (cur.g) redraw(); else seg(cur, cur.p.length - 1);
+    };
     cv.onpointerup = cv.onpointercancel = function () { cur = null; };
-    el.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { color = b.dataset.c; erase = false; el.querySelectorAll('[data-c]').forEach(function (x) { x.classList.toggle('on', x === b); }); $('#er').classList.remove('on'); }; });
-    el.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { size = +b.dataset.s; erase = false; el.querySelectorAll('[data-s]').forEach(function (x) { x.classList.toggle('on', x === b); }); $('#er').classList.remove('on'); }; });
-    $('#er').onclick = function () { erase = !erase; this.classList.toggle('on', erase); };
-    $('#du').onclick = function () { strokes.pop(); redraw(); };
-    $('#dx').onclick = function () { if (strokes.length && !confirm('تلغي الرسمة؟')) return; openChat(chat); };
+    function paintCtx() {
+      var box = $('#dctx'), h;
+      if (tool === 'sticker') h = '<div class="drow">' + STICKERS.map(function (x) { return '<button class="stk' + (x === sticker ? ' on' : '') + '" data-stk="' + x + '">' + x + '</button>'; }).join('') + '</div><span class="tiny muted" style="display:block;margin-top:4px">اضغط على الرسمة تحط الملصق، واسحب تحرّكه · الحجم من تحت</span>';
+      else if (tool === 'bg') h = '<div class="drow">' + BGS.map(function (c) { return '<button class="sw' + (c === bgColor() ? ' on' : '') + '" data-bgc="' + c + '" aria-label="لون الخلفية" style="background:' + c + '"></button>'; }).join('') + '</div><span class="tiny muted" style="display:block;margin-top:4px">اختر لون وتتلوّن الخلفية كاملة (رسمتك تبقى فوقها)</span>';
+      else if (tool === 'rainbow') h = '<span class="small muted" style="display:block;padding:10px 4px">🌈 ارسم وتطلع الألوان لحالها!</span>';
+      else if (tool === 'erase') h = '<span class="small muted" style="display:block;padding:10px 4px">🧽 امسح بإصبعك · الحجم من تحت</span>';
+      else h = '<div class="drow">' + COLORS.map(function (c, i) { return '<button class="sw' + (c === color ? ' on' : '') + '" data-c="' + c + '" aria-label="' + CN[i] + '" style="background:' + c + '"></button>'; }).join('') + '</div>';
+      box.innerHTML = h;
+      box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { color = b.dataset.c; paintCtx(); }; });
+      box.querySelectorAll('[data-stk]').forEach(function (b) { b.onclick = function () { sticker = b.dataset.stk; paintCtx(); }; });
+      box.querySelectorAll('[data-bgc]').forEach(function (b) { b.onclick = function () { if (b.dataset.bgc !== bgColor()) { ops.push({ t: 'bg', c: b.dataset.bgc }); redraw(); } paintCtx(); }; });
+    }
+    el.querySelectorAll('[data-tool]').forEach(function (b) { b.onclick = function () { tool = b.dataset.tool; el.querySelectorAll('[data-tool]').forEach(function (x) { x.classList.toggle('on', x === b); }); paintCtx(); }; });
+    el.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { size = +b.dataset.s; el.querySelectorAll('[data-s]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    $('#du').onclick = function () { ops.pop(); redraw(); paintCtx(); };
+    $('#dx').onclick = function () { if (ops.length && !confirm('تلغي الرسمة؟')) return; openChat(chat); };
     $('#ds').onclick = function () {
-      if (!strokes.length) return toast('ارسم شي أول 🎨');
+      if (!ops.length) return toast('ارسم شي أول 🎨');
       var k = Math.min(1, 1080 / Math.max(cv.width, cv.height)), c2 = document.createElement('canvas');
       c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height);
       c2.toBlob(function (b) { S.chat = chat; openChat(chat); sendMsg('draw', { w: c2.width, h: c2.height }, b); }, 'image/jpeg', .88);
     };
     window.addEventListener('resize', function rs() { if (S.view !== 'draw') return window.removeEventListener('resize', rs); fit(); });
+    paintCtx();
     setTimeout(fit, 30);
   }
 
@@ -1068,27 +1182,39 @@ var A = (function () {
     NB.kv.set('roles', S.roles); NB.kv.set('fam', S.fam); saveDev();
     return r;
   }
-  function syncNow() { if (syncing) { again = true; return; } doSync(); }
+  var syncAt = 0;
+  function syncNow() {
+    // مزامنة علّقت أكثر من ٤ ثواني (رجعنا من الخلفية مثلاً)؟ نبدأ وحدة جديدة بدل ما ننتظر
+    if (syncing && Date.now() - syncAt < 4000) { again = true; return; }
+    doSync();
+  }
   function doSync() {
     if (!S.acct || !S.acct.token) return;
-    syncing = true;
-    var changed = false, needFam = false, fresh = [];
+    syncing = true; syncAt = Date.now();
+    var gen = syncAt, changed = false, needFam = false, fresh = [];
     var body = syncBody();
     api('/sync', body).then(function (r) {
       applySync(r);
       if (r.fam && r.fam.rev > S.rev) needFam = true;
-      // الرسائل الجديدة
-      return r.msgs.reduce(function (p, m) {
-        return p.then(function () {
-          return (m.inline ? Promise.resolve(m.inline) : api('/m/' + m.id, undefined, { text: true })).then(NB.dec).then(function (u8) {
-            var x = unpack(u8), h = x.head;
-            var rec = { id: m.id, chat: m.chat, s: m.sender, k: m.kind, t: m.created, st: {}, r: [] };
-            if (m.kind === 'text') rec.text = h.text;
-            else { rec.buf = x.data.slice().buffer; rec.mime = h.mime || ''; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
-            return NB.msgs.get(m.id).then(function (old) { if (!old) { changed = true; fresh.push(rec); return NB.msgs.put(rec); } });
-          }).then(function () { S.acks.push(m.id); }, function (e) { if (e && e.status === 404) S.acks.push(m.id); });
+      // الرسائل الجديدة: اللي عندنا (وصلت مع الإشعار) نأكّدها على طول، والباقي نجيبه مع بعض
+      var meta = function (m) { return { id: m.id, chat: m.chat, s: m.sender, k: m.kind, t: m.created }; };
+      var got = function (rec) { if (rec) { changed = true; fresh.push(rec); } };
+      var one = function (m) {
+        return (m.inline ? Promise.resolve(m.inline) : api('/m/' + m.id, undefined, { text: true, timeout: 30000 }))
+          .then(function (b) { return NB.ingest(meta(m), b); }).then(got)
+          .then(function () { S.acks.push(m.id); }, function (e) { if (e && e.status === 404) S.acks.push(m.id); });
+      };
+      return Promise.all(r.msgs.map(function (m) { return NB.msgs.get(m.id).then(function (old) { return old ? (S.acks.push(m.id), null) : m; }); })).then(function (list) {
+        list = list.filter(Boolean);
+        var quick = list.filter(function (m) { return m.inline; }), slow = list.filter(function (m) { return !m.inline; });
+        return Promise.all(quick.map(one)).then(function () {
+          if (changed && gen === syncAt) refreshView();          // الكتابة تظهر فوراً
+          // الصور والصوت: ٤ مع بعض
+          var i = 0;
+          function worker() { if (i >= slow.length) return Promise.resolve(); var m = slow[i++]; return one(m).then(worker); }
+          return Promise.all([worker(), worker(), worker(), worker()]);
         });
-      }, Promise.resolve()).then(function () { return handleEvents(r.evs || []); }).then(function (c2) { changed = changed || c2; return r; });
+      }).then(function () { return handleEvents(r.evs || []); }).then(function (c2) { changed = changed || c2; return r; });
     }).then(function () {
       if (needFam) return loadFamily().then(function () { changed = true; });
     }).then(function () {
@@ -1099,6 +1225,7 @@ var A = (function () {
       if (e && e.status === 401) return lostDevice();
       S.acks = body.ack.concat(S.acks); S.evAcks = body.evAck.concat(S.evAcks);
     }).then(function () {
+      if (gen !== syncAt) return;              // بدأت مزامنة أحدث
       syncing = false;
       if (again || S.acks.length || S.evAcks.length) { again = false; setTimeout(doSync, 300); }
     });
@@ -1199,7 +1326,7 @@ var A = (function () {
     setInterval(function () { if (document.visibilityState === 'visible') retryOutbox(); }, 30000);
   }
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') { syncNow(); if (S.view === 'chat') renderMsgs(); checkUpdate(); }
+    if (document.visibilityState === 'visible') { syncNow(); if (S.view === 'chat') renderMsgs(); else if (S.view === 'home') renderChats(); closeReadNotifs(); checkUpdate(); }
   });
   function lostDevice() {
     // الجهاز انشال من العائلة (أو انحذف)
@@ -1340,7 +1467,7 @@ var A = (function () {
       navigator.serviceWorker.addEventListener('controllerchange', function () { if (hadCtl) doReload(); hadCtl = true; });
       navigator.serviceWorker.addEventListener('message', function (e) {
         var d = e.data || {};
-        if (d.type === 'push') syncNow();
+        if (d.type === 'push') { refreshView(); syncNow(); }
         if (d.type === 'open') route(d.hash);
       });
     }
@@ -1382,7 +1509,7 @@ var A = (function () {
     fmtDate: fmtDate, fmtTime: fmtTime, ago: ago, num: num, plat: plat, isParent: isParent, isOwner: isOwner, isAdmin: isAdmin, kindLabel: kindLabel,
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
-    checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
+    checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };
 })();

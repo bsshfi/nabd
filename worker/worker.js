@@ -301,7 +301,7 @@ export default {
         for (const t of targets) stmts.push(env.DB.prepare('INSERT OR IGNORE INTO box (dev, msg, created) VALUES (?,?,?)').bind(t.id, id, now));
         stmts.push(env.DB.prepare('UPDATE families SET active=? WHERE id=?').bind(now, F.id));
         await env.DB.batch(stmts);
-        ctx.waitUntil(push(env, targets.filter((t) => t.endpoint), { t: 'm', id, chat, s: a.id, k: kind, p: prev || '' }));
+        ctx.waitUntil(push(env, targets.filter((t) => t.endpoint), { t: 'm', id, chat, s: a.id, k: kind, p: prev || '', at: now, ...(kind === 'text' && body.length <= 2400 ? { b: body } : {}) }));
         ctx.waitUntil((async () => {
           if (!targets.length) await env.DB.prepare('DELETE FROM msgs WHERE id=?').bind(id).run();
           await count(env, 'msg_' + kind, 1);
