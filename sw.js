@@ -1,7 +1,7 @@
 /* نَبْض | NABD — يشغّل التطبيق بدون إنترنت، ويحدّثه تلقائيًا، ويعرض الإشعارات والنبضة
    مع كل تحديث: غيّر CACHE هنا و VERSION في config.js و ?v= في index.html */
 importScripts('config.js', 'core.js');
-const CACHE = 'nabd-v1.2.7';
+const CACHE = 'nabd-v1.3.0';
 const FILES = ['./', 'index.html', 'config.js', 'core.js', 'chars.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 
@@ -53,9 +53,9 @@ async function prefetch(items, acct) {
         const r = await fetch(CONFIG.API + '/m/' + it.id, { headers: { Authorization: 'Bearer ' + acct.token }, cache: 'no-store' });
         if (r.ok) body = await r.text();
       }
-      if (body && await NB.ingest({ id: it.id, chat: it.chat, s: it.s, k: it.k, t: it.at }, body)) added++;
-      else if (!body) added++;
-    } catch (e) { added++; }
+      const isNew = body && await NB.ingest({ id: it.id, chat: it.chat, s: it.s, k: it.k, t: it.at }, body);
+      if (it.k !== 'react' && (isNew || !body)) added++;
+    } catch (e) { if (it.k !== 'react') added++; }
   }));
   if (added) { const n = (await NB.kv.get('badge').catch(() => 0)) || 0; await NB.badge(n + added); }
 }
@@ -98,6 +98,16 @@ async function onPush(data) {
       }
       body = NB.KIND[it.k] || 'رسالة';
       if (it.k === 'text' && it.p) { try { body = (await NB.decJSON(it.p)).x || body; } catch (e) {} }
+      if (it.k === 'react') {
+        let e = '';
+        try { e = NB.unpack(await NB.dec(it.b)).head.e || ''; } catch (x) {}
+        if (!e) continue;
+        const fem = ((prof.members || {})[it.s] || {}).g === 'f';
+        body = e === '⭐' ? (fem ? 'عطتك' : 'عطاك') + ' نجمة ⭐ على رسالتك' : (fem ? 'تفاعلت ' : 'تفاعل ') + e + ' على رسالتك';
+        Object.assign(opt, { tag: 'react-' + it.chat, renotify: true, timestamp: Date.now() });
+        shown.push(self.registration.showNotification(from, Object.assign(opt, { body })));
+        continue;
+      }
       Object.assign(opt, { tag: 'chat-' + it.chat, renotify: true, silent: false, vibrate: [300, 120, 300], requireInteraction: !isIOS, timestamp: Date.now() });
     } else if (it.t === 'n') {
       const from = NB.nameOf(prof, it.f);

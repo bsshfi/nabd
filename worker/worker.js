@@ -11,6 +11,7 @@
 const ORIGINS = ['https://nabd.wamdarc.com', 'https://admin.wamdarc.com', 'https://bsshfi.github.io'];
 const SIRAJ_API = 'https://siraj-api.bsshfi.workers.dev';
 const TTL = 3 * 864e5;              // أقصى مدة للرسالة في السيرفر
+const KINDS = ['text', 'voice', 'photo', 'draw', 'sticker', 'react'];
 const MAX_MEDIA = 1950000;          // base64 (أقل من حد صف D1)
 const MAX_PROFILE = 600000;
 const ONLINE_MS = 90e3;
@@ -224,7 +225,7 @@ export default {
         if (!actorAdmin(q.get('member'))) return json({ error: 'forbidden' }, 403);
         const ds = (await env.DB.prepare('SELECT id, members, endpoint, last_seen, ver, plat, notif, created FROM devices WHERE fam=?').bind(F.id).all()).results || [];
         return json({
-          now, owner: F.owner, auto_del: F.auto_del, update_req: F.update_req, online_ms: ONLINE_MS,
+          now, owner: F.owner, auto_del: F.auto_del, update_req: F.update_req, online_ms: ONLINE_MS, quiet: qparse(F.quiet),
           members: M.map((m) => ({ id: m.id, kind: m.kind, admin: !!m.admin || m.id === F.owner, owner: m.id === F.owner, pin: !!m.pin, removed: !!m.removed })),
           devices: ds.map((d) => ({ id: d.id, me: d.id === D.id, members: jarr(d.members), last: d.last_seen, ver: d.ver, plat: d.plat, notif: d.notif, push: !!d.endpoint, created: d.created }))
         });
@@ -232,10 +233,15 @@ export default {
       if (p === '/admin/settings' && req.method === 'POST') {
         const b = await req.json().catch(() => ({}));
         if (!actorAdmin(b.member)) return json({ error: 'forbidden' }, 403);
-        const days = [0, 7, 30, 90].includes(b.auto_del) ? b.auto_del : 30;
-        await env.DB.prepare('UPDATE families SET auto_del=? WHERE id=?').bind(days, F.id).run();
-        await event(env, (await famDevices(env, F.id)).map((d) => d.id), 'settings', { auto_del: days }, now);
-        return json({ ok: true, auto_del: days });
+        const days = [0, 7, 30, 90].includes(b.auto_del) ? b.auto_del : F.auto_del;
+        let quiet = qparse(F.quiet);
+        if (b.quiet && typeof b.quiet === 'object') {
+          const hm = (x) => typeof x === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(x);
+          quiet = { on: !!b.quiet.on, from: hm(b.quiet.from) ? b.quiet.from : '21:00', to: hm(b.quiet.to) ? b.quiet.to : '06:00' };
+        }
+        await env.DB.prepare('UPDATE families SET auto_del=?, quiet=? WHERE id=?').bind(days, JSON.stringify(quiet), F.id).run();
+        await event(env, (await famDevices(env, F.id)).map((d) => d.id), 'settings', { auto_del: days, links: jarr(F.links), quiet }, now);
+        return json({ ok: true, auto_del: days, quiet });
       }
       if (p === '/admin/links' && req.method === 'POST') {
         // مين يكلّم مين: السماح بمحادثة خاصة بين طفلين
@@ -285,28 +291,30 @@ export default {
         return json({ ok: true });
       }
 
-      /* --- إرسال رسالة (المحتوى مشفّر base64 في جسم الطلب) --- */
+      /* --- إرسال رسالة (المحتوى مشفّر base64 في جسم الطلب) — at= لرسالة مجدولة (للأب والأم) --- */
       if (p === '/send' && req.method === 'POST') {
         const a = actor(q.get('member'));
         const chat = q.get('chat') || '', id = q.get('id') || '', kind = q.get('kind') || '', prev = q.get('prev') || '';
         if (!a) return json({ error: 'forbidden' }, 403);
-        if (!okId(id) || !['text', 'voice', 'photo', 'draw'].includes(kind) || (prev && !okB64(prev, 900))) return json({ error: 'bad' }, 400);
+        if (!okId(id) || !KINDS.includes(kind) || (prev && !okB64(prev, 900))) return json({ error: 'bad' }, 400);
         const parts = chatMembers(chat, M, F);
         if (!parts || !parts.includes(a.id)) return json({ error: 'badchat' }, 400);
         const body = await req.text();
         if (!body || body.length > MAX_MEDIA || !/^[A-Za-z0-9_-]+$/.test(body.slice(0, 64))) return json({ error: 'toolarge' }, 413);
-        const targets = (await famDevices(env, F.id)).filter((d) => d.id !== D.id && jarr(d.members).some((m) => parts.includes(m)));
-        const stmts = [env.DB.prepare('INSERT OR IGNORE INTO msgs (id, fam, chat, sender, sdev, kind, body, prev, size, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
-          .bind(id, F.id, chat, a.id, D.id, kind, body, prev || null, body.length, now)];
-        for (const t of targets) stmts.push(env.DB.prepare('INSERT OR IGNORE INTO box (dev, msg, created) VALUES (?,?,?)').bind(t.id, id, now));
-        stmts.push(env.DB.prepare('UPDATE families SET active=? WHERE id=?').bind(now, F.id));
-        await env.DB.batch(stmts);
-        ctx.waitUntil(push(env, targets.filter((t) => t.endpoint), { t: 'm', id, chat, s: a.id, k: kind, p: prev || '', at: now, ...(kind === 'text' && body.length <= 2400 ? { b: body } : {}) }));
-        ctx.waitUntil((async () => {
-          if (!targets.length) await env.DB.prepare('DELETE FROM msgs WHERE id=?').bind(id).run();
-          await count(env, 'msg_' + kind, 1);
-        })());
-        return json({ ok: true, created: now, to: targets.length });
+        const at = +q.get('at') || 0;
+        if (at > now + 30e3) {
+          if (a.kind !== 'parent' || kind !== 'text' || at > now + 30 * 864e5) return json({ error: 'bad' }, 400);
+          await env.DB.prepare('INSERT OR IGNORE INTO sched (id, fam, chat, sender, sdev, kind, body, prev, at, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
+            .bind(id, F.id, chat, a.id, D.id, kind, body, prev || null, at, now).run();
+          return json({ ok: true, sched: at });
+        }
+        const r = await deliver(env, ctx, F, M, { id, chat, sender: a.id, sdev: D.id, kind, body, prev }, now);
+        return json({ ok: true, created: now, to: r });
+      }
+      if (p === '/sched/cancel' && req.method === 'POST') {
+        const b = await req.json().catch(() => ({}));
+        const r = await env.DB.prepare('DELETE FROM sched WHERE id=? AND sdev=?').bind(String(b.id || ''), D.id).run();
+        return json({ ok: true, gone: !!(r.meta && r.meta.changes) });
       }
       /* --- تنزيل محتوى رسالة --- */
       let mm;
@@ -355,7 +363,7 @@ export default {
         const evs = (await env.DB.prepare('SELECT id, t, d, created FROM ev WHERE dev=? ORDER BY id LIMIT 100').bind(D.id).all()).results || [];
         return json({
           ok: true, now, msgs, evs: evs.map((e) => ({ id: e.id, t: e.t, d: JSON.parse(e.d || '{}'), at: e.created })),
-          fam: { rev: F.rev, auto_del: F.auto_del, update_req: F.update_req, owner: F.owner, created: F.created, links: jarr(F.links) },
+          fam: { rev: F.rev, auto_del: F.auto_del, update_req: F.update_req, owner: F.owner, created: F.created, links: jarr(F.links), quiet: qparse(F.quiet) },
           roles: M.map((m) => ({ id: m.id, kind: m.kind, admin: !!m.admin || m.id === F.owner, removed: !!m.removed, pin: !!m.pin })),
           dev: { members: devMembers, trusted: devTrusted }
         });
@@ -459,6 +467,16 @@ export default {
       await event(env, sdevs.map((d) => d.id), 'nudge_state', { id: n.id, state: n.state, n: n.n + 1, f: n.src, to: n.dst }, now);
       ctx.waitUntil(push(env, ds.filter((d) => d.endpoint), { t: 'n', id: n.id, f: n.src, to: n.dst, n: n.n + 1 }));
     }
+    // الرسائل المجدولة اللي جا وقتها
+    const sd = (await env.DB.prepare('SELECT * FROM sched WHERE at <= ? ORDER BY at LIMIT 50').bind(now).all()).results || [];
+    for (const m of sd) {
+      await env.DB.prepare('DELETE FROM sched WHERE id=?').bind(m.id).run();
+      const F = await env.DB.prepare('SELECT * FROM families WHERE id=?').bind(m.fam).first();
+      if (!F) continue;
+      const M = await members(env, m.fam);
+      if (!chatMembers(m.chat, M, F)) continue;
+      await deliver(env, ctx, F, M, m, now);
+    }
     // تذكير النسخ الاحتياطي: كل جمعة ٨ مساءً بتوقيت الجهاز
     const rem = (await env.DB.prepare('SELECT id, endpoint, p256dh, auth, pending, tz, last_rem FROM devices WHERE reminder=1 AND endpoint IS NOT NULL').all()).results || [];
     const remDue = [];
@@ -477,7 +495,8 @@ export default {
         env.DB.prepare('DELETE FROM msgs WHERE NOT EXISTS (SELECT 1 FROM box WHERE box.msg=msgs.id) AND created < ?').bind(now - 60e3),
         env.DB.prepare('DELETE FROM ev WHERE created < ?').bind(now - TTL),
         env.DB.prepare('DELETE FROM nudges WHERE created < ?').bind(now - TTL),
-        env.DB.prepare('DELETE FROM jfail WHERE until < ?').bind(now - 864e5)
+        env.DB.prepare('DELETE FROM jfail WHERE until < ?').bind(now - 864e5),
+        env.DB.prepare('DELETE FROM sched WHERE at < ?').bind(now - TTL)
       ]);
     }
   }
@@ -507,9 +526,11 @@ async function ensureSchema(env) {
     env.DB.prepare('CREATE TABLE IF NOT EXISTS nudges (id TEXT PRIMARY KEY, fam TEXT, src TEXT, dst TEXT, sdev TEXT, created INTEGER, last INTEGER, n INTEGER, state TEXT)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS jfail (ip TEXT PRIMARY KEY, n INTEGER, until INTEGER)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS daily (day TEXT NOT NULL, k TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, k))'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS sched (id TEXT PRIMARY KEY, fam TEXT NOT NULL, chat TEXT NOT NULL, sender TEXT NOT NULL, sdev TEXT, kind TEXT NOT NULL, body TEXT NOT NULL, prev TEXT, at INTEGER NOT NULL, created INTEGER)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS sched_at ON sched (at)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS bcast (n INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER, title TEXT, body TEXT, total INTEGER)')
   ]);
-  for (const sql of ["ALTER TABLE families ADD COLUMN links TEXT DEFAULT '[]'", 'ALTER TABLE devices ADD COLUMN p256dh TEXT', 'ALTER TABLE devices ADD COLUMN auth TEXT']) {
+  for (const sql of ["ALTER TABLE families ADD COLUMN links TEXT DEFAULT '[]'", 'ALTER TABLE families ADD COLUMN quiet TEXT', 'ALTER TABLE devices ADD COLUMN p256dh TEXT', 'ALTER TABLE devices ADD COLUMN auth TEXT']) {
     try { await env.DB.prepare(sql).run(); } catch (e) {}
   }
   schemaReady = true;
@@ -540,11 +561,11 @@ async function authDevice(req, env) {
   return null;
 }
 async function members(env, fam) { return (await env.DB.prepare('SELECT * FROM members WHERE fam=?').bind(fam).all()).results || []; }
-async function famDevices(env, fam) { return (await env.DB.prepare('SELECT id, members, endpoint, p256dh, auth, pending, last_seen FROM devices WHERE fam=?').bind(fam).all()).results || []; }
+async function famDevices(env, fam) { return (await env.DB.prepare('SELECT id, members, endpoint, p256dh, auth, pending, last_seen, tz FROM devices WHERE fam=?').bind(fam).all()).results || []; }
 async function famView(env, f) {
   const M = await members(env, f.id);
   return {
-    blob: f.blob, rev: f.rev, created: f.created, owner: f.owner, auto_del: f.auto_del, update_req: f.update_req, links: jarr(f.links),
+    blob: f.blob, rev: f.rev, created: f.created, owner: f.owner, auto_del: f.auto_del, update_req: f.update_req, links: jarr(f.links), quiet: qparse(f.quiet),
     roles: M.map((m) => ({ id: m.id, kind: m.kind, admin: !!m.admin || m.id === f.owner, removed: !!m.removed, pin: !!m.pin }))
   };
 }
@@ -559,6 +580,34 @@ function chatMembers(chat, M, F) {
   // بين طفلين: فقط إذا سمح المدير (مين يكلّم مين)
   if (a.kind !== 'parent' && b.kind !== 'parent' && !jarr(F && F.links).includes(a.id + ':' + b.id)) return null;
   return [a.id, b.id];
+}
+/* توصيل رسالة: تنحفظ مؤقتاً، وتنضاف لصندوق كل جهاز معني، وإشعار (إلا وقت النوم للعيال) */
+async function deliver(env, ctx, F, M, m, now) {
+  const parts = chatMembers(m.chat, M, F) || [];
+  const kids = new Set(M.filter((x) => x.kind !== 'parent').map((x) => x.id));
+  const targets = (await famDevices(env, F.id)).filter((d) => d.id !== m.sdev && jarr(d.members).some((x) => parts.includes(x)));
+  const stmts = [env.DB.prepare('INSERT OR IGNORE INTO msgs (id, fam, chat, sender, sdev, kind, body, prev, size, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .bind(m.id, F.id, m.chat, m.sender, m.sdev, m.kind, m.body, m.prev || null, m.body.length, now)];
+  for (const t of targets) stmts.push(env.DB.prepare('INSERT OR IGNORE INTO box (dev, msg, created) VALUES (?,?,?)').bind(t.id, m.id, now));
+  stmts.push(env.DB.prepare('UPDATE families SET active=? WHERE id=?').bind(now, F.id));
+  // المرسل نفسه يعرف إن المجدولة انرسلت
+  await env.DB.batch(stmts);
+  const quiet = qparse(F.quiet);
+  const loud = targets.filter((t) => t.endpoint && !(quiet.on && jarr(t.members).every((x) => kids.has(x)) && inQuiet(quiet, t.tz, now)));
+  ctx.waitUntil(push(env, loud, { t: 'm', id: m.id, chat: m.chat, s: m.sender, k: m.kind, p: m.prev || '', at: now, ...((m.kind === 'text' || m.kind === 'react') && m.body.length <= 2400 ? { b: m.body } : {}) }));
+  ctx.waitUntil((async () => {
+    if (!targets.length) await env.DB.prepare('DELETE FROM msgs WHERE id=?').bind(m.id).run();
+    await count(env, 'msg_' + m.kind, 1);
+  })());
+  return targets.length;
+}
+function qparse(s) { try { const q = JSON.parse(s || 'null'); if (q && typeof q === 'object') return { on: !!q.on, from: q.from || '21:00', to: q.to || '06:00' }; } catch (e) {} return { on: false, from: '21:00', to: '06:00' }; }
+/* هل الوقت الحين (بتوقيت الجهاز) داخل وقت النوم؟ */
+function inQuiet(q, tz, now) {
+  const d = new Date(now + (Number.isInteger(tz) ? tz : 180) * 60000), cur = d.getUTCHours() * 60 + d.getUTCMinutes();
+  const mn = (x) => +x.slice(0, 2) * 60 + +x.slice(3);
+  const a = mn(q.from), b = mn(q.to);
+  return a <= b ? cur >= a && cur < b : cur >= a || cur < b;
 }
 async function event(env, devs, t, d, now) {
   if (!devs.length) return;

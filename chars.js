@@ -232,8 +232,8 @@ var CH = (function () {
   }
 
   /* الرسم الكامل */
-  function svg(ch) {
-    ensureDefs();
+  function svg(ch, alone) {
+    if (!alone) ensureDefs();
     var c = ch || {}, sk = pick(SKIN, c.s == null ? 1 : c.s), hc = pick(HAIRC, c.hc | 0), hw = c.hw || 'none';
     var covered = hw === 'shmagh' || hw === 'ghutra' || hw === 'hijab';
     var s = '';
@@ -252,6 +252,7 @@ var CH = (function () {
       else s += hairFront(c, hc) + (hw === 'bow' ? bow(c) : '');
     }
     s += glasses(c);
+    if (alone) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' + DEFS.slice(DEFS.indexOf('<defs>'), DEFS.indexOf('</defs>') + 7) + s + '</svg>';
     return '<svg viewBox="0 0 100 100" aria-hidden="true">' + s + '</svg>';
   }
 

@@ -44,7 +44,8 @@ var NB = (function () {
     get: function (id) { return tx('msgs', 'readonly', function (s) { return s.get(id); }); },
     del: function (id) { return tx('msgs', 'readwrite', function (s) { return s.delete(id); }); },
     chat: function (chat) {
-      return tx('msgs', 'readonly', function (s) { return s.index('chat').getAll(IDBKeyRange.bound([chat, 0], [chat, Infinity])); });
+      return tx('msgs', 'readonly', function (s) { return s.index('chat').getAll(IDBKeyRange.bound([chat, 0], [chat, Infinity])); })
+        .then(function (l) { return (l || []).filter(function (m) { return m.k !== 'react'; }); });
     },
     all: function () { return tx('msgs', 'readonly', function (s) { return s.getAll(); }); },
     clear: function () { return tx('msgs', 'readwrite', function (s) { return s.clear(); }); }
@@ -97,7 +98,7 @@ var NB = (function () {
   function profile() { return kv.get('profile').then(function (p) { return (p && p.data) || { name: '', members: {} }; }); }
   function nameOf(p, id) { var m = p.members && p.members[id]; return (m && m.name) || 'أحد العائلة'; }
   function chatParts(chat) { if (chat === 'g') return null; var m = /^p:([^:]+):([^:]+)$/.exec(chat || ''); return m ? [m[1], m[2]] : null; }
-  var KIND = { text: 'رسالة', voice: '🎤 رسالة صوتية', photo: '📷 صورة', draw: '🎨 رسمة' };
+  var KIND = { text: 'رسالة', voice: '🎤 رسالة صوتية', photo: '📷 صورة', draw: '🎨 رسمة', sticker: '🧸 ملصق', react: 'تفاعل' };
 
   /* الوسائط تنحفظ كبايتات (ArrayBuffer) مو Blob: آيفون يضيّع الـBlob المحفوظ في IndexedDB أحياناً */
   function media(m) { if (!m) return null; if (m.buf) return new Blob([m.buf], { type: m.mime || '' }); return m.blob || null; }
@@ -116,6 +117,13 @@ var NB = (function () {
         var x = unpack(u8), h = x.head;
         var rec = { id: meta.id, chat: meta.chat, s: meta.s, k: meta.k, t: meta.t || Date.now(), st: {}, r: [] };
         if (meta.k === 'text') rec.text = h.text;
+        else if (meta.k === 'react') {
+          // تفاعل (❤️ ⭐…) على رسالة: نحفظه على الرسالة نفسها، ونخلي أثر صغير عشان ما يتكرر
+          rec.re = h.re; rec.e = h.e;
+          return msgs.get(h.re).then(function (tm) {
+            if (tm) { tm.re = tm.re || {}; if (h.e) tm.re[meta.s] = h.e; else delete tm.re[meta.s]; return msgs.put(tm); }
+          }).then(function () { return msgs.put(rec); }).then(function () { return rec; });
+        }
         else { rec.buf = x.data.slice().buffer; rec.mime = h.mime || ''; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
         return msgs.get(meta.id).then(function (o2) { return o2 ? null : msgs.put(rec).then(function () { return rec; }); });
       });

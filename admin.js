@@ -225,6 +225,7 @@
         '<span class="label">الحذف التلقائي للمحادثات</span><div class="card col" style="gap:10px"><span class="small muted">تنحذف الرسائل والوسائط الأقدم من:</span>' +
         '<div class="chips" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr))">' + [[7, '٧ أيام'], [30, '٣٠ يوم'], [90, '٩٠ يوم'], [0, 'أبداً']].map(function (o) { return '<button class="chip' + (j.auto_del === o[0] ? ' on' : '') + '" data-ad="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' +
         '<span class="tiny muted">ينطبق على كل الأجهزة ما عدا المشرفين. قبل ما تختار مدة قصيرة، خذ نسخة كاملة من «النسخ الاحتياطي».</span></div>' +
+        quietCard(j.quiet || S.fam.quiet || {}) +
         whoTalks() +
         '<span class="label">صلاحيات الإدارة</span><div class="list">' + ids.filter(function (id) { return A.isParent(id) || (A.role(id) || {}).admin || A.isOwner(id); }).concat(ids.filter(function (id) { return !A.isParent(id) && !(A.role(id) || {}).admin && !A.isOwner(id); })).map(function (id) {
           var owner = A.isOwner(id), r = A.role(id) || {};
@@ -254,6 +255,9 @@
           A.api('/admin/settings', { member: S.me, auto_del: v }).then(function (r) { S.fam.auto_del = r.auto_del; j.auto_del = r.auto_del; render(j); A.toast('انحفظ ✓'); }, function () { A.toast('ما قدرنا'); });
         };
       });
+      var qs = function (q) { A.api('/admin/settings', { member: S.me, quiet: q }).then(function (r) { S.fam.quiet = r.quiet; j.quiet = r.quiet; render(j); A.toast(r.quiet.on ? 'وضع النوم شغّال 🌙' : 'انطفى وضع النوم'); }, function () { A.toast('ما قدرنا'); }); };
+      var qt = $('#qOn'); if (qt) qt.onclick = function () { var q = j.quiet || S.fam.quiet || {}; qs({ on: !q.on, from: q.from || '21:00', to: q.to || '06:00' }); };
+      ['qFrom', 'qTo'].forEach(function (k) { var e = $('#' + k); if (e) e.onchange = function () { var q = j.quiet || S.fam.quiet || {}; qs({ on: !!q.on, from: $('#qFrom').value, to: $('#qTo').value }); }; });
       document.querySelectorAll('[data-ad2]').forEach(function (b) {
         b.onclick = function () {
           var id = b.dataset.ad2, on = !(A.role(id) || {}).admin;
@@ -263,6 +267,13 @@
       });
     }
   };
+  /* وضع النوم: الإشعارات تسكت عند الأبناء بوقت محدد (الرسائل توصل وتنتظرهم الصبح) */
+  function quietCard(q) {
+    var opts = function (sel) { var h = ''; for (var i = 0; i < 48; i++) { var t = ('0' + Math.floor(i / 2)).slice(-2) + ':' + (i % 2 ? '30' : '00'); h += '<option value="' + t + '"' + (t === sel ? ' selected' : '') + '>' + t + '</option>'; } return h; };
+    return '<span class="label">وضع النوم 🌙</span><div class="card col" style="gap:10px"><div class="row"><span class="grow col" style="gap:2px"><b style="font-size:15px">إسكات تنبيهات الأبناء وقت النوم</b><span class="tiny muted">الرسائل توصل عادي وتنتظرهم الصبح. النبضة بس تقدر توصل لهم.</span></span>' +
+      '<button class="tog' + (q.on ? ' on' : '') + '" id="qOn" role="switch" aria-checked="' + !!q.on + '" aria-label="وضع النوم"></button></div>' +
+      '<div class="row" style="gap:10px' + (q.on ? '' : ';opacity:.5') + '"><label class="field grow"><span>من</span><select class="inp" id="qFrom" style="direction:ltr">' + opts(q.from || '21:00') + '</select></label><label class="field grow"><span>إلى</span><select class="inp" id="qTo" style="direction:ltr">' + opts(q.to || '06:00') + '</select></label></div></div>';
+  }
   /* مين يكلّم مين: الأب والأم مع الكل دائماً، وبين الأبناء حسب اختيار المدير */
   function whoTalks() {
     var kids = A.live().filter(function (id) { return !A.isParent(id); }), rows = '';
@@ -349,12 +360,12 @@
   function exportBackup(kinds, btn) {
     btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
     NB.msgs.all().then(function (all) {
-      all = all.filter(function (m) { return kinds.indexOf(m.k) >= 0 && !m.out; }).sort(function (a, b) { return a.t - b.t; });
+      all = all.filter(function (m) { return kinds.indexOf(m.k === 'sticker' ? 'draw' : m.k) >= 0 && !m.out; }).sort(function (a, b) { return a.t - b.t; });
       var parts = ['{"app":"nabd","v":1,"fam":' + JSON.stringify(S.acct.fam) + ',"name":' + JSON.stringify(S.prof.name) + ',"exported":' + Date.now() + ',"profile":' + JSON.stringify(S.prof) + ',"msgs":['];
       var i = 0;
       return all.reduce(function (p, m) {
         return p.then(function () {
-          var o = { id: m.id, chat: m.chat, s: m.s, k: m.k, t: m.t, text: m.text, mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h, st: m.st, r: m.r };
+          var o = { id: m.id, chat: m.chat, s: m.s, k: m.k, t: m.t, text: m.text, mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h, st: m.st, r: m.r, re: m.re };
           return (NB.media(m) ? blobB64(NB.media(m)) : Promise.resolve(null)).then(function (d) { if (d) o.data = d; parts.push((i++ ? ',' : '') + JSON.stringify(o)); });
         });
       }, Promise.resolve()).then(function () {
@@ -386,7 +397,7 @@
             if (old) return;
             var m = { id: o.id, chat: o.chat, s: o.s, k: o.k, t: o.t, st: o.st || {}, r: o.r || [] };
             if (o.text != null) m.text = o.text;
-            ['mime', 'dur', 'wf', 'w', 'h'].forEach(function (k) { if (o[k] != null) m[k] = o[k]; });
+            ['mime', 'dur', 'wf', 'w', 'h', 're'].forEach(function (k) { if (o[k] != null) m[k] = o[k]; });
             if (o.data) { var bin = atob(o.data), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); m.buf = u.buffer; m.mime = o.mime || ''; }
             n++; return NB.msgs.put(m);
           });
