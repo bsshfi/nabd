@@ -575,45 +575,82 @@ var A = (function () {
 
   /* ----- الرئيسية ----- */
   function greet() { var h = new Date().getHours(); return h < 12 ? 'صباح الخير' : 'مساء الخير'; }
+  /* ===== الواجهة 2.0 — نفس هوية سهم وفلق وسراج: سماء تذوب في الرمل، ألواح زجاجية، برتقالي واحد ===== */
+  var HILLS = '<div class="bg3" aria-hidden="true"><i class="st3"></i>' +
+    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:16%"><path class="r1" d="M0 120 L40 92 L70 104 L120 70 L160 96 L200 78 L250 104 L300 66 L350 92 L400 80 V260 H0Z"/></svg>' +
+    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:23%"><path class="r2" d="M0 110 C40 96 70 70 110 84 S180 112 220 92 S300 70 340 88 S380 100 400 92 V260 H0Z"/></svg>' +
+    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:30%"><path class="r3" d="M0 96 C60 80 100 104 160 92 S260 72 320 90 S380 98 400 90 V260 H0Z"/></svg>' +
+    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:38%"><path class="r4" d="M0 90 C80 74 140 96 220 86 S340 74 400 84 V260 H0Z"/></svg></div>';
+  var PULSE = '<svg class="pulse2" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 27C7 20.5 3.5 16.4 3.5 11.6A6.6 6.6 0 0 1 16 8.4a6.6 6.6 0 0 1 12.5 3.2c0 1.2-.2 2.3-.7 3.4"/><path d="M14 17h3l2-4 3 8 2-4h5"/></svg>';
+  function moonHead() {
+    var age = ((Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % 29.530588853; if (age < 0) age += 29.530588853;
+    var k = (1 - Math.cos(2 * Math.PI * age / 29.530588853)) / 2, wax = age < 14.765, r = 12, path = '';
+    if (k > 0.98) path = '<circle r="12" fill="url(#mmLit)"/>';
+    else if (k >= 0.02) { var rx = (Math.abs(2 * k - 1) * r).toFixed(2); path = '<path fill="url(#mmLit)"' + (wax ? '' : ' transform="scale(-1,1)"') + ' d="M0 -12 A12 12 0 0 1 0 12 A' + rx + ' 12 0 0 ' + (k > 0.5 ? 1 : 0) + ' 0 -12Z"/>'; }
+    var hd = '', hy = '';
+    try {
+      var pr = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).formatToParts(new Date());
+      var g = function (t) { var x = pr.filter(function (q) { return q.type === t; })[0]; return x ? x.value : ''; };
+      hd = g('day') + ' ' + g('month'); hy = g('year').replace(/[^\d]/g, '') + ' هـ';
+    } catch (e) {}
+    return '<span class="hij"><b>' + esc(hd) + '</b><span>' + esc(hy) + '</span></span><svg class="moon2" viewBox="-13 -13 26 26" aria-hidden="true"><defs><radialGradient id="mmLit" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#FBF6EA"/><stop offset=".7" stop-color="#E9E1CF"/><stop offset="1" stop-color="#CFC6B2"/></radialGradient></defs><circle r="12" fill="#2B3247" fill-opacity=".88"/>' + path + '</svg>';
+  }
+  var TABI = {
+    home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5"/>',
+    album: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5"/>',
+    me: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
+  };
+  function tabBar(on) {
+    var t = [['home', 'الرئيسية'], ['album', 'الألبوم'], ['me', 'شخصيتي'], ['gear', 'الإعدادات']];
+    return '<nav class="tabs2">' + t.map(function (x) { return '<button data-tab="' + x[0] + '"' + (x[0] === on ? ' class="on" aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABI[x[0]] + '</svg>' + x[1] + '</button>'; }).join('') + '</nav>';
+  }
   function home() {
     if (!S.me || live().indexOf(S.me) < 0 || S.dev.members.indexOf(S.me) < 0) return picker();
     S.view = 'home'; S.chat = null;
-    var el = show('<div class="row"><button id="meB" class="row grow" style="gap:10px;text-align:start" aria-label="تغيير صورتي">' + av(S.me, 52) + '<span class="grow col" style="gap:0"><span class="small muted">' + greet() + '</span><span class="fd" style="font-size:26px;font-weight:800;line-height:1.1">' + esc(nm(S.me)) + '</span></span></button>' +
-      '<button class="icb" id="alB" aria-label="ألبوم العائلة" style="font-size:22px">🖼️</button><button class="icb" id="sw" aria-label="تبديل الشخص">' + ic('swap') + '</button><button class="icb" id="st" aria-label="الإعدادات">' + ic('gear') + '</button></div>' +
-      '<div class="col" id="chats" style="gap:12px"></div><div id="hn" style="margin-top:auto"></div>');
+    var el = show(HILLS +
+      '<header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
+      '<div class="moonw2">' + moonHead() + '</div></header>' +
+      '<div class="chips2"><button class="chip2 me2" id="sw" aria-label="تبديل الشخص">' + av(S.me, 28) + '<span>' + esc(nm(S.me)) + '</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></button>' +
+      '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div>' +
+      '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2');
     $('#sw', el).onclick = function () { picker(); };
-    $('#alB', el).onclick = album;
-    $('#meB', el).onclick = editMe;
-    $('#st', el).onclick = function () { A.settings(); };
+    el.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { var t = b.dataset.tab; if (t === 'album') album(); else if (t === 'me') editMe(); else if (t === 'gear') A.settings(); }; });
     renderChats(); renderHomeNotice();
   }
   function renderChats() {
     var box = $('#chats'); if (!box || S.view !== 'home') return;
     var chats = chatsFor(S.me);
     Promise.all(chats.map(function (c) { return NB.msgs.chat(c); })).then(function (lists) {
+      var day0 = new Date(); day0.setHours(0, 0, 0, 0);
+      var today = 0;
       var items = chats.map(function (c, i) {
         var ms = lists[i] || [], last = ms[ms.length - 1];
+        today += ms.filter(function (m) { return m.t >= +day0; }).length;
         var unread = ms.filter(function (m) { return m.s !== S.me && (m.r || []).indexOf(S.me) < 0; }).length;
         return { c: c, last: last, unread: unread, t: last ? last.t : 0 };
       });
       setBadge(items.reduce(function (n, it) { return n + it.unread; }, 0));
+      var tc = $('#todayC'); if (tc) tc.innerHTML = '<span class="dot2"></span><b>' + today + '</b><span>رسالة اليوم</span>';
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
-      items.unshift(g);
       var kid = !isParent(S.me);
-      box.innerHTML = items.map(function (it) {
-        var fam = it.c === 'g', o = otherOf(it.c), col = fam ? grp().c : colorOf(o);
-        var pv = it.last ? previewOf(it.last) : (fam ? 'ابدأوا السوالف 👋' : 'ابدأ السوالف 👋');
-        return '<div class="cardwrap' + (it.unread ? ' hot' : '') + '" style="--cc:' + col + '"><button class="chatcard' + (fam ? ' fam' : '') + '" data-c="' + esc(it.c) + '"' + (fam ? ' style="background:linear-gradient(135deg,' + col + ',' + shade(col, -.28) + ')"' : '') + '>' +
-          (fam ? grpIcon(62, 22) : '<span class="ring">' + av(o, 58) + '</span>') +
-          '<span class="grow col" style="gap:3px"><span class="row" style="gap:8px;align-items:baseline;flex-wrap:wrap"><span class="nm">' + (fam ? esc(grp().name) : esc(nm(o))) + '</span>' +
-          (fam ? '<span class="tiny" style="color:#D2EFEF">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
-          '<span class="pv"' + (it.unread ? ' style="font-weight:700;color:' + (fam ? '#fff' : 'var(--ink)') + '"' : '') + '>' + pv + '</span></span>' +
-          '<span class="col" style="gap:6px;align-items:flex-end">' + (it.last ? '<span class="tiny when">' + whenShort(it.last.t) + '</span>' : '') +
-          (it.unread ? '<span class="badge" aria-label="' + num(it.unread) + ' رسالة جديدة">' + num(it.unread) + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, fam) : '') + '</span></button>' +
-          // للأطفال: أزرار سريعة (صوت، رسم) بضغطة وحدة
-          (kid ? '<div class="quick"><button data-q="voice" data-qc="' + esc(it.c) + '">🎤 صوت</button><button data-q="draw" data-qc="' + esc(it.c) + '">🎨 ارسم</button><button data-q="sticker" data-qc="' + esc(it.c) + '">🧸 ملصق</button></div>' : '') + '</div>';
+      var quick = function (c) { return kid ? '<div class="quick2"><button data-q="voice" data-qc="' + esc(c) + '">🎤 صوت</button><button data-q="draw" data-qc="' + esc(c) + '">🎨 ارسم</button><button data-q="sticker" data-qc="' + esc(c) + '">🧸 ملصق</button></div>' : ''; };
+      var meta = function (it, light) { return '<span class="meta2">' + (it.last ? '<span class="when2">' + whenShort(it.last.t) + '</span>' : '') + (it.unread ? '<span class="badge2" aria-label="' + num(it.unread) + ' رسالة جديدة">' + it.unread + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, light) : '') + '</span>'; };
+      // بطاقة العائلة الكبيرة (مثل بطاقة الصلاة القادمة في فلق)
+      var fam = live();
+      var hero = '<div class="hero2 gl2' + (g.unread ? ' hot2' : '') + '"><button class="herob" data-c="g">' + grpIcon(58, 18) +
+        '<span class="grow col" style="gap:2px;min-width:0"><small class="lbl2">محادثة العائلة</small><span class="hn2">' + esc(grp().name) + '</span>' +
+        '<span class="pv2' + (g.unread ? ' un' : '') + '">' + (g.last ? previewOf(g.last) : 'ابدأوا السوالف 👋') + '</span></span>' + meta(g) + '</button>' +
+        '<div class="faces2">' + fam.slice(0, 7).map(function (id) { return '<span style="--cc:' + colorOf(id) + '">' + av(id, 34) + '</span>'; }).join('') + (fam.length > 7 ? '<span class="more2">+' + (fam.length - 7) + '</span>' : '') +
+        '<small>' + fam.length + ' في العائلة</small></div>' + quick('g') + '</div>';
+      var rows = items.map(function (it) {
+        var o = otherOf(it.c), col = colorOf(o);
+        return '<div class="row2 gl2' + (it.unread ? ' hot2' : '') + '" style="--cc:' + col + '"><button class="rowb" data-c="' + esc(it.c) + '"><span class="ring2">' + av(o, 50) + '</span>' +
+          '<span class="grow col" style="gap:1px;min-width:0"><span class="nm2">' + esc(nm(o)) + '</span><span class="pv2' + (it.unread ? ' un' : '') + '">' + (it.last ? previewOf(it.last) : 'ابدأ السوالف 👋') + '</span></span>' + meta(it) + '</button>' + quick(it.c) + '</div>';
       }).join('');
+      box.innerHTML = hero + (rows ? '<div class="shead2"><h2>المحادثات</h2><button id="alL">الألبوم <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button></div>' + rows : '');
+      var al = $('#alL'); if (al) al.onclick = album;
       box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.c); }; });
       box.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.qc, b.dataset.q); }; });
     });
