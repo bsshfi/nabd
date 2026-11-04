@@ -600,18 +600,36 @@ var A = (function () {
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
       items.unshift(g);
+      var kid = !isParent(S.me);
       box.innerHTML = items.map(function (it) {
-        var fam = it.c === 'g', o = otherOf(it.c);
+        var fam = it.c === 'g', o = otherOf(it.c), col = fam ? grp().c : colorOf(o);
         var pv = it.last ? previewOf(it.last) : (fam ? 'ابدأوا السوالف 👋' : 'ابدأ السوالف 👋');
-        return '<button class="chatcard' + (fam ? ' fam' : '') + '" data-c="' + esc(it.c) + '"' + (fam ? ' style="background:' + grp().c + '"' : '') + '>' +
-          (fam ? grpIcon(62, 22) : av(o, 62)) +
+        return '<div class="cardwrap' + (it.unread ? ' hot' : '') + '" style="--cc:' + col + '"><button class="chatcard' + (fam ? ' fam' : '') + '" data-c="' + esc(it.c) + '"' + (fam ? ' style="background:linear-gradient(135deg,' + col + ',' + shade(col, -.28) + ')"' : '') + '>' +
+          (fam ? grpIcon(62, 22) : '<span class="ring">' + av(o, 58) + '</span>') +
           '<span class="grow col" style="gap:3px"><span class="row" style="gap:8px;align-items:baseline;flex-wrap:wrap"><span class="nm">' + (fam ? esc(grp().name) : esc(nm(o))) + '</span>' +
           (fam ? '<span class="tiny" style="color:#D2EFEF">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
           '<span class="pv"' + (it.unread ? ' style="font-weight:700;color:' + (fam ? '#fff' : 'var(--ink)') + '"' : '') + '>' + pv + '</span></span>' +
-          (it.unread ? '<span class="badge" aria-label="' + num(it.unread) + ' رسالة جديدة">' + num(it.unread) + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, fam) : '') + '</button>';
+          '<span class="col" style="gap:6px;align-items:flex-end">' + (it.last ? '<span class="tiny when">' + whenShort(it.last.t) + '</span>' : '') +
+          (it.unread ? '<span class="badge" aria-label="' + num(it.unread) + ' رسالة جديدة">' + num(it.unread) + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, fam) : '') + '</span></button>' +
+          // للأطفال: أزرار سريعة (صوت، رسم) بضغطة وحدة
+          (kid ? '<div class="quick"><button data-q="voice" data-qc="' + esc(it.c) + '">🎤 صوت</button><button data-q="draw" data-qc="' + esc(it.c) + '">🎨 ارسم</button><button data-q="sticker" data-qc="' + esc(it.c) + '">🧸 ملصق</button></div>' : '') + '</div>';
       }).join('');
       box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.c); }; });
+      box.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.qc, b.dataset.q); }; });
     });
+  }
+  function whenShort(t) {
+    var d = Date.now() - t;
+    if (d < 60e3) return 'الحين';
+    if (d < 36e5) return 'قبل ' + num(Math.floor(d / 60e3)) + ' د';
+    if (new Date(t).toDateString() === new Date().toDateString()) return fmtTime(t);
+    if (d < 7 * 864e5) return new Date(t).toLocaleDateString(LOC, { weekday: 'long' });
+    return new Date(t).toLocaleDateString(LOC, { day: 'numeric', month: 'short' });
+  }
+  function shade(hex, f) {
+    var n = parseInt(String(hex).slice(1), 16); if (isNaN(n)) return hex;
+    var c = function (v) { return Math.max(0, Math.min(255, Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f))); };
+    return '#' + ((1 << 24) + (c(n >> 16) << 16) + (c((n >> 8) & 255) << 8) + c(n & 255)).toString(16).slice(1);
   }
   function previewOf(m) {
     var who = m.s === S.me ? 'أنت: ' : (m.chat === 'g' ? esc(nm(m.s)) + ': ' : '');
@@ -638,9 +656,9 @@ var A = (function () {
     S.view = 'chat'; S.chat = chat;
     Object.keys(urlCache).forEach(function (k) { URL.revokeObjectURL(urlCache[k]); }); urlCache = {};
     var o = otherOf(chat), canNudge = o && (isParent(S.me) || isAdmin(S.me)) && S.dev.trusted.indexOf(S.me) >= 0;
-    app.innerHTML = '<section class="chat">' +
+    app.innerHTML = '<section class="chat" style="--wc:' + (chat === 'g' ? grp().c : colorOf(o)) + '">' +
       '<div class="chathead"><button class="icb flat" id="bk" aria-label="رجوع">' + ic('back') + '</button>' +
-      (chat === 'g' ? grpIcon(46, 16) : av(o, 46)) +
+      (chat === 'g' ? grpIcon(46, 16) : '<span class="ring sm">' + av(o, 44) + '</span>') +
       '<span class="grow col" style="gap:0;min-width:0"><span class="row" style="gap:8px;align-items:baseline"><span class="t">' + esc(chatTitle(chat)) + '</span>' + (chat === 'g' ? '<span class="tiny soft">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
       '<span class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (chat === 'g' ? live().map(nm).map(esc).join('، ') : kindLabel(member(o) || {})) + '</span></span>' +
       (canNudge ? '<button class="btn sm orange" id="nudgeB" aria-label="أرسل نبضة لـ' + esc(nm(o)) + '">' + ic('pulse') + ' نبضة</button>' : '') + '</div>' +
@@ -653,6 +671,7 @@ var A = (function () {
     else if (mode === 'text') setTimeout(function () { $('#txt') && $('#txt').focus(); }, 300);
     else if (mode === 'photo') setTimeout(pickPhoto, 300);
     else if (mode === 'draw') drawScreen();
+    else if (mode === 'sticker') setTimeout(stickerSheet, 200);
   }
   function renderMsgs(scroll) {
     var box = $('#msgs'); if (!box || S.view !== 'chat') return;
@@ -725,7 +744,7 @@ var A = (function () {
       var cnt = {}; re.forEach(function (k) { cnt[m.re[k]] = (cnt[m.re[k]] || 0) + 1; });
       body = body.slice(0, -6) + '<span class="reacts" title="' + esc(re.map(function (k) { return nm(k) + ' ' + m.re[k]; }).join('، ')) + '">' + Object.keys(cnt).map(function (e) { return e + (cnt[e] > 1 ? '<i>' + num(cnt[e]) + '</i>' : ''); }).join('') + '</span></div>';
     }
-    return '<div class="m' + (mine ? ' me' : '') + (sched ? ' sched' : '') + '" data-id="' + m.id + '">' + (!mine && group ? av(m.s, 32) : '') +
+    return '<div class="m' + (mine ? ' me' : '') + (sched ? ' sched' : '') + '" data-id="' + m.id + '"' + (mine ? '' : ' style="--sc:' + colorOf(m.s) + '"') + '>' + (!mine && group ? av(m.s, 32) : '') +
       '<div class="col" style="gap:0;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';min-width:0">' + (!mine && group ? '<span class="who2" style="color:' + colorOf(m.s) + '">' + esc(nm(m.s)) + '</span>' : '') + body + meta + '</div></div>';
   }
   /* رسالة كلها إيموجي (بدون كتابة) ← عددها، وإلا 0 */
@@ -913,7 +932,9 @@ var A = (function () {
   function composer() {
     var c = $('#comp'); if (!c) return;
     var canSched = isParent(S.me);
-    c.innerHTML = '<div class="tools"><button class="dr" id="drB">' + ic('pen') + ' رسم</button><button class="st" id="stB"><span style="font-size:20px;line-height:1">🧸</span> ملصق</button><button class="ph" id="phB">' + ic('cam') + ' صورة</button></div>' +
+    var QR = isParent(S.me) ? ['❤️', 'شاطر 👏', 'أحبك 💕', 'تعال 🏃', 'الأكل جاهز 🍽️', 'نام بدري 🌙', 'أنا جاي 🚗', 'شكراً 🙏'] : ['❤️', '😂', 'تم 👍', 'أحبك 💕', 'جاي 🏃', 'وينك؟', 'اشتقت لك 🥺', 'تصبح على خير 🌙'];
+    c.innerHTML = '<div class="qr" id="qr">' + QR.map(function (q) { return '<button data-qr="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
+      '<div class="tools"><button class="dr" id="drB">' + ic('pen') + ' رسم</button><button class="st" id="stB"><span style="font-size:20px;line-height:1">🧸</span> ملصق</button><button class="ph" id="phB">' + ic('cam') + ' صورة</button></div>' +
       '<div class="sendrow"><label class="sr" for="txt">اكتب رسالة</label><textarea class="txt" id="txt" rows="1" placeholder="اكتب هنا…" maxlength="4000"></textarea>' +
       (canSched ? '<button class="icb flat" id="schB" aria-label="جدولة الرسالة" hidden style="font-size:22px">⏰</button>' : '') +
       '<button class="mic" id="mic" aria-label="سجّل رسالة صوتية">' + ic('mic') + '</button></div><input type="file" id="pf" accept="image/*" hidden>';
@@ -924,6 +945,7 @@ var A = (function () {
       mic.innerHTML = has ? ic('send', 'style="transform:scaleX(-1)"') : ic('mic');
       mic.setAttribute('aria-label', has ? 'إرسال' : 'سجّل رسالة صوتية');
       var sb = $('#schB'); if (sb) sb.hidden = !has;
+      var qr = $('#qr'); if (qr) qr.hidden = has;
     };
     t.oninput = sync;
     t.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && plat() === 'desktop') { e.preventDefault(); mic.click(); } };
@@ -932,6 +954,7 @@ var A = (function () {
       if (v) { t.value = ''; sync(); sendMsg('text', { text: v }); if (plat() === 'desktop') t.focus(); else { t.blur(); setTimeout(function () { var b = $('#msgs'); if (b) b.scrollTop = b.scrollHeight; }, 350); } }
       else startRec();
     };
+    c.querySelectorAll('[data-qr]').forEach(function (b) { b.onclick = function () { if (navigator.vibrate) navigator.vibrate(15); sendMsg('text', { text: b.dataset.qr }); }; });
     $('#drB').onclick = drawScreen;
     $('#stB').onclick = stickerSheet;
     var sb = $('#schB'); if (sb) sb.onclick = function () { var v = t.value.trim(); if (v) schedSheet(function (at) { t.value = ''; sync(); sendMsg('text', { text: v, at: at }); toast('⏰ تنرسل ' + fmtDay(at) + ' ' + fmtTime(at), 3000); }); };

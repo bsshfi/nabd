@@ -108,6 +108,22 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 .chatcard .pv{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chatcard.fam .pv{color:#E6F6F6}
 .badge{min-width:36px;height:36px;padding:0 10px;border-radius:99px;background:#E5252A;color:#fff;font-weight:800;font-size:18px;display:inline-flex;align-items:center;justify-content:center;flex:none;border:3px solid var(--card);box-shadow:0 3px 10px rgba(229,37,42,.45);animation:bpop 1.8s ease-in-out infinite}
+.cardwrap{border-radius:26px;background:var(--card);box-shadow:0 2px 0 var(--line);overflow:hidden;position:relative}
+.cardwrap::before{content:"";position:absolute;inset-block:14px;inset-inline-start:0;width:5px;border-radius:0 6px 6px 0;background:var(--cc)}
+.cardwrap .chatcard{box-shadow:none;border-radius:0}
+.cardwrap:has(.fam)::before{display:none}
+.cardwrap:has(.fam){background:transparent;box-shadow:0 6px 18px -8px var(--cc)}
+.cardwrap.hot{box-shadow:0 0 0 3px var(--cc),0 8px 20px -10px var(--cc);animation:hot 2.4s ease-in-out infinite}
+@keyframes hot{50%{transform:scale(1.012)}}
+.ring{display:inline-flex;border-radius:50%;padding:3px;background:var(--cc,var(--wc));flex:none}
+.ring .av{border:3px solid var(--card)}
+.ring.sm{padding:2px}.ring.sm .av{border-width:2px}
+.chatcard .when{color:var(--soft);white-space:nowrap}
+.chatcard.fam .when{color:#D2EFEF}
+.quick{display:flex;gap:6px;padding:0 14px 12px;padding-inline-start:90px}
+.quick button{flex:1;height:38px;border-radius:12px;background:var(--bg);font-size:13.5px;font-weight:700;color:var(--ink)}
+.cardwrap:has(.fam) .quick{background:linear-gradient(135deg,var(--cc),color-mix(in srgb,var(--cc) 72%,#000));margin-top:-1px}
+.cardwrap:has(.fam) .quick button{background:rgba(255,255,255,.18);color:#fff}
 .chatcard.fam .badge{border-color:#fff;box-shadow:0 3px 12px rgba(0,0,0,.35)}
 @keyframes bpop{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 @media (prefers-reduced-motion:reduce){.badge{animation:none}}
@@ -121,12 +137,20 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 .chat{height:100vh;height:100dvh;display:flex;flex-direction:column;padding:0}
 .chathead{background:var(--card);padding:calc(var(--safe-t) + 12px) 12px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 0 var(--line);z-index:2}
 .chathead .t{font-family:var(--fd);font-size:20px;font-weight:700;line-height:1.1}
-.msgs{flex:1 1 auto;overflow-y:auto;padding:14px 12px 10px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.msgs{flex:1 1 auto;overflow-y:auto;padding:14px 12px 10px;background-color:var(--bg);background-image:radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--wc) 22%,transparent) 1.4px,transparent 1.6px),linear-gradient(color-mix(in srgb,var(--wc) 7%,transparent),color-mix(in srgb,var(--wc) 7%,transparent));background-size:22px 22px,auto;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .day{align-self:center;font-size:12px;color:var(--muted);background:var(--chip);padding:3px 12px;border-radius:99px;margin:6px 0}
 .m{display:flex;gap:8px;align-items:flex-end;max-width:84%}
 .m.me{align-self:flex-end;flex-direction:row-reverse}
 .m .who2{font-size:12px;font-weight:600;margin:0 6px 2px}
 .bub{background:var(--card);border-radius:20px 20px 20px 6px;padding:9px 13px;box-shadow:0 1px 0 var(--line);font-size:17px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap;position:relative}
+.m:not(.me) .bub:not(.media){background:color-mix(in srgb,var(--sc) 13%,var(--card));box-shadow:0 1px 0 color-mix(in srgb,var(--sc) 30%,var(--line))}
+.m:last-child .bub,.m:last-child .stkmsg{animation:pop .28s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.85);opacity:.4}}
+.qr{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 2px}
+.qr::-webkit-scrollbar{display:none}
+.qr[hidden]{display:none}
+.qr button{flex:none;height:36px;padding:0 13px;border-radius:99px;background:var(--bg);border:1.5px solid var(--line);font-size:14.5px;font-weight:600;color:var(--ink);white-space:nowrap}
+.qr button:active{transform:scale(.94);background:var(--chip)}
 .m.me .bub{background:var(--accent);color:#fff;border-radius:20px 20px 6px 20px;box-shadow:none}
 .bub.media{padding:6px}
 .bub.emo,.m.me .bub.emo{background:none;box-shadow:none;padding:0 2px;line-height:1.2;letter-spacing:2px;color:inherit}
