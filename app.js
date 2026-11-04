@@ -634,6 +634,7 @@ var A = (function () {
   var urls = [];
   function openChat(chat, mode) {
     if (chatsFor(S.me).indexOf(chat) < 0) return home();
+    stopAudio();
     S.view = 'chat'; S.chat = chat;
     Object.keys(urlCache).forEach(function (k) { URL.revokeObjectURL(urlCache[k]); }); urlCache = {};
     var o = otherOf(chat), canNudge = o && (isParent(S.me) || isAdmin(S.me)) && S.dev.trusted.indexOf(S.me) >= 0;
@@ -675,7 +676,21 @@ var A = (function () {
       box.querySelectorAll('img').forEach(function (im) { if (!im.complete) im.addEventListener('load', settle, { once: true }); });
       requestAnimationFrame(settle);
       markRead(ms);
+      starCheck(ms);
     });
+  }
+  /* نجمة ⭐ على رسالتي/رسمتي ما شفت احتفالها بعد ← احتفال مرة وحدة */
+  function starCheck(ms) {
+    if (document.visibilityState !== 'visible') return;
+    var hit = null;
+    ms.forEach(function (m) {
+      if (m.s !== S.me || !m.re) return;
+      Object.keys(m.re).forEach(function (g) {
+        if (g === S.me || m.re[g] !== '⭐' || (m.cel || {})[g]) return;
+        m.cel = m.cel || {}; m.cel[g] = 1; NB.msgs.put(m); hit = { g: g, m: m };
+      });
+    });
+    if (hit) { ding(false); starBurst(nm(hit.g) + ' ' + (fem(hit.g) ? 'عطتك' : 'عطاك') + ' نجمة على ' + (hit.m.k === 'draw' ? 'رسمتك' : hit.m.k === 'photo' ? 'صورتك' : 'رسالتك') + '! 🎉'); }
   }
   function tickSvg(m) {
     if (m.out) return '<svg class="tick" viewBox="0 0 24 24" stroke="#8A93A6" aria-label="ما انرسلت بعد"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>';
@@ -799,19 +814,23 @@ var A = (function () {
       api('/rcpt', { member: S.me, s: 2, items: items }).catch(function () {});
       NB.kv.get('badge').then(function (n) { setBadge((n || 0) - items.length); });
     }
-    if (ms.length) closeChatNotifs(ms[0].chat);
+    if (ms.length) { closeChatNotifs(ms[0].chat); closeReadNotifs(); }
   }
   /* رقم الأيقونة + نشيل إشعارات المحادثة اللي انقرت (أندرويد يعدّ الإشعارات الموجودة) */
   function setBadge(n) { NB.badge(n); }
   function closeChatNotifs(chat) {
     if (!('serviceWorker' in navigator)) return;
-    navigator.serviceWorker.ready.then(function (reg) { return reg.getNotifications({ tag: 'chat-' + chat }); }).then(function (l) { l.forEach(function (x) { x.close(); }); }).catch(function () {});
+    navigator.serviceWorker.ready.then(function (reg) {
+      return Promise.all([reg.getNotifications({ tag: 'chat-' + chat }), reg.getNotifications({ tag: 'react-' + chat })]);
+    }).then(function (ls) { ls[0].concat(ls[1]).forEach(function (x) { x.close(); }); }).catch(function () {});
   }
   function closeReadNotifs() {
     if (!('serviceWorker' in navigator) || !S.me) return;
     navigator.serviceWorker.ready.then(function (reg) { return reg.getNotifications(); }).then(function (l) {
       l.forEach(function (x) {
         var d = x.data || {};
+        // الإشعار العام ("عندك جديد") وإشعار "وقّف النبضة" والتذكير: ما لها داعي بعد ما انفتح التطبيق
+        if (!d.t || d.t === 'ns' || x.tag === 'nabd') { x.close(); return; }
         if (d.t !== 'm') return;
         NB.msgs.chat(d.chat).then(function (ms) {
           var left = ms.some(function (m) { return S.dev.members.indexOf(m.s) < 0 && !(m.r || []).some(function (r) { return S.dev.members.indexOf(r) >= 0; }); });
@@ -822,35 +841,68 @@ var A = (function () {
   }
 
   /* ----- الصوت ----- */
-  var audio = null, audioEl = null, audioTimer = null;
+  /* تشغيل الرسائل الصوتية بـ Web Audio: ما يطلع مشغّل في شاشة القفل ولا يبقى شغّال بالخلفية.
+     إذا ما قدر الجهاز يفك الصيغة نرجع لعنصر <audio> وننظفه كامل بعد ما يخلص */
+  var audio = null, audioEl = null, audioTimer = null, vctx = null, vsrc = null;
   function clearNowPlaying(a) {
     try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) {}
-    try { if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; } } catch (e) {}
+    try {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none';
+        ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack', 'stop'].forEach(function (k) { try { navigator.mediaSession.setActionHandler(k, null); } catch (e) {} });
+      }
+    } catch (e) {}
   }
   function stopAudio() {
     if (audio) { clearNowPlaying(audio); audio = null; }
-    if (audioTimer) clearInterval(audioTimer);
-    if (audioEl) { $('.pl', audioEl).innerHTML = PLAY; audioEl.querySelectorAll('.wave i').forEach(function (i) { i.classList.remove('on'); }); audioEl = null; }
+    if (vsrc) { try { vsrc.onended = null; vsrc.stop(); } catch (e) {} vsrc = null; }
+    if (vctx) { var c = vctx; vctx = null; try { c.close(); } catch (e) {} }
+    try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {}
+    if (audioTimer) clearInterval(audioTimer); audioTimer = null;
+    if (audioEl) { $('.pl', audioEl).innerHTML = PLAY; audioEl.querySelectorAll('.wave i').forEach(function (i) { i.classList.remove('on'); }); var dd = $('.dur', audioEl); if (dd && audioEl.dataset.d) dd.textContent = audioEl.dataset.d; audioEl = null; }
   }
+  // ننهي أي صوت إذا طلع من المحادثة أو راح التطبيق للخلفية
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') stopAudio(); });
+  window.addEventListener('pagehide', stopAudio);
   function playVoice(m, el) {
     if (!m || !NB.media(m)) return;
     if (audioEl === el) { stopAudio(); return; }
     stopAudio();
-    var u = URL.createObjectURL(NB.media(m));
-    audio = new Audio(u); audioEl = el;
+    audioEl = el; el.dataset.d = $('.dur', el).textContent;
     $('.pl', el).innerHTML = PAUSE;
     var bars = el.querySelectorAll('.wave i');
-    audio.onended = function () { stopAudio(); URL.revokeObjectURL(u); };
-    try { if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: 'رسالة من ' + nm(m.s), artist: 'نَبْض' }); } catch (e) {}
-    audio.onerror = function () { stopAudio(); toast('ما قدرنا نشغّل الرسالة على هذا الجهاز'); };
-    audio.play().catch(function () { stopAudio(); });
-    audioTimer = setInterval(function () {
-      if (!audio) return;
-      var d = audio.duration && isFinite(audio.duration) ? audio.duration : (m.dur || 1);
-      var k = Math.floor(audio.currentTime / d * bars.length);
+    var tick = function (cur, d) {
+      var k = Math.floor(cur / (d || 1) * bars.length);
       bars.forEach(function (b, i) { b.classList.toggle('on', i <= k); });
-      $('.dur', el).textContent = fmtDur(audio.currentTime);
-    }, 120);
+      $('.dur', el).textContent = fmtDur(cur);
+    };
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var ctx = AC ? new AC() : null;
+    vctx = ctx;
+    // آيفون: نوع "تشغيل" عشان يطلع الصوت حتى لو زر الصامت شغّال
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (ctx && ctx.resume) ctx.resume();
+    var html5 = function () {
+      if (audioEl !== el) return;
+      if (ctx) { try { ctx.close(); } catch (e) {} if (vctx === ctx) vctx = null; }
+      var u = URL.createObjectURL(NB.media(m));
+      audio = new Audio(u);
+      audio.onended = function () { stopAudio(); URL.revokeObjectURL(u); };
+      audio.onerror = function () { stopAudio(); toast('ما قدرنا نشغّل الرسالة على هذا الجهاز'); };
+      audio.play().catch(function () { stopAudio(); });
+      audioTimer = setInterval(function () { if (audio) tick(audio.currentTime, audio.duration && isFinite(audio.duration) ? audio.duration : (m.dur || 1)); }, 120);
+    };
+    if (!ctx) return html5();
+    NB.media(m).arrayBuffer().then(function (ab) {
+      return new Promise(function (res, rej) { var p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+    }).then(function (buf) {
+      if (audioEl !== el || vctx !== ctx) return;
+      var src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+      var t0 = ctx.currentTime; vsrc = src;
+      src.onended = function () { if (vsrc === src) stopAudio(); };
+      src.start(0);
+      audioTimer = setInterval(function () { if (vctx === ctx) tick(Math.min(buf.duration, ctx.currentTime - t0), buf.duration); }, 120);
+    }).catch(html5);
     if (m.s !== S.me && !(m.heard || []).some(function (x) { return x === S.me; })) {
       m.heard = (m.heard || []).concat([S.me]); NB.msgs.put(m);
       api('/rcpt', { member: S.me, s: 3, items: [{ id: m.id, chat: m.chat, s: m.s }] }).catch(function () {});
@@ -1076,7 +1128,7 @@ var A = (function () {
       };
       mr.start(250);
       var c = $('#comp');
-      c.innerHTML = '<div class="fxrow">' + FX.map(function (f) { return '<button data-fx="' + f[0] + '"' + (f[0] === fx ? ' class="on"' : '') + '>' + f[1] + '</button>'; }).join('') + '</div><div class="recbar"><button class="icb flat" id="rx" aria-label="إلغاء التسجيل" style="color:var(--danger)">' + ic('trash') + '</button>' +
+      c.innerHTML = '<div class="fxrow"><span class="fxl">🎭 غيّر صوتك:</span>' + FX.map(function (f) { return '<button data-fx="' + f[0] + '"' + (f[0] === fx ? ' class="on"' : '') + '>' + f[1] + '</button>'; }).join('') + '</div><div class="recbar"><button class="icb flat" id="rx" aria-label="إلغاء التسجيل" style="color:var(--danger)">' + ic('trash') + '</button>' +
         '<span class="recdot"></span><span class="fd" id="rt" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">0:00</span><span class="grow small muted">' + (isParent(S.me) ? 'يسجّل…' : 'تكلّم الحين…') + '</span>' +
         '<button class="mic" id="rs" aria-label="إرسال التسجيل">' + ic('send', 'style="transform:scaleX(-1)"') + '</button></div>';
       c.querySelectorAll('[data-fx]').forEach(function (b) { b.onclick = function () { fx = b.dataset.fx; c.querySelectorAll('[data-fx]').forEach(function (x) { x.classList.toggle('on', x === b); }); if (fx !== 'none' && (Date.now() - t0) / 1000 > 45) toast('المؤثر يشتغل على أول ٤٥ ثانية'); }; });
@@ -1584,7 +1636,11 @@ var A = (function () {
       if (!r.e || r.s === S.me || document.visibilityState !== 'visible') return;
       NB.msgs.get(r.re).then(function (t) {
         if (!t || S.dev.members.indexOf(t.s) < 0) return;
-        if (r.e === '⭐') { ding(false); starBurst(nm(r.s) + ' ' + (fem(r.s) ? 'عطتك' : 'عطاك') + ' نجمة على ' + (t.k === 'draw' ? 'رسمتك' : 'رسالتك') + '!'); }
+        if (r.e === '⭐') {
+          // الاحتفال: إذا هو بالمحادثة نحتفل الحين، وإلا يطلع أول ما يفتحها
+          if (S.view === 'chat' && S.chat === t.chat) { t.cel = t.cel || {}; if (!t.cel[r.s]) { t.cel[r.s] = 1; NB.msgs.put(t); ding(false); starBurst(nm(r.s) + ' ' + (fem(r.s) ? 'عطتك' : 'عطاك') + ' نجمة على ' + (t.k === 'draw' ? 'رسمتك' : t.k === 'photo' ? 'صورتك' : 'رسالتك') + '! 🎉'); } }
+          else toast('⭐ ' + nm(r.s) + ' ' + (fem(r.s) ? 'عطتك' : 'عطاك') + ' نجمة! افتح المحادثة', 3500);
+        }
         else toast(nm(r.s) + ' ' + r.e + ' على ' + (t.k === 'draw' ? 'رسمتك' : t.k === 'photo' ? 'صورتك' : 'رسالتك'), 3000);
       });
     });
@@ -1777,6 +1833,14 @@ var A = (function () {
       navigator.serviceWorker.addEventListener('message', function (e) {
         var d = e.data || {};
         if (d.type === 'push') { refreshView(); syncNow(); }
+        if (d.type === 'fresh' && d.ids && d.ids.length) {
+          Promise.all(d.ids.map(function (id) { return NB.msgs.get(id); })).then(function (l) {
+            l = l.filter(Boolean); refreshView();
+            var rx = l.filter(function (m) { return m.k === 'react'; });
+            if (l.length > rx.length) inAppAlert(l.filter(function (m) { return m.k !== 'react'; }));
+            reactAlert(rx);
+          });
+        }
         if (d.type === 'open') route(d.hash);
       });
     }

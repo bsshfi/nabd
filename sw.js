@@ -1,7 +1,7 @@
 /* نَبْض | NABD — يشغّل التطبيق بدون إنترنت، ويحدّثه تلقائيًا، ويعرض الإشعارات والنبضة
    مع كل تحديث: غيّر CACHE هنا و VERSION في config.js و ?v= في index.html */
 importScripts('config.js', 'core.js');
-const CACHE = 'nabd-v1.3.0';
+const CACHE = 'nabd-v1.3.1';
 const FILES = ['./', 'index.html', 'config.js', 'core.js', 'chars.js', 'avatars.js', 'app.js', 'admin.js', 'manifest.webmanifest', 'wamd-stats.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png'];
 
@@ -45,7 +45,7 @@ const isIOS = /iphone|ipad|ipod|macintosh/i.test(self.navigator.userAgent || '')
 
 /* نجيب محتوى الرسالة ونحفظه على الجهاز وقت وصول الإشعار، عشان يكون جاهز أول ما يفتح التطبيق */
 async function prefetch(items, acct) {
-  let added = 0;
+  const ids = [];
   await Promise.all(items.filter((it) => it.t === 'm' && it.id).map(async (it) => {
     try {
       let body = it.b;
@@ -54,10 +54,10 @@ async function prefetch(items, acct) {
         if (r.ok) body = await r.text();
       }
       const isNew = body && await NB.ingest({ id: it.id, chat: it.chat, s: it.s, k: it.k, t: it.at }, body);
-      if (it.k !== 'react' && (isNew || !body)) added++;
-    } catch (e) { if (it.k !== 'react') added++; }
+      if (isNew) ids.push(it.id);
+    } catch (e) {}
   }));
-  if (added) { const n = (await NB.kv.get('badge').catch(() => 0)) || 0; await NB.badge(n + added); }
+  return ids;
 }
 
 async function onPush(data) {
@@ -73,6 +73,9 @@ async function onPush(data) {
       items = (await r.json()).items || [];
     }
   } catch (e) {}
+  // رقم الأيقونة أول شي (قبل الإشعار): آيفون يوقف الـ SW بسرعة بعد ما يطلع الإشعار
+  const nNew = items.filter((it) => it.t === 'm' && it.k !== 'react').length;
+  if (nNew) { try { const n = (await NB.kv.get('badge').catch(() => 0)) || 0; await NB.badge(n + nNew); } catch (e) {} }
   const prof = await NB.profile().catch(() => ({ members: {} }));
   const dev = (await NB.kv.get('dev').catch(() => null)) || { members: [] };
   const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -84,7 +87,7 @@ async function onPush(data) {
     if (visible && !isIOS) return;
     return self.registration.showNotification('نَبْض', { body: 'عندك جديد في نَبْض', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', lang: 'ar', dir: 'rtl', tag: 'nabd' });
   }
-  const shown = [prefetch(items, acct).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((l) => l.forEach((c) => c.postMessage({ type: 'push', items: [] }))).catch(() => {})];
+  const shown = [prefetch(items, acct).then((ids) => self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((l) => l.forEach((c) => c.postMessage({ type: 'fresh', ids })))).catch(() => {})];
   for (const it of items.slice(-4)) {
     let title = 'نَبْض', body = '', opt = { icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', lang: 'ar', dir: 'rtl', data: it };
     if (it.t === 'm') {

@@ -133,8 +133,9 @@ var NB = (function () {
   function badge(n) {
     n = Math.max(0, n | 0);
     var nav = self.navigator;
-    try { if (n && nav.setAppBadge) nav.setAppBadge(n).catch(function () {}); else if (!n && nav.clearAppBadge) nav.clearAppBadge().catch(function () {}); } catch (e) {}
-    return kv.set('badge', n).catch(function () {});
+    var p = Promise.resolve();
+    try { if (n && nav.setAppBadge) p = nav.setAppBadge(n); else if (!n && nav.clearAppBadge) p = nav.clearAppBadge(); } catch (e) {}
+    return Promise.all([Promise.resolve(p).catch(function () {}), kv.set('badge', n).catch(function () {})]);
   }
 
   return { unpack: unpack, ingest: ingest, badge: badge, media: media, mediaSize: mediaSize, kv: kv, msgs: msgs, b64e: b64e, b64d: b64d, te: te, td: td, enc: enc, dec: dec, encJSON: encJSON, decJSON: decJSON, profile: profile, nameOf: nameOf, chatParts: chatParts, KIND: KIND, db: db };
