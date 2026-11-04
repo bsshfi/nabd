@@ -595,6 +595,10 @@ var A = (function () {
     } catch (e) {}
     return '<span class="hij"><b>' + esc(hd) + '</b><span>' + esc(hy) + '</span></span><svg class="moon2" viewBox="-13 -13 26 26" aria-hidden="true"><defs><radialGradient id="mmLit" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#FBF6EA"/><stop offset=".7" stop-color="#E9E1CF"/><stop offset="1" stop-color="#CFC6B2"/></radialGradient></defs><circle r="12" fill="#2B3247" fill-opacity=".88"/>' + path + '</svg>';
   }
+  function dayHead() {
+    var d = new Date();
+    return '<span class="hij"><b>' + esc(d.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { weekday: 'long' })) + '</b><span>' + esc(d.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'long' })) + '</span></span>';
+  }
   var TABI = {
     home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5"/>',
     album: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5"/>',
@@ -610,7 +614,7 @@ var A = (function () {
     S.view = 'home'; S.chat = null;
     var el = show(HILLS +
       '<header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
-      '<div class="moonw2">' + moonHead() + '</div></header>' +
+      '<div class="moonw2">' + dayHead() + '</div></header>' +
       '<div class="chips2"><button class="chip2 me2" id="sw" aria-label="تبديل الشخص">' + av(S.me, 28) + '<span>' + esc(nm(S.me)) + '</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></button>' +
       '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2');
