@@ -614,8 +614,8 @@ var A = (function () {
     S.view = 'home'; S.chat = null;
     var el = show(HILLS +
       '<header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
-      '<div class="moonw2">' + dayHead() + '</div></header>' +
-      '<div class="chips2"><button class="chip2 me2" id="sw" aria-label="تبديل الشخص">' + av(S.me, 28) + '<span>' + esc(nm(S.me)) + '</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></button>' +
+      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 60) + '</button></header>' +
+      '<div class="chips2"><div class="chip2" id="starC"><span style="font-size:17px">⭐</span><span>نجوم هالشهر</span></div>' +
       '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2');
     $('#sw', el).onclick = function () { picker(); };
@@ -635,7 +635,11 @@ var A = (function () {
         return { c: c, last: last, unread: unread, t: last ? last.t : 0 };
       });
       setBadge(items.reduce(function (n, it) { return n + it.unread; }, 0));
-      var tc = $('#todayC'); if (tc) tc.innerHTML = '<span class="dot2"></span><b>' + today + '</b><span>رسالة اليوم</span>';
+      // نجوم هالشهر: كم ⭐ جتني على رسايلي
+      var m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0); var stars = 0;
+      lists.forEach(function (ms) { ms.forEach(function (m) { if (m.s === S.me && m.t >= +m0 && m.re) Object.keys(m.re).forEach(function (k) { if (m.re[k] === '⭐') stars++; }); }); });
+      var sc = $('#starC'); if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
+      var tc = $('#todayC'); if (tc) tc.innerHTML = '<span class="dot2"></span><b>' + today + '</b><span>' + (today === 1 ? 'رسالة' : 'رسائل') + ' جديدة اليوم</span>';
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
       var kid = !isParent(S.me);

@@ -296,6 +296,14 @@ h1,h2,h3{margin:0;font-family:var(--fd);line-height:1.15}
 :root[data-theme="dark"]{--sky1:#0c1424;--sky2:#1b2740;--haze:#2a3247;--sand:#151b2a;--sand2:#121827;--r1:#2a3550;--r2:#232c43;--r3:#1d2539;--r4:#181f31;
   --panel:rgba(255,255,255,.08);--gline:rgba(255,255,255,.12);--gsh:rgba(0,0,0,.35);--fg2:#eef1f6;--dim2:#97a0b3;--acc2:#ffa55a}
 .screen.v2{padding:calc(var(--safe-t) + 10px) 16px calc(var(--safe-b) + 110px);gap:12px;color:var(--fg2)}
+.mebig{margin-inline-start:auto;border-radius:50%;padding:3px;background:rgba(255,255,255,.55);box-shadow:0 0 0 6px rgba(255,255,255,.22),0 4px 18px rgba(255,240,200,.55);display:inline-flex;animation:bob 4s ease-in-out infinite}
+.mebig .av{border-radius:50%}
+@keyframes bob{50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.mebig{animation:none}}
+/* ألوان الفاتح: سماء (الأساسي)، وردي، نعناعي، بنفسجي */
+:root[data-theme="light"][data-sky="rose"]{--sky1:#e98fb4;--sky2:#f4bcd1;--haze:#f9dfe8;--sand:#fcf0f3;--sand2:#f9e8ee;--r1:#f0c3d3;--r2:#f4d3de;--r3:#f8e1e8;--r4:#fbeaf0}
+:root[data-theme="light"][data-sky="mint"]{--sky1:#5fb3a6;--sky2:#a8d8cf;--haze:#dcefe9;--sand:#eff7f3;--sand2:#e8f2ed;--r1:#b9dcd4;--r2:#cde6df;--r3:#dcede7;--r4:#e6f2ed}
+:root[data-theme="light"][data-sky="lilac"]{--sky1:#8f86d6;--sky2:#c3bdee;--haze:#e6e2f7;--sand:#f4f2fb;--sand2:#eeebf8;--r1:#cfcaf0;--r2:#dcd8f4;--r3:#e6e3f7;--r4:#eeecfa}
 .bg3{position:fixed;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,var(--sky1) 0%,var(--sky2) 22%,var(--haze) 44%,var(--sand) 68%,var(--sand2) 100%)}
 .bg3 svg{position:absolute;left:0;width:100%;height:30%}
 .bg3 .r1{fill:var(--r1);opacity:.55}.bg3 .r2{fill:var(--r2);opacity:.7}.bg3 .r3{fill:var(--r3);opacity:.8}.bg3 .r4{fill:var(--r4);opacity:.9}
