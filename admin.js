@@ -4,9 +4,9 @@
   var S = A.S, $ = A.$, esc = A.esc, ic = A.ic, av = A.av, nm = A.nm;
 
   function head(title, back, pill) {
-    return '<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><h2 class="grow fd" style="font-size:24px">' + title + '</h2>' + (pill ? '<span class="pill">' + pill + '</span>' : '') + '</div>';
+    return '<div class="row">' + (back === false ? '' : '<button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button>') + '<h2 class="grow fd" style="font-size:' + (back === false ? 26 : 24) + 'px">' + title + '</h2>' + (pill ? '<span class="pill">' + pill + '</span>' : '') + '</div>';
   }
-  function bindBack(fn) { $('#bk').onclick = fn; }
+  function bindBack(fn) { var b = $('#bk'); if (b) b.onclick = fn; }
   function canAdmin() { return A.isAdmin(S.me); }
 
   /* ================= الإعدادات ================= */
@@ -14,7 +14,7 @@
     S.view = 'settings';
     var admin = canAdmin(), parent = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
     var ids = A.live();
-    var el = A.show(head('الإعدادات', null, admin ? (A.isOwner(S.me) ? 'المدير الأساسي' : A.fem(S.me) ? 'مشرفة' : 'مشرف') : parent ? 'وليّ أمر' : '') +
+    var el = A.show(head('الإعدادات', false, admin ? (A.isOwner(S.me) ? 'المدير الأساسي' : A.fem(S.me) ? 'مشرفة' : 'مشرف') : parent ? 'وليّ أمر' : '') +
       '<div class="card col" style="gap:12px"><div class="row" style="gap:10px">' + A.grpIcon(44, 14) + '<span class="grow col" style="gap:0"><span class="row" style="align-items:baseline;gap:8px;flex-wrap:wrap"><span class="fd" style="font-size:22px;font-weight:800">' + esc(S.prof.name) + '</span><span class="tiny soft">منذ ' + A.fmtDate(S.fam.created || S.acct.created) + '</span></span><span class="tiny muted">القروب: ' + esc(A.grp().name) + '</span></span>' +
       (admin ? '<button class="btn sm ghost" id="edG">' + ic('pen') + ' تعديل</button>' : '') + '</div>' +
       '<div class="row" style="flex-wrap:wrap;gap:8px">' + ids.map(function (id) { return '<button data-m="' + id + '" aria-label="' + esc(nm(id)) + '" class="col center" style="gap:2px;width:62px">' + av(id, 48) + '<span class="tiny" style="max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(nm(id)) + '</span></button>'; }).join('') +
@@ -28,6 +28,7 @@
       '<div>' + ic('shield') + '<span class="grow col" style="gap:0"><span>الرسالة في السيرفر</span><span class="tiny muted">مشفّرة، وتنحذف أول ما توصل، وبحد أقصى ٣ أيام</span></span></div>' +
       '<div>' + ic('trash') + '<span class="grow col" style="gap:0"><span>الحذف التلقائي لهذا الجهاز</span><span class="tiny muted">' + autoDelText() + '</span></span></div></div>' +
       '<span class="label">المظهر</span><div class="seg" id="thm">' + [['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(function (t) { return '<button data-th="' + t[0] + '" class="' + (A.theme() === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<span class="label">لون التطبيق لـ' + esc(nm(S.me)) + ' (في الفاتح)</span><div class="card skyrow">' + A.SKIES.map(function (k) { return '<button data-sky="' + k[0] + '" class="' + (A.sky() === k[0] ? 'on' : '') + '"><i style="background:linear-gradient(180deg,' + k[2] + ',#f4ede4)"></i>' + k[1] + '</button>'; }).join('') + '</div>' +
       '<span class="label">' + esc(nm(S.me)) + '</span><div class="list">' +
       (admin ? '' : '<button id="myAv">' + av(S.me, 28) + '<span class="grow">' + (parent ? 'تغيير اسمي وصورتي' : 'تغيير صورتي') + '</span></button>') +
       (parent ? '<button id="chPin">' + ic('lock') + '<span class="grow">تغيير رمزي السري</span></button>' : '') +
@@ -35,7 +36,7 @@
       '<button id="out" style="color:var(--danger)">' + ic('close') + '<span class="grow">خروج ' + esc(nm(S.me)) + ' من هذا الجهاز</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button></div>' +
       '<span class="label">التطبيق</span><div class="list"><button id="upd">' + ic('refresh') + '<span class="grow">حدّث التطبيق الآن</span><span class="tiny muted" dir="ltr">v' + CONFIG.VERSION + '</span></button>' +
       '<button id="shareApp">' + ic('share') + '<span class="grow">شارك نَبْض مع عائلة ثانية</span></button></div>' +
-      '<div class="row center" style="gap:8px;margin-top:6px"><span class="tiny muted">نَبْض · الإصدار ' + CONFIG.VERSION + '</span><a href="https://wamdarc.com" target="_blank" rel="noopener" class="wamd" style="text-decoration:none">WAMD ARC</a></div>');
+      '<div class="row center" style="gap:8px;margin-top:6px"><span class="tiny muted">نَبْض · الإصدار ' + CONFIG.VERSION + '</span><a href="https://wamdarc.com" target="_blank" rel="noopener" class="wamd" style="text-decoration:none">WAMD ARC</a></div>' + A.tabBar('gear'), 'v2');
     bindBack(A.home);
     el.querySelectorAll('[data-m]').forEach(function (b) { b.onclick = function () { if (admin) memberSheet(b.dataset.m); }; });
     if ($('#addM')) $('#addM').onclick = addMember;
@@ -48,6 +49,7 @@
     };
     $('#swp').onclick = function () { A.parentGate(function () { A.picker(true); }, 'تبديل الشخص يحتاج رمز الأب أو الأم'); };
     if ($('#edG')) $('#edG').onclick = groupSheet;
+    el.querySelectorAll('[data-sky]').forEach(function (b) { b.onclick = function () { A.setSky(b.dataset.sky); el.querySelectorAll('[data-sky]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
     el.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { A.setTheme(b.dataset.th); el.querySelectorAll('[data-th]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
     $('#out').onclick = function () { A.parentGate(leaveDevice, 'خروج الشخص من الجهاز يحتاج رمز الأب أو الأم'); };
     function leaveDevice() {
@@ -139,7 +141,7 @@
   function addMember() {
     A.memberForm(null, function (m) {
       A.saveProfile({ add: [{ id: m.id, kind: m.kind }] }, function () {
-        S.prof.members[m.id] = { name: m.name, kind: m.kind, g: m.g, av: m.av };
+        S.prof.members[m.id] = { name: m.name, kind: m.kind, g: m.g, av: m.av, bd: m.bd || '' };
         S.prof.order = (S.prof.order || []).filter(function (x) { return x !== m.id; }).concat([m.id]);
       }).then(function () { A.toast('انضاف ' + m.name + ' ✓'); A.settings(); }, function () {
         delete S.prof.members[m.id]; A.toast('ما قدرنا نضيفه، جرّب مرة ثانية');
@@ -161,7 +163,7 @@
       sh.remove();
       A.memberForm(Object.assign({ id: id }, m), function (d) {
         var old = JSON.stringify(S.prof.members[id]);
-        A.saveProfile({}, function () { S.prof.members[id] = Object.assign({}, S.prof.members[id] || m, { name: d.name, av: d.av, g: d.g }); }).then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[id] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
+        A.saveProfile({}, function () { S.prof.members[id] = Object.assign({}, S.prof.members[id] || m, { name: d.name, av: d.av, g: d.g, bd: d.bd || '' }); }).then(function () { A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.members[id] = JSON.parse(old); A.toast('ما قدرنا نحفظ'); });
       }, { lockKind: true });
     };
     if ($('#adm', sh)) $('#adm', sh).onclick = function () {

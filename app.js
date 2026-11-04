@@ -20,7 +20,18 @@ var A = (function () {
   function applyTheme() {
     var t = theme(), d = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.dataset.theme = d ? 'dark' : 'light';
-    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = d ? '#0E1218' : '#F4F7FC';
+    applySky();
+  }
+  /* لون التطبيق (فاتح): سماء · وردي · بنفسجي · نعناعي — لكل شخص */
+  var SKIES = [['', 'سماء', '#7fa6c6'], ['rose', 'وردي', '#e98fb4'], ['lilac', 'بنفسجي', '#8f86d6'], ['mint', 'نعناعي', '#5fb3a6']];
+  function sky() { try { return localStorage.getItem('nabd-sky:' + (S.me || '')) || localStorage.getItem('nabd-sky') || ''; } catch (e) { return ''; } }
+  function setSky(k) { try { localStorage.setItem('nabd-sky:' + (S.me || ''), k); localStorage.setItem('nabd-sky', k); } catch (e) {} applySky(); }
+  function applySky() {
+    var root = document.documentElement, k = sky(), dark = root.dataset.theme === 'dark';
+    if (k) root.dataset.sky = k; else delete root.dataset.sky;
+    var m = document.querySelector('meta[name=theme-color]'), c = '#7fa6c6';
+    SKIES.forEach(function (x) { if (x[0] === k) c = x[2]; });
+    if (m) m.content = dark ? '#0c1424' : c;
   }
   function setTheme(t) { try { localStorage.setItem('nabd-theme', t); } catch (e) {} applyTheme(); }
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}
@@ -203,7 +214,7 @@ var A = (function () {
       var before = JSON.stringify(S.prof.members[me]);
       saveProfile({}, function () {
         var cur = S.prof.members[me] || m;
-        S.prof.members[me] = Object.assign({}, cur, { av: d.av, name: (adminMe || parentMe) ? d.name : cur.name, g: adminMe ? d.g : cur.g });
+        S.prof.members[me] = Object.assign({}, cur, { av: d.av, name: (adminMe || parentMe) ? d.name : cur.name, g: adminMe ? d.g : cur.g, bd: adminMe ? d.bd : cur.bd });
       }).then(function () { toast('انحفظ ✓'); if (S.view === 'home') home(); else if (A.settings && S.view === 'settings') A.settings(); }, function (e) {
         S.prof.members[me] = JSON.parse(before);
         toast(e && e.error === 'network' ? 'ما فيه اتصال بالإنترنت' : 'ما قدرنا نحفظ، جرّب مرة ثانية');
@@ -214,7 +225,7 @@ var A = (function () {
 
   /* ================= الشاشات ================= */
   function show(html, cls) {
-    stopAudio();
+    stopAudio(); applySky();
     app.innerHTML = '<section class="screen ' + (cls || '') + '">' + html + '</section>';
     window.scrollTo(0, 0);
     return app.firstChild;
@@ -328,7 +339,7 @@ var A = (function () {
   }
   function tmpProfileWith(list) {
     var p = { name: draft.fam, members: {}, order: [] };
-    [draft.me].concat(list).forEach(function (m) { p.members[m.id] = { name: m.name, kind: m.kind, g: m.g, av: m.av }; p.order.push(m.id); });
+    [draft.me].concat(list).forEach(function (m) { p.members[m.id] = { name: m.name, kind: m.kind, g: m.g, av: m.av, bd: m.bd || '' }; p.order.push(m.id); });
     return p;
   }
   function createStep2() {
@@ -363,6 +374,7 @@ var A = (function () {
     var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">' + (m ? 'تعديل ' + esc(m.name) : 'فرد جديد') + '</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
       '<div class="row pvbar" style="gap:14px"><span id="pv"></span><label class="field grow"><span>الاسم</span><input class="inp" id="nn" maxlength="20" value="' + esc(d.name) + '" placeholder="مثلاً: يارا"' + (opts.lockName ? ' readonly style="opacity:.6"' : '') + '></label></div>' +
       '<div class="field"' + (opts.avatarOnly ? ' hidden' : '') + '><span>' + (opts.lockKind ? (d.kind === 'parent' ? 'أب أو أم' : 'ولد أو بنت') : 'النوع') + '</span><div class="chips" style="display:grid;grid-template-columns:repeat(' + types.length + ',minmax(0,1fr))">' + types.map(function (t) { return '<button class="chip' + (d.kind === t[0] && d.g === t[1] ? ' on' : '') + '" data-t="' + t[0] + '|' + t[1] + '">' + t[2] + '</button>'; }).join('') + '</div></div>' +
+      (opts.avatarOnly ? '' : '<label class="field"><span>تاريخ الميلاد 🎂 (اختياري)</span><input class="inp" type="date" id="bd" value="' + esc(d.bd || '') + '" max="' + new Date().toISOString().slice(0, 10) + '" style="direction:ltr;text-align:right"></label>') +
       '<div class="field"><span>الصورة الرمزية</span><div class="seg"><button data-tab="char">شخصيات</button><button data-tab="draw">حيوانات</button><button data-tab="emoji">إيموجي</button></div></div>' +
       '<div id="avbox"></div><div class="err" id="me"></div><button class="btn block" id="ok">' + (m ? 'حفظ' : 'إضافة') + '</button>');
     function paintPv() { S.prof = { members: {} }; S.prof.members[d.id] = d; $('#pv', sh).innerHTML = av(d.id, 84); S.prof = keep; }
@@ -422,6 +434,7 @@ var A = (function () {
     $('#nn', sh).oninput = function () { d.name = this.value; paintPv(); };
     $('#ok', sh).onclick = function () {
       d.name = $('#nn', sh).value.trim();
+      if ($('#bd', sh)) d.bd = $('#bd', sh).value || '';
       if (!d.name) return ($('#me', sh).textContent = 'اكتب الاسم');
       if (!d.kind || !d.g) return ($('#me', sh).textContent = 'اختر ' + (opts.lockKind ? 'النوع' : 'أب أو أم أو ولد أو بنت'));
       sh.remove(); done(d);
@@ -575,51 +588,152 @@ var A = (function () {
 
   /* ----- الرئيسية ----- */
   function greet() { var h = new Date().getHours(); return h < 12 ? 'صباح الخير' : 'مساء الخير'; }
+
+  /* ----- تحدّي الرسم (للأب والأم) ----- */
+  var CHALS = ['ارسم لي جمل 🐪', 'ارسم بيتنا 🏠', 'ارسم وجهك وأنت مبسوط 😄', 'ارسم سيارة أحلامك 🚗', 'ارسم شجرة وعليها عصفور 🌳', 'ارسم قطة 🐱', 'ارسم البحر والسمك 🐠', 'ارسم صاروخ للفضاء 🚀', 'ارسم أكلتك المفضلة 🍕', 'ارسم عائلتنا 👨‍👩‍👧‍👦'];
+  function chalSheet() {
+    var chat = S.chat;
+    var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">🎯 تحدّي رسم</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<p class="small muted" style="margin:0">يوصلهم التحدّي، ورسمتهم ترجع لك ردّ عليه.</p>' +
+      '<div class="col" style="gap:8px">' + CHALS.map(function (c, i) { return '<button class="btn line block" data-c="' + i + '" style="justify-content:flex-start">' + esc(c) + '</button>'; }).join('') + '</div>' +
+      '<label class="field"><span>أو اكتب تحدّي من عندك</span><input class="inp" id="cc" maxlength="80" placeholder="مثلاً: ارسم لي مدرستك"></label><button class="btn block" id="go">أرسل التحدّي</button>');
+    var send = function (t) { t = (t || '').trim(); if (!t) return; sh.remove(); S.chat = chat; sendMsg('text', { text: '🎯 ' + t, ch: 1 }); };
+    $('#x', sh).onclick = function () { sh.remove(); };
+    sh.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { send(CHALS[+b.dataset.c]); }; });
+    $('#go', sh).onclick = function () { send($('#cc', sh).value); };
+  }
+
+  /* ----- رسالة النوم: تسجّلها الحين وتوصل وقت النوم ----- */
+  function bedSheet() {
+    var at = function (h, mi) { var d = new Date(); d.setHours(h, mi, 0, 0); if (d.getTime() < Date.now() + 120e3) d.setDate(d.getDate() + 1); return d.getTime(); };
+    var q = S.fam.quiet || {}, opts = [[20, 0], [20, 30], [21, 0], [21, 30]];
+    if (q.on && q.from) { var hm = String(q.from).split(':'), h = +hm[0], mi = +(hm[1] || 0) - 10; if (mi < 0) { mi += 60; h = (h + 23) % 24; } opts.unshift([h, mi]); }
+    var seen = {}; opts = opts.filter(function (o) { var k = o.join(':'); if (seen[k]) return false; seen[k] = 1; return true; }).map(function (o) { return at(o[0], o[1]); });
+    var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">🌙 رسالة النوم</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<p class="small muted" style="margin:0">سجّل الحين (قصة قصيرة، دعاء، «تصبح على خير»)، وتوصل ' + esc(chatTitle(S.chat)) + ' بالوقت اللي تختاره' + (q.on ? '، قبل وضع النوم عشان يوصله التنبيه' : '') + '.</p>' +
+      '<div class="col" style="gap:8px">' + opts.map(function (t, i) { return '<button class="btn line block" data-o="' + i + '" style="justify-content:space-between"><span>🌙 ' + fmtTime(t) + '</span><span class="small muted">' + fmtDay(t) + '</span></button>'; }).join('') + '</div>');
+    $('#x', sh).onclick = function () { sh.remove(); };
+    sh.querySelectorAll('[data-o]').forEach(function (b) { b.onclick = function () { sh.remove(); startRec({ bed: opts[+b.dataset.o] }); }; });
+  }
+
+  /* ----- ركن الكتابة للأطفال: إيموجي كبيرة مقسّمة + مساعدة إملاء خفيفة ----- */
+  var EMO = [['😀', 'وجوه', '😀😃😄😁😆😂🤣😊😍🥰😘😋😜🤪😎🤩🥳😴🤔🤗😮😢😭😡🥺😇🤭🙄'], ['❤️', 'حب', '❤️🧡💛💚💙💜🩷🤍💕💖💗💓💞💝🫶🤗😘🥰🌹💐'],
+    ['🐱', 'حيوانات', '🐱🐶🐰🐻🐼🦁🐯🐵🐸🐔🐧🐦🦄🐴🐪🐫🐑🐟🐠🐬🐳🦋🐝🐞🐢🦖'], ['🍕', 'أكل', '🍕🍔🍟🌭🍿🍩🍪🎂🍰🧁🍦🍫🍬🍭🍎🍉🍓🍌🍇🥝🍊🥤🧃☕🍽️'],
+    ['⚽', 'لعب', '⚽🏀🏈🎾🏐🎮🕹️🧸🪀🪁🎨🖍️✏️📚🎒🏆🥇🎁🎈🎉🚲🛴🚗🚀✈️'], ['🌙', 'طبيعة', '🌙⭐🌟✨☀️🌤️⛅🌧️⛈️❄️🌈🌊🌸🌺🌻🌷🌳🌴🌵🍀🏝️🏜️⛰️🔥💧']];
+  function emojiSheet(t, sync) {
+    var tab = 0;
+    var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">😊 اختر إيموجي</h2><button class="btn sm" id="x">تم</button></div>' +
+      '<div class="chips" style="display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap">' + EMO.map(function (c, i) { return '<button class="chip' + (i ? '' : ' on') + '" data-t="' + i + '" style="flex:none;font-size:15px">' + c[0] + ' ' + c[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="emogrid" id="eg"></div><div class="txt" id="epv" style="min-height:48px;font-size:22px;padding:10px 16px">' + esc(t.value) + '</div>');
+    function paint() {
+      var list = Array.from(new Intl.Segmenter('ar', { granularity: 'grapheme' }).segment(EMO[tab][2])).map(function (x) { return x.segment; });
+      $('#eg', sh).innerHTML = list.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('');
+      sh.querySelectorAll('[data-e]').forEach(function (b) { b.onclick = function () { t.value += b.dataset.e; $('#epv', sh).textContent = t.value; sync(); if (navigator.vibrate) navigator.vibrate(8); }; });
+    }
+    sh.querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () { tab = +b.dataset.t; sh.querySelectorAll('[data-t]').forEach(function (x) { x.classList.toggle('on', x === b); }); paint(); }; });
+    $('#x', sh).onclick = function () { sh.remove(); };
+    try { paint(); } catch (e) { $('#eg', sh).innerHTML = Array.from(EMO[0][2]).map(function (e) { return '<button>' + e + '</button>'; }).join(''); }
+  }
+  var SPELL = [[/(^|\s)(ان ?شا ?الله|انشاءالله|انشالله|إنشاء ?الله|انشاء ?الله)(?=\s|$|[.!؟?])/, 'إن شاء الله'], [/(^|\s)(ما ?شا ?الله|ماشاءالله|مشالله|ماشالله)(?=\s|$|[.!؟?])/, 'ما شاء الله'],
+    [/(^|\s)(الحمدلله|الحمدالله|الحمد الله)(?=\s|$|[.!؟?])/, 'الحمد لله'], [/(^|\s)(لاكن)(?=\s|$)/, 'لكن'], [/(^|\s)(هاذا)(?=\s|$)/, 'هذا'], [/(^|\s)(هاذي)(?=\s|$)/, 'هذي'], [/(^|\s)(هاذه)(?=\s|$)/, 'هذه'],
+    [/(^|\s)(اشتقتلك)(?=\s|$)/, 'اشتقت لك'], [/(^|\s)(جزاكالله)(?=\s|$)/, 'جزاك الله'], [/(^|\s)(ظروري)(?=\s|$)/, 'ضروري'], [/(^|\s)(الضهر)(?=\s|$)/, 'الظهر'],
+    [/(^|\s)(ممتاذ)(?=\s|$)/, 'ممتاز'], [/(^|\s)(شكرن|شكرأ)(?=\s|$)/, 'شكراً'], [/(^|\s)(صباحالخير)(?=\s|$)/, 'صباح الخير'], [/(^|\s)(مساءالخير|مسائالخير)(?=\s|$)/, 'مساء الخير'],
+    [/(^|\s)(تصبحعلىخير|تصبحين ?على ?خير)(?=\s|$)/, 'تصبح على خير'], [/(^|\s)(اللة)(?=\s|$)/, 'الله'], [/(^|\s)(ليه ?ش)(?=\s|$)/, 'ليش'], [/(^|\s)(إنتا|انتا)(?=\s|$)/, 'أنت']];
+  function spellCheck(t) {
+    var box = $('#spell'); if (!box) return;
+    var v = t.value, hit = null;
+    for (var i = 0; i < SPELL.length && !hit; i++) { var mm = SPELL[i][0].exec(v); if (mm && mm[2] !== SPELL[i][1]) hit = { re: SPELL[i][0], w: mm[2], fix: SPELL[i][1] }; }
+    if (!hit) { box.hidden = true; return; }
+    box.hidden = false; box.innerHTML = '<span class="grow">✏️ تقصد «' + esc(hit.fix) + '»؟</span><button id="spY">إيه</button>';
+    $('#spY').onclick = function () { t.value = t.value.replace(hit.re, function (a, sp) { return sp + hit.fix; }); box.hidden = true; t.dispatchEvent(new Event('input')); t.focus(); };
+  }
+
+  /* ----- معرض النجوم: الرسومات والصور اللي أخذت ⭐ (ما تنمسح) ----- */
+  function hasStar(m) { return !!(m.re && Object.keys(m.re).some(function (k) { return m.re[k] === '⭐'; })); }
+  function starGallery() {
+    S.view = 'stars';
+    var el = show('<div class="row"><span class="fd grow" style="font-size:26px;font-weight:800">⭐ معرض النجوم</span></div>' +
+      '<p class="small" style="margin:-6px 4px 0;color:#fff;text-shadow:0 1px 6px rgba(40,60,90,.25)">كل رسمة أو صورة أخذت نجمة تنحفظ هنا للأبد، حتى لو انمسحت المحادثة.</p><div id="sgal"></div>' + tabBar('stars'), 'v2');
+    var urls = [];
+    Promise.all(chatsFor(S.me).map(function (c) { return NB.msgs.chat(c); })).then(function (ls) {
+      if (S.view !== 'stars') return;
+      var all = [].concat.apply([], ls).filter(function (m) { return (m.k === 'draw' || m.k === 'photo' || m.k === 'sticker') && hasStar(m) && NB.media(m); }).sort(function (a, b) { return b.t - a.t; });
+      var box = $('#sgal'); if (!box) return;
+      if (!all.length) { box.innerHTML = '<div class="card col center" style="gap:8px;padding:40px 16px;text-align:center"><span style="font-size:54px">⭐</span><b>لسى ما فيه نجوم</b><span class="small muted">اضغط مطوّل على أي رسمة وعطها ⭐، وتنضاف هنا.</span></div>'; return; }
+      box.innerHTML = '<div class="gal">' + all.map(function (m, i) {
+        var u = URL.createObjectURL(NB.media(m)); urls.push(u);
+        var n = Object.keys(m.re).filter(function (k) { return m.re[k] === '⭐'; }).length;
+        return '<button data-i="' + i + '" class="' + (m.k === 'sticker' ? 'stkc' : '') + '"><img src="' + u + '" alt="" loading="lazy"><em>' + (n > 1 ? '⭐'.repeat(Math.min(3, n)) : '⭐') + '</em><span>' + av(m.s, 24) + esc(nm(m.s)) + '</span></button>';
+      }).join('') + '</div>';
+      box.querySelectorAll('[data-i]').forEach(function (b) { b.onclick = function () { viewMedia(all[+b.dataset.i], b.querySelector('img').src); }; });
+    });
+  }
+
+  /* ----- سلسلة الأيام 🔥: كم يوم ورا بعض فيه تواصل ----- */
+  function streakOf(ms) {
+    var days = {}; ms.forEach(function (m) { var d = new Date(m.t); days[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate()] = 1; });
+    var d = new Date(), key = function () { return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }, n = 0;
+    if (!days[key()]) d.setDate(d.getDate() - 1);
+    while (days[key()]) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+
+  /* ----- أعياد الميلاد 🎂 ----- */
+  function bdInfo(id) {
+    var m = member(id); if (!m || !m.bd) return null;
+    var p = String(m.bd).split('-'), mo = +p[1] - 1, da = +p[2]; if (isNaN(mo) || !da) return null;
+    var now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()), nx = new Date(now.getFullYear(), mo, da);
+    if (nx < t0) nx.setFullYear(now.getFullYear() + 1);
+    var age = +p[0] ? nx.getFullYear() - +p[0] : 0;
+    return { days: Math.round((nx - t0) / 864e5), age: age };
+  }
+  function bdayCard() {
+    var ids = live(), today = ids.filter(function (id) { var b = bdInfo(id); return b && b.days === 0; });
+    if (today.length) {
+      var id = today[0], b = bdInfo(id), mine = id === S.me, f = fem(id);
+      var chat = mine ? null : (chatsFor(S.me).indexOf(pairId(S.me, id)) >= 0 ? pairId(S.me, id) : 'g');
+      return '<div class="gl2 bday2" style="--cc:' + colorOf(id) + '"><span class="big">🎂</span><span class="grow col" style="gap:0">' +
+        (mine ? '<b>كل عام وأنت' + (f ? 'ِ' : '') + ' بخير يا ' + esc(nm(id)) + '! 🎉</b><small>' + (b.age ? 'صار عمرك ' + b.age + ' 🎈' : 'يومك سعيد 🎈') + '</small>' :
+          '<b>اليوم عيد ميلاد ' + esc(nm(id)) + '!</b><small>' + (b.age ? 'صار' + (f ? 'ت' : '') + ' ' + b.age + ' سنين 🎈' : 'لا تنسى' + ' تهنئته' + (f ? 'ا' : '') + ' 🎈') + '</small>') + '</span>' +
+        (mine ? '' : '<button class="btn" data-bdc="' + esc(chat) + '" data-bdn="' + esc(id) + '">🎉 هنّ' + (f ? 'ئها' : 'ئه') + '</button>') + '</div>';
+    }
+    var soon = ids.map(function (id) { return { id: id, b: bdInfo(id) }; }).filter(function (x) { return x.b && x.b.days > 0 && x.b.days <= 7; }).sort(function (a, b) { return a.b.days - b.b.days; })[0];
+    if (soon) return '<div class="gl2 bday2" style="padding:10px 14px"><span class="big" style="font-size:28px">🎈</span><span class="grow"><b style="font-size:15px">عيد ميلاد ' + esc(nm(soon.id)) + '</b> <small>' + (soon.b.days === 1 ? 'بكرة' : 'بعد ' + soon.b.days + ' أيام') + '</small></span></div>';
+    return '';
+  }
   /* ===== الواجهة 2.0 — نفس هوية سهم وفلق وسراج: سماء تذوب في الرمل، ألواح زجاجية، برتقالي واحد ===== */
-  var HILLS = '<div class="bg3" aria-hidden="true"><i class="st3"></i>' +
-    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:16%"><path class="r1" d="M0 120 L40 92 L70 104 L120 70 L160 96 L200 78 L250 104 L300 66 L350 92 L400 80 V260 H0Z"/></svg>' +
-    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:23%"><path class="r2" d="M0 110 C40 96 70 70 110 84 S180 112 220 92 S300 70 340 88 S380 100 400 92 V260 H0Z"/></svg>' +
-    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:30%"><path class="r3" d="M0 96 C60 80 100 104 160 92 S260 72 320 90 S380 98 400 90 V260 H0Z"/></svg>' +
-    '<svg viewBox="0 0 400 260" preserveAspectRatio="none" style="top:38%"><path class="r4" d="M0 90 C80 74 140 96 220 86 S340 74 400 84 V260 H0Z"/></svg></div>';
   var PULSE = '<svg class="pulse2" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 27C7 20.5 3.5 16.4 3.5 11.6A6.6 6.6 0 0 1 16 8.4a6.6 6.6 0 0 1 12.5 3.2c0 1.2-.2 2.3-.7 3.4"/><path d="M14 17h3l2-4 3 8 2-4h5"/></svg>';
-  function moonHead() {
-    var age = ((Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % 29.530588853; if (age < 0) age += 29.530588853;
-    var k = (1 - Math.cos(2 * Math.PI * age / 29.530588853)) / 2, wax = age < 14.765, r = 12, path = '';
-    if (k > 0.98) path = '<circle r="12" fill="url(#mmLit)"/>';
-    else if (k >= 0.02) { var rx = (Math.abs(2 * k - 1) * r).toFixed(2); path = '<path fill="url(#mmLit)"' + (wax ? '' : ' transform="scale(-1,1)"') + ' d="M0 -12 A12 12 0 0 1 0 12 A' + rx + ' 12 0 0 ' + (k > 0.5 ? 1 : 0) + ' 0 -12Z"/>'; }
-    var hd = '', hy = '';
-    try {
-      var pr = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).formatToParts(new Date());
-      var g = function (t) { var x = pr.filter(function (q) { return q.type === t; })[0]; return x ? x.value : ''; };
-      hd = g('day') + ' ' + g('month'); hy = g('year').replace(/[^\d]/g, '') + ' هـ';
-    } catch (e) {}
-    return '<span class="hij"><b>' + esc(hd) + '</b><span>' + esc(hy) + '</span></span><svg class="moon2" viewBox="-13 -13 26 26" aria-hidden="true"><defs><radialGradient id="mmLit" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#FBF6EA"/><stop offset=".7" stop-color="#E9E1CF"/><stop offset="1" stop-color="#CFC6B2"/></radialGradient></defs><circle r="12" fill="#2B3247" fill-opacity=".88"/>' + path + '</svg>';
-  }
-  function dayHead() {
-    var d = new Date();
-    return '<span class="hij"><b>' + esc(d.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { weekday: 'long' })) + '</b><span>' + esc(d.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'long' })) + '</span></span>';
-  }
   var TABI = {
     home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5"/>',
     album: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5"/>',
+    stars: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
     me: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
   };
   function tabBar(on) {
-    var t = [['home', 'الرئيسية'], ['album', 'الألبوم'], ['me', 'شخصيتي'], ['gear', 'الإعدادات']];
+    var t = [['home', 'الرئيسية'], ['album', 'الألبوم'], ['stars', 'النجوم'], ['me', 'شخصيتي'], ['gear', 'الإعدادات']];
     return '<nav class="tabs2">' + t.map(function (x) { return '<button data-tab="' + x[0] + '"' + (x[0] === on ? ' class="on" aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABI[x[0]] + '</svg>' + x[1] + '</button>'; }).join('') + '</nav>';
   }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.tabs2 [data-tab]'); if (!b) return;
+    var t = b.dataset.tab;
+    if (b.classList.contains('on') && t !== 'me') return;
+    if (t === 'home') home(); else if (t === 'album') album(); else if (t === 'stars') starGallery(); else if (t === 'me') editMe(); else if (t === 'gear') A.settings();
+  });
   function home() {
     if (!S.me || live().indexOf(S.me) < 0 || S.dev.members.indexOf(S.me) < 0) return picker();
     S.view = 'home'; S.chat = null;
-    var el = show(HILLS +
+    var el = show(
       '<header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
-      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 60) + '</button></header>' +
+      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 60) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '') + '</button></header>' +
+      '<div id="bdc"></div>' +
       '<div class="chips2"><div class="chip2" id="starC"><span style="font-size:17px">⭐</span><span>نجوم هالشهر</span></div>' +
       '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2');
     $('#sw', el).onclick = function () { picker(); };
-    el.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { var t = b.dataset.tab; if (t === 'album') album(); else if (t === 'me') editMe(); else if (t === 'gear') A.settings(); }; });
+    var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
+    el.querySelectorAll('[data-bdc]').forEach(function (b) { b.onclick = function () { var id = b.dataset.bdn; S.chat = b.dataset.bdc; sendMsg('text', { text: 'كل عام و' + (fem(id) ? 'أنتِ' : 'أنت') + ' بخير يا ' + nm(id) + ' 🎂🎉' }); toast('انرسلت التهنئة 🎉'); }; });
+    if ((bdInfo(S.me) || {}).days === 0) { var k = 'nabd-bd:' + S.me + ':' + new Date().getFullYear(); try { if (!localStorage.getItem(k)) { localStorage.setItem(k, 1); setTimeout(function () { starBurst('🎂 كل عام وأنت بخير يا ' + nm(S.me) + '!'); }, 600); } } catch (e) {} }
     renderChats(); renderHomeNotice();
   }
   function renderChats() {
@@ -632,9 +746,10 @@ var A = (function () {
         var ms = lists[i] || [], last = ms[ms.length - 1];
         today += ms.filter(function (m) { return m.t >= +day0; }).length;
         var unread = ms.filter(function (m) { return m.s !== S.me && (m.r || []).indexOf(S.me) < 0; }).length;
-        return { c: c, last: last, unread: unread, t: last ? last.t : 0 };
+        return { c: c, last: last, unread: unread, t: last ? last.t : 0, fire: streakOf(ms) };
       });
       setBadge(items.reduce(function (n, it) { return n + it.unread; }, 0));
+      var fireT = function (it) { return it.fire >= 2 ? '<span class="fire2" title="أيام تواصل ورا بعض">🔥' + it.fire + '</span>' : ''; };
       // نجوم هالشهر: كم ⭐ جتني على رسايلي
       var m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0); var stars = 0;
       lists.forEach(function (ms) { ms.forEach(function (m) { if (m.s === S.me && m.t >= +m0 && m.re) Object.keys(m.re).forEach(function (k) { if (m.re[k] === '⭐') stars++; }); }); });
@@ -648,14 +763,14 @@ var A = (function () {
       // بطاقة العائلة الكبيرة (مثل بطاقة الصلاة القادمة في فلق)
       var fam = live();
       var hero = '<div class="hero2 gl2' + (g.unread ? ' hot2' : '') + '"><button class="herob" data-c="g">' + grpIcon(58, 18) +
-        '<span class="grow col" style="gap:2px;min-width:0"><small class="lbl2">محادثة العائلة</small><span class="hn2">' + esc(grp().name) + '</span>' +
+        '<span class="grow col" style="gap:2px;min-width:0"><small class="lbl2">محادثة العائلة</small><span class="hn2">' + esc(grp().name) + fireT(g) + '</span>' +
         '<span class="pv2' + (g.unread ? ' un' : '') + '">' + (g.last ? previewOf(g.last) : 'ابدأوا السوالف 👋') + '</span></span>' + meta(g) + '</button>' +
         '<div class="faces2">' + fam.slice(0, 7).map(function (id) { return '<span style="--cc:' + colorOf(id) + '">' + av(id, 34) + '</span>'; }).join('') + (fam.length > 7 ? '<span class="more2">+' + (fam.length - 7) + '</span>' : '') +
         '<small>' + fam.length + ' في العائلة</small></div>' + quick('g') + '</div>';
       var rows = items.map(function (it) {
         var o = otherOf(it.c), col = colorOf(o);
         return '<div class="row2 gl2' + (it.unread ? ' hot2' : '') + '" style="--cc:' + col + '"><button class="rowb" data-c="' + esc(it.c) + '"><span class="ring2">' + av(o, 50) + '</span>' +
-          '<span class="grow col" style="gap:1px;min-width:0"><span class="nm2">' + esc(nm(o)) + '</span><span class="pv2' + (it.unread ? ' un' : '') + '">' + (it.last ? previewOf(it.last) : 'ابدأ السوالف 👋') + '</span></span>' + meta(it) + '</button>' + quick(it.c) + '</div>';
+          '<span class="grow col" style="gap:1px;min-width:0"><span class="nm2">' + esc(nm(o)) + fireT(it) + '</span><span class="pv2' + (it.unread ? ' un' : '') + '">' + (it.last ? previewOf(it.last) : 'ابدأ السوالف 👋') + '</span></span>' + meta(it) + '</button>' + quick(it.c) + '</div>';
       }).join('');
       box.innerHTML = hero + (rows ? '<div class="shead2"><h2>المحادثات</h2><button id="alL">الألبوم <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button></div>' + rows : '');
       var al = $('#alL'); if (al) al.onclick = album;
@@ -701,14 +816,16 @@ var A = (function () {
     S.view = 'chat'; S.chat = chat;
     Object.keys(urlCache).forEach(function (k) { URL.revokeObjectURL(urlCache[k]); }); urlCache = {};
     var o = otherOf(chat), canNudge = o && (isParent(S.me) || isAdmin(S.me)) && S.dev.trusted.indexOf(S.me) >= 0;
-    app.innerHTML = '<section class="chat" style="--wc:' + (chat === 'g' ? grp().c : colorOf(o)) + '">' +
+    app.innerHTML = '<section class="chat" data-wp="' + wallOf(chat) + '" style="--wc:' + (chat === 'g' ? grp().c : colorOf(o)) + '">' +
       '<div class="chathead"><button class="icb flat" id="bk" aria-label="رجوع">' + ic('back') + '</button>' +
       (chat === 'g' ? grpIcon(46, 16) : '<span class="ring sm">' + av(o, 44) + '</span>') +
       '<span class="grow col" style="gap:0;min-width:0"><span class="row" style="gap:8px;align-items:baseline"><span class="t">' + esc(chatTitle(chat)) + '</span>' + (chat === 'g' ? '<span class="tiny soft">منذ ' + fmtDate(S.fam.created || S.acct.created) + '</span>' : '') + '</span>' +
       '<span class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (chat === 'g' ? live().map(nm).map(esc).join('، ') : kindLabel(member(o) || {})) + '</span></span>' +
+      '<button class="icb flat" id="wpB" aria-label="خلفية المحادثة" style="font-size:20px">🎨</button>' +
       (canNudge ? '<button class="btn sm orange" id="nudgeB" aria-label="أرسل نبضة لـ' + esc(nm(o)) + '">' + ic('pulse') + ' نبضة</button>' : '') + '</div>' +
       '<div class="msgs" id="msgs"></div><div class="compose" id="comp"></div></section>';
     $('#bk').onclick = function () { home(); };
+    $('#wpB').onclick = function () { wallSheet(chat); };
     if (canNudge) $('#nudgeB').onclick = function () { sendNudge(o); };
     composer();
     renderMsgs(true);
@@ -717,6 +834,20 @@ var A = (function () {
     else if (mode === 'photo') setTimeout(pickPhoto, 300);
     else if (mode === 'draw') drawScreen();
     else if (mode === 'sticker') setTimeout(stickerSheet, 200);
+  }
+  /* خلفية لكل محادثة (لكل شخص على جهازه) */
+  var WALLS = [['dots', 'نقاط'], ['hearts', 'قلوب'], ['stars', 'نجوم'], ['clouds', 'غيوم'], ['flowers', 'ورود'], ['plain', 'سادة']];
+  function wallOf(chat) { try { return localStorage.getItem('nabd-wp:' + S.me + ':' + chat) || 'dots'; } catch (e) { return 'dots'; } }
+  function wallSheet(chat) {
+    var cur = wallOf(chat), col = chat === 'g' ? grp().c : colorOf(otherOf(chat));
+    var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">🎨 خلفية المحادثة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<p class="small muted" style="margin:0">لونها من لون ' + esc(chatTitle(chat)) + '، وتتغيّر عندك بس.</p>' +
+      '<div class="wpgrid">' + WALLS.map(function (w) { return '<button class="chat' + (w[0] === cur ? ' on' : '') + '" data-wp="' + w[0] + '" style="--wc:' + col + ';height:96px;display:flex"><i></i><span style="position:relative">' + w[1] + '</span></button>'; }).join('') + '</div>');
+    $('#x', sh).onclick = function () { sh.remove(); };
+    sh.querySelectorAll('[data-wp]').forEach(function (b) { b.onclick = function () {
+      try { localStorage.setItem('nabd-wp:' + S.me + ':' + chat, b.dataset.wp); } catch (e) {}
+      var c = $('section.chat'); if (c) c.dataset.wp = b.dataset.wp; sh.remove();
+    }; });
   }
   function renderMsgs(scroll) {
     var box = $('#msgs'); if (!box || S.view !== 'chat') return;
@@ -772,14 +903,15 @@ var A = (function () {
   function msgHTML(m) {
     var mine = m.s === S.me, group = m.chat === 'g';
     var body = '';
-    if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
+    if (m.k === 'text' && m.ch) body = '<div class="bub chal"><b>🎯 تحدّي الرسم' + (mine ? '' : ' من ' + esc(nm(m.s))) + '</b><span>' + esc((m.text || '').replace(/^🎯\s*/, '')) + '</span>' + (mine ? '<small style="opacity:.75">ننتظر الرسمة 🎨</small>' : '<button class="btn" data-chal="' + m.id + '">🎨 ارسمها الحين</button>') + '</div>';
+    else if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
     else if (m.k === 'sticker') { var su = mediaUrl(m); body = '<div class="stkmsg">' + (su ? '<img src="' + su + '" data-view="' + m.id + '" alt="ملصق">' : '') + '</div>'; }
     else if (m.k === 'photo' || m.k === 'draw') {
       var u = mediaUrl(m);
       body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
     } else if (m.k === 'voice') {
       var wf = m.wf || [], played = (m.st || {});
-      body = '<div class="bub"><div class="voice" data-voice="' + m.id + '"><button class="pl" aria-label="تشغيل الرسالة الصوتية" style="color:' + (mine ? 'var(--accent)' : '#fff') + '">' + PLAY + '</button>' +
+      body = '<div class="bub">' + (m.bed ? '<div class="bedtag">🌙 رسالة النوم' + (mine ? '' : ' من ' + esc(nm(m.s))) + '</div>' : '') + '<div class="voice" data-voice="' + m.id + '"><button class="pl" aria-label="تشغيل الرسالة الصوتية" style="color:' + (mine ? 'var(--accent)' : '#fff') + '">' + PLAY + '</button>' +
         '<span class="wave">' + (wf.length ? wf : new Array(28).fill(.4)).map(function (v) { return '<i style="height:' + Math.max(4, Math.round(v * 28)) + 'px"></i>'; }).join('') + '</span><span class="dur">' + fmtDur(m.dur || 0) + '</span></div></div>';
     }
     var sched = m.sched && m.out;
@@ -790,7 +922,7 @@ var A = (function () {
       body = body.slice(0, -6) + '<span class="reacts" title="' + esc(re.map(function (k) { return nm(k) + ' ' + m.re[k]; }).join('، ')) + '">' + Object.keys(cnt).map(function (e) { return e + (cnt[e] > 1 ? '<i>' + num(cnt[e]) + '</i>' : ''); }).join('') + '</span></div>';
     }
     return '<div class="m' + (mine ? ' me' : '') + (sched ? ' sched' : '') + '" data-id="' + m.id + '"' + (mine ? '' : ' style="--sc:' + colorOf(m.s) + '"') + '>' + (!mine && group ? av(m.s, 32) : '') +
-      '<div class="col" style="gap:0;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';min-width:0">' + (!mine && group ? '<span class="who2" style="color:' + colorOf(m.s) + '">' + esc(nm(m.s)) + '</span>' : '') + body + meta + '</div></div>';
+      '<div class="col" style="gap:0;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';min-width:0">' + (!mine && group ? '<span class="who2" style="color:' + colorOf(m.s) + '">' + esc(nm(m.s)) + '</span>' : '') + (m.cap ? '<span class="cap">' + esc(m.cap) + '</span>' : '') + body + meta + '</div></div>';
   }
   /* رسالة كلها إيموجي (بدون كتابة) ← عددها، وإلا 0 */
   var EMO_RE = null;
@@ -815,6 +947,7 @@ var A = (function () {
     box.querySelectorAll('[data-view]').forEach(function (img) {
       img.onclick = function () { var m = byId[img.dataset.view]; if (m) viewMedia(m, img.src); };
     });
+    box.querySelectorAll('[data-chal]').forEach(function (b) { b.onclick = function () { var c = byId[b.dataset.chal]; if (c) drawScreen({ rp: c.id, cap: '🎯 ' + (c.text || '').replace(/^🎯\s*/, ''), title: (c.text || '').replace(/^🎯\s*/, '') }); }; });
     box.querySelectorAll('[data-voice]').forEach(function (el) { $('.pl', el).onclick = function () { playVoice(byId[el.dataset.voice], el); }; });
     var nc = $('#nstop', box); if (nc) nc.onclick = function () { stopNudge(nc.dataset.id); };
     // ضغطة مطوّلة على الرسالة: تفاعل ❤️ ⭐ … (أو إلغاء المجدولة)
@@ -962,7 +1095,9 @@ var A = (function () {
     var canSched = isParent(S.me);
     var QR = isParent(S.me) ? ['❤️', 'شاطر 👏', 'أحبك 💕', 'تعال 🏃', 'الأكل جاهز 🍽️', 'نام بدري 🌙', 'أنا جاي 🚗', 'شكراً 🙏'] : ['❤️', '😂', 'تم 👍', 'أحبك 💕', 'جاي 🏃', 'وينك؟', 'اشتقت لك 🥺', 'تصبح على خير 🌙'];
     c.innerHTML = '<div class="qr" id="qr">' + QR.map(function (q) { return '<button data-qr="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
-      '<div class="tools"><button class="dr" id="drB">' + ic('pen') + ' رسم</button><button class="st" id="stB"><span style="font-size:20px;line-height:1">🧸</span> ملصق</button><button class="ph" id="phB">' + ic('cam') + ' صورة</button></div>' +
+      '<div class="tools"><button class="dr" id="drB">' + ic('pen') + ' رسم</button><button class="st" id="stB"><span style="font-size:20px;line-height:1">🧸</span> ملصق</button><button class="ph" id="phB">' + ic('cam') + ' صورة</button>' +
+      (canSched ? '<button class="ch" id="chB">🎯 تحدّي</button>' + (S.chat !== 'g' && !isParent(otherOf(S.chat)) ? '<button class="bd" id="bdB">🌙 رسالة النوم</button>' : '') : '<button class="em" id="emB">😊 إيموجي</button>') + '</div>' +
+      '<div class="spell" id="spell" hidden></div>' +
       '<div class="sendrow"><label class="sr" for="txt">اكتب رسالة</label><textarea class="txt" id="txt" rows="1" placeholder="اكتب هنا…" maxlength="4000"></textarea>' +
       (canSched ? '<button class="icb flat" id="schB" aria-label="جدولة الرسالة" hidden style="font-size:22px">⏰</button>' : '') +
       '<button class="mic" id="mic" aria-label="سجّل رسالة صوتية">' + ic('mic') + '</button></div><input type="file" id="pf" accept="image/*" hidden>';
@@ -975,7 +1110,7 @@ var A = (function () {
       var sb = $('#schB'); if (sb) sb.hidden = !has;
       var qr = $('#qr'); if (qr) qr.hidden = has;
     };
-    t.oninput = sync;
+    t.oninput = function () { sync(); if (!canSched) spellCheck(t); };
     t.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && plat() === 'desktop') { e.preventDefault(); mic.click(); } };
     mic.onclick = function () {
       var v = t.value.trim();
@@ -987,6 +1122,9 @@ var A = (function () {
     $('#stB').onclick = stickerSheet;
     var sb = $('#schB'); if (sb) sb.onclick = function () { var v = t.value.trim(); if (v) schedSheet(function (at) { t.value = ''; sync(); sendMsg('text', { text: v, at: at }); toast('⏰ تنرسل ' + fmtDay(at) + ' ' + fmtTime(at), 3000); }); };
     $('#phB').onclick = pickPhoto;
+    if ($('#chB')) $('#chB').onclick = chalSheet;
+    if ($('#bdB')) $('#bdB').onclick = bedSheet;
+    if ($('#emB')) $('#emB').onclick = function () { emojiSheet(t, sync); };
     $('#pf').onchange = function () { var f = this.files[0]; this.value = ''; if (f) photoPreview(f); };
   }
   function busy() { return S.view === 'draw' || !!rec || ($('#txt') && $('#txt').value.trim()); }
@@ -1029,14 +1167,33 @@ var A = (function () {
       return c;
     });
   }
+  /* ملصقاتي: أي رسمة أو صورة تصير ملصق (محفوظة على الجهاز) */
+  function myStickers() { return NB.kv.get('mystk').then(function (a) { return a || []; }, function () { return []; }); }
+  function makeSticker(src) {
+    var im = new Image();
+    im.onload = function () {
+      var P = 360, c = document.createElement('canvas'); c.width = c.height = P; var x = c.getContext('2d');
+      var r = 44; x.fillStyle = '#fff'; x.beginPath(); x.moveTo(r, 0); x.arcTo(P, 0, P, P, r); x.arcTo(P, P, 0, P, r); x.arcTo(0, P, 0, 0, r); x.arcTo(0, 0, P, 0, r); x.closePath(); x.fill(); x.save(); x.clip();
+      var k = Math.max(P / im.width, P / im.height); x.drawImage(im, (P - im.width * k) / 2, (P - im.height * k) / 2, im.width * k, im.height * k); x.restore();
+      var d = c.toDataURL('image/png');
+      myStickers().then(function (a) { a = [{ id: rid(8), d: d }].concat(a).slice(0, 30); return NB.kv.set('mystk', a); }).then(function () { toast('انضافت لملصقاتك 🧸'); });
+    };
+    im.src = src;
+  }
   function stickerSheet() {
     var chat = S.chat, who = [S.me].concat(live().filter(function (x) { return x !== S.me; }));
     var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">🧸 ملصقات العائلة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<div class="chips" id="sw2" style="display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap">' + who.map(function (id, i) { return '<button class="chip' + (i ? '' : ' on') + '" data-w="' + id + '" style="flex:none;gap:6px;display:flex;align-items:center">' + av(id, 26) + esc(nm(id)) + '</button>'; }).join('') + '</div>' +
+      '<div class="chips" id="sw2" style="display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap"><button class="chip" data-w="mine" style="flex:none">🖍️ ملصقاتي</button>' + who.map(function (id, i) { return '<button class="chip' + (i ? '' : ' on') + '" data-w="' + id + '" style="flex:none;gap:6px;display:flex;align-items:center">' + av(id, 26) + esc(nm(id)) + '</button>'; }).join('') + '</div>' +
       '<div id="sg" class="stkgrid"></div>');
     $('#x', sh).onclick = function () { sh.remove(); };
     function paint(id) {
-      var g = $('#sg', sh); g.innerHTML = STK_SAY.map(function (s2, i) { return '<button data-i="' + i + '" aria-label="' + esc(s2[1]) + '"><span class="spin"></span></button>'; }).join('');
+      var g = $('#sg', sh);
+      if (id === 'mine') return myStickers().then(function (a) {
+        if (!a.length) { g.innerHTML = '<p class="small muted" style="grid-column:1/-1;text-align:center;padding:20px 0">افتح أي رسمة وضغط «🧸 خلّها ملصق» وتطلع هنا</p>'; return; }
+        g.innerHTML = a.map(function (x, i) { return '<button data-mi="' + i + '"><img src="' + x.d + '" alt="ملصق" style="width:100%;border-radius:12px"></button>'; }).join('');
+        g.querySelectorAll('[data-mi]').forEach(function (b) { b.onclick = function () { sh.remove(); fetch(a[+b.dataset.mi].d).then(function (r) { return r.blob(); }).then(function (bl) { S.chat = chat; sendMsg('sticker', { w: 360, h: 360 }, bl); }); }; });
+      });
+      g.innerHTML = STK_SAY.map(function (s2, i) { return '<button data-i="' + i + '" aria-label="' + esc(s2[1]) + '"><span class="spin"></span></button>'; }).join('');
       STK_SAY.forEach(function (s2, i) {
         stickerCanvas(id, s2, 240).then(function (c) {
           var b = g.querySelector('[data-i="' + i + '"]'); if (!b) return;
@@ -1055,9 +1212,8 @@ var A = (function () {
   /* ----- ألبوم العائلة: كل الصور والرسومات ----- */
   function album() {
     S.view = 'album';
-    var el = show('<div class="row"><button class="icb" id="ab" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:24px;font-weight:800">🖼️ ألبوم العائلة</span></div>' +
-      '<div class="chips" id="af" style="display:flex;gap:8px"><button class="chip on" data-f="all">الكل</button><button class="chip" data-f="photo">صور</button><button class="chip" data-f="draw">رسومات</button><button class="chip" data-f="sticker">ملصقات</button></div><div id="ag" class="col" style="gap:14px"></div>', '');
-    $('#ab', el).onclick = function () { home(); };
+    var el = show('<div class="row"><span class="fd grow" style="font-size:26px;font-weight:800">🖼️ ألبوم العائلة</span></div>' +
+      '<div class="chips" id="af" style="display:flex;gap:8px"><button class="chip on" data-f="all">الكل</button><button class="chip" data-f="photo">صور</button><button class="chip" data-f="draw">رسومات</button><button class="chip" data-f="sticker">ملصقات</button></div><div id="ag" class="col" style="gap:14px"></div>' + tabBar('album'), 'v2');
     var urls = [], f = 'all';
     function paint() {
       urls.forEach(function (u) { URL.revokeObjectURL(u); }); urls = [];
@@ -1082,8 +1238,14 @@ var A = (function () {
   }
   function viewMedia(m, src) {
     var v = document.createElement('div'); v.className = 'viewer';
-    v.innerHTML = '<img src="' + src + '" alt=""><div class="vbar"><span class="small" style="color:#fff">' + esc(nm(m.s)) + ' · ' + fmtDay(m.t) + ' ' + fmtTime(m.t) + '</span><button class="btn sm" id="vs">حفظ</button></div>';
-    v.onclick = function (e) { if (e.target.id !== 'vs') v.remove(); };
+    var canDraw = m.k === 'draw' && chatsFor(S.me).indexOf(m.chat) >= 0, canStk = m.k === 'draw' || m.k === 'photo';
+    v.innerHTML = '<img src="' + src + '" alt=""><div class="vbar" style="flex-direction:column;align-items:stretch"><span class="small" style="color:#fff">' + esc(nm(m.s)) + ' · ' + fmtDay(m.t) + ' ' + fmtTime(m.t) + '</span><div class="vbtns">' +
+      (canDraw ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + (canStk ? '<button class="btn sm" id="vk">🧸 خلّها ملصق</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
+    v.onclick = function (e) { if (!e.target.closest('button')) v.remove(); };
+    if ($('#vd', v)) $('#vd', v).onclick = function () {
+      var im = new Image(); im.onload = function () { v.remove(); S.chat = m.chat; drawScreen({ base: im, rp: m.id, cap: '🖍️ كمّل رسمة ' + nm(m.s) }); }; im.src = src;
+    };
+    if ($('#vk', v)) $('#vk', v).onclick = function () { makeSticker(src); };
     document.body.appendChild(v);
     $('#vs', v).onclick = function () {
       var ext = (m.mime || 'image/jpeg').split('/')[1].replace('jpeg', 'jpg'), file = new File([NB.media(m)], 'nabd-' + m.id + '.' + ext, { type: m.mime || 'image/jpeg' });
@@ -1098,17 +1260,20 @@ var A = (function () {
     new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); if (bytes) out.set(bytes, 4 + h.length);
     return out;
   }
+  var XTRA = ['ch', 'rp', 'cap', 'bed'];
   function sendMsg(kind, o, blob) {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: o.at || Date.now(), st: {}, r: [S.me], out: 1 };
     if (o.at) m.sched = o.at;
     var head = {};
     if (kind === 'text') { m.text = o.text; head.text = o.text; }
     else { m.mime = blob.type; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (o[k] != null) m[k] = o[k]; }); }
+    XTRA.forEach(function (k) { if (o[k] != null) m[k] = o[k]; });
     return (blob ? blob.arrayBuffer().then(function (b) { m.buf = b; }) : Promise.resolve()).then(function () { return NB.msgs.put(m); }).then(function () { renderMsgs(true); return upload(m); });
   }
   function upload(m) {
     var mb = NB.media(m), bytesP = mb ? mb.arrayBuffer().then(function (b) { return new Uint8Array(b); }) : Promise.resolve(null);
     var head = m.k === 'text' ? { text: m.text } : { mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h };
+    XTRA.forEach(function (k) { if (m[k] != null) head[k] = m[k]; });
     return bytesP.then(function (bytes) {
       return Promise.all([NB.enc(pack(head, bytes)), m.k === 'text' ? NB.encJSON({ x: m.text.slice(0, 80) }) : Promise.resolve('')]);
     }).then(function (r) {
@@ -1146,7 +1311,8 @@ var A = (function () {
   }
   /* ----- تسجيل الصوت ----- */
   var rec = null;
-  function startRec() {
+  function startRec(opt) {
+    opt = opt && !opt.target ? opt : {};
     if (rec) return;
     if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل غير مدعوم على هذا الجهاز');
     // نشغّل محلّل الصوت هنا (داخل ضغطة الزر) عشان الآيفون ما يبدأه موقوف
@@ -1173,14 +1339,17 @@ var A = (function () {
         return analyze(blob, ac); }).then(function (r) {
           try { ac && ac.close(); } catch (e) {}
           var wf = r ? r.wf : shrink(peaks, 32);
-          var send = function () { sendMsg('voice', { dur: Math.round(r && r.dur ? r.dur : dur), wf: wf }, blob); };
+          var send = function () {
+            sendMsg('voice', { dur: Math.round(r && r.dur ? r.dur : dur), wf: wf, bed: opt.bed ? 1 : null, at: opt.bed || null }, blob);
+            if (opt.bed) toast('🌙 توصل ' + fmtDay(opt.bed) + ' الساعة ' + fmtTime(opt.bed), 3500);
+          };
           if (r && r.silent) silentSheet(send); else send();
         });
       };
       mr.start(250);
       var c = $('#comp');
       c.innerHTML = '<div class="fxrow"><span class="fxl">🎭 غيّر صوتك:</span>' + FX.map(function (f) { return '<button data-fx="' + f[0] + '"' + (f[0] === fx ? ' class="on"' : '') + '>' + f[1] + '</button>'; }).join('') + '</div><div class="recbar"><button class="icb flat" id="rx" aria-label="إلغاء التسجيل" style="color:var(--danger)">' + ic('trash') + '</button>' +
-        '<span class="recdot"></span><span class="fd" id="rt" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">0:00</span><span class="grow small muted">' + (isParent(S.me) ? 'يسجّل…' : 'تكلّم الحين…') + '</span>' +
+        '<span class="recdot"></span><span class="fd" id="rt" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">0:00</span><span class="grow small muted">' + (opt.bed ? '🌙 رسالة النوم · ' + fmtTime(opt.bed) : isParent(S.me) ? 'يسجّل…' : 'تكلّم الحين…') + '</span>' +
         '<button class="mic" id="rs" aria-label="إرسال التسجيل">' + ic('send', 'style="transform:scaleX(-1)"') + '</button></div>';
       c.querySelectorAll('[data-fx]').forEach(function (b) { b.onclick = function () { fx = b.dataset.fx; c.querySelectorAll('[data-fx]').forEach(function (x) { x.classList.toggle('on', x === b); }); if (fx !== 'none' && (Date.now() - t0) / 1000 > 45) toast('المؤثر يشتغل على أول ٤٥ ثانية'); }; });
       $('#rx').onclick = function () { rec.cancel = true; mr.stop(); };
@@ -1326,13 +1495,14 @@ var A = (function () {
   }
 
   /* الرسم: قلم، قوس قزح، نيون، تعبئة، ملصقات (وصور العائلة)، الخلفية، صفحات تلوين، ممحاة — وكل شي يتراجع */
-  function drawScreen() {
+  function drawScreen(opt) {
+    opt = opt && !opt.target ? opt : {};
     var chat = S.chat; S.view = 'draw';
     var ops = [], cur = null, color = COLORS[1], size = 10, tool = 'pen', sticker = STICKERS[0], page = null, snap = null;
     var TOOLS = [['pen', '✏️', 'قلم'], ['rainbow', '🌈', 'قوس قزح'], ['glow', '💡', 'نيون'], ['fill', '🪣', 'تعبئة'], ['sticker', '⭐', 'ملصقات'], ['bg', '🎨', 'الخلفية'], ['page', '🖍️', 'تلوين'], ['erase', '🧽', 'ممحاة']];
     var fam = live(), famImgs = {};
     fam.forEach(function (id) { avatarImage(id, 240).then(function (c) { famImgs[id] = c; }); });
-    var el = show('<div class="row"><button class="icb" id="dx" aria-label="إلغاء">' + ic('close') + '</button><span class="fd grow" style="font-size:23px;font-weight:800">ارسم لـ' + esc(chatTitle(chat)) + '</span>' +
+    var el = show('<div class="row"><button class="icb" id="dx" aria-label="إلغاء">' + ic('close') + '</button><span class="fd grow" style="font-size:' + (opt.title ? 19 : 23) + 'px;font-weight:800;line-height:1.25">' + (opt.title ? '🎯 ' + esc(opt.title) : opt.base ? '🖍️ كمّل الرسمة' : 'ارسم لـ' + esc(chatTitle(chat))) + '</span>' +
       '<button class="icb" id="du" aria-label="تراجع">' + ic('undo') + '</button></div>' +
       '<div class="drawwrap" id="dw"><canvas id="cv"></canvas></div>' +
       '<div class="card col" style="gap:10px;padding:12px">' +
@@ -1409,6 +1579,7 @@ var A = (function () {
     function redraw(skip) {
       var pk = curPage();
       ctx.shadowBlur = 0; ctx.fillStyle = bgColor(); ctx.fillRect(0, 0, cv.width, cv.height);
+      if (opt.base) { var bi = opt.base, k0 = Math.min(cv.width / bi.width, cv.height / bi.height), bw0 = bi.width * k0, bh0 = bi.height * k0; ctx.drawImage(bi, (cv.width - bw0) / 2, (cv.height - bh0) / 2, bw0, bh0); }
       if (pk) pageLines(pk);
       ops.forEach(function (o) { if (o === skip) return; if (o.t === 's') seg(o); else if (o.t === 'f') flood(o); });
       if (pk) pageLines(pk);
@@ -1466,7 +1637,7 @@ var A = (function () {
       if (!ops.length) return toast('ارسم شي أول 🎨');
       var k = Math.min(1, 1080 / Math.max(cv.width, cv.height)), c2 = document.createElement('canvas');
       c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height);
-      c2.toBlob(function (b) { S.chat = chat; openChat(chat); sendMsg('draw', { w: c2.width, h: c2.height }, b); }, 'image/jpeg', .88);
+      c2.toBlob(function (b) { S.chat = chat; openChat(chat); sendMsg('draw', { w: c2.width, h: c2.height, rp: opt.rp, cap: opt.cap }, b); }, 'image/jpeg', .88);
     };
     window.addEventListener('resize', function rs() { if (S.view !== 'draw') return window.removeEventListener('resize', rs); fit(); });
     paintCtx();
@@ -1727,7 +1898,7 @@ var A = (function () {
     if (!days || deviceHasAdmin()) return Promise.resolve(0);
     var cut = Date.now() - days * 864e5;
     return NB.msgs.all().then(function (all) {
-      var old = all.filter(function (m) { return m.t < cut && !m.out; });
+      var old = all.filter(function (m) { return m.t < cut && !m.out && !((m.k === 'draw' || m.k === 'photo' || m.k === 'sticker') && hasStar(m)); });
       return Promise.all(old.map(function (m) { return NB.msgs.del(m.id); })).then(function () { return old.length; });
     });
   }
@@ -1934,6 +2105,7 @@ var A = (function () {
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
+    tabBar: tabBar, SKIES: SKIES, sky: sky, setSky: setSky, starGallery: starGallery,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };
 })();

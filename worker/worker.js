@@ -303,7 +303,7 @@ export default {
         if (!body || body.length > MAX_MEDIA || !/^[A-Za-z0-9_-]+$/.test(body.slice(0, 64))) return json({ error: 'toolarge' }, 413);
         const at = +q.get('at') || 0;
         if (at > now + 30e3) {
-          if (a.kind !== 'parent' || kind !== 'text' || at > now + 30 * 864e5) return json({ error: 'bad' }, 400);
+          if (a.kind !== 'parent' || (kind !== 'text' && kind !== 'voice') || at > now + 30 * 864e5) return json({ error: 'bad' }, 400);
           await env.DB.prepare('INSERT OR IGNORE INTO sched (id, fam, chat, sender, sdev, kind, body, prev, at, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
             .bind(id, F.id, chat, a.id, D.id, kind, body, prev || null, at, now).run();
           return json({ ok: true, sched: at });
