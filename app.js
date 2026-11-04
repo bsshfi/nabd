@@ -860,11 +860,11 @@ var A = (function () {
   }
 
   /* ----- الصوت ----- */
-  /* تشغيل الرسائل الصوتية بـ Web Audio: ما يطلع مشغّل في شاشة القفل ولا يبقى شغّال بالخلفية.
-     إذا ما قدر الجهاز يفك الصيغة نرجع لعنصر <audio> وننظفه كامل بعد ما يخلص */
-  var audio = null, audioEl = null, audioTimer = null, vctx = null, vsrc = null;
+  /* تشغيل الرسائل الصوتية بعنصر <audio> العادي (الأثبت على الآيفون ولا يلخبط إذن الميكروفون).
+     ما نلمس navigator.audioSession أبداً، ونوقف الصوت وننظف مشغّل شاشة القفل إذا طلع من المحادثة أو راح التطبيق للخلفية */
+  var audio = null, audioEl = null, audioTimer = null, audioUrl = null;
   function clearNowPlaying(a) {
-    try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) {}
+    try { a.onended = a.onerror = a.onpause = null; a.pause(); a.removeAttribute('src'); a.load(); } catch (e) {}
     try {
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none';
@@ -873,10 +873,8 @@ var A = (function () {
     } catch (e) {}
   }
   function stopAudio() {
-    if (audio) { clearNowPlaying(audio); audio = null; }
-    if (vsrc) { try { vsrc.onended = null; vsrc.stop(); } catch (e) {} vsrc = null; }
-    if (vctx) { var c = vctx; vctx = null; try { c.close(); } catch (e) {} }
-    try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {}
+    if (audio) { clearNowPlaying(audio); try { audio.remove(); } catch (e) {} audio = null; }
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
     if (audioTimer) clearInterval(audioTimer); audioTimer = null;
     if (audioEl) { $('.pl', audioEl).innerHTML = PLAY; audioEl.querySelectorAll('.wave i').forEach(function (i) { i.classList.remove('on'); }); var dd = $('.dur', audioEl); if (dd && audioEl.dataset.d) dd.textContent = audioEl.dataset.d; audioEl = null; }
   }
@@ -895,33 +893,18 @@ var A = (function () {
       bars.forEach(function (b, i) { b.classList.toggle('on', i <= k); });
       $('.dur', el).textContent = fmtDur(cur);
     };
-    var AC = window.AudioContext || window.webkitAudioContext;
-    var ctx = AC ? new AC() : null;
-    vctx = ctx;
-    // آيفون: نوع "تشغيل" عشان يطلع الصوت حتى لو زر الصامت شغّال
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-    if (ctx && ctx.resume) ctx.resume();
-    var html5 = function () {
-      if (audioEl !== el) return;
-      if (ctx) { try { ctx.close(); } catch (e) {} if (vctx === ctx) vctx = null; }
-      var u = URL.createObjectURL(NB.media(m));
-      audio = new Audio(u);
-      audio.onended = function () { stopAudio(); URL.revokeObjectURL(u); };
-      audio.onerror = function () { stopAudio(); toast('ما قدرنا نشغّل الرسالة على هذا الجهاز'); };
-      audio.play().catch(function () { stopAudio(); });
-      audioTimer = setInterval(function () { if (audio) tick(audio.currentTime, audio.duration && isFinite(audio.duration) ? audio.duration : (m.dur || 1)); }, 120);
-    };
-    if (!ctx) return html5();
-    NB.media(m).arrayBuffer().then(function (ab) {
-      return new Promise(function (res, rej) { var p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
-    }).then(function (buf) {
-      if (audioEl !== el || vctx !== ctx) return;
-      var src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
-      var t0 = ctx.currentTime; vsrc = src;
-      src.onended = function () { if (vsrc === src) stopAudio(); };
-      src.start(0);
-      audioTimer = setInterval(function () { if (vctx === ctx) tick(Math.min(buf.duration, ctx.currentTime - t0), buf.duration); }, 120);
-    }).catch(html5);
+    var a = new Audio(); audio = a;
+    a.setAttribute('playsinline', ''); a.preload = 'auto';
+    audioUrl = URL.createObjectURL(NB.media(m)); a.src = audioUrl;
+    a.onended = function () { if (audio === a) stopAudio(); };
+    a.onerror = function () { if (audio === a) { stopAudio(); toast('ما قدرنا نشغّل الرسالة على هذا الجهاز'); } };
+    a.play().catch(function () {
+      // أحياناً يرفض أول مرة وهو يحمّل — نحاول مرة ثانية بعد ما يجهز
+      if (audio !== a) return;
+      a.oncanplay = function () { a.oncanplay = null; if (audio === a) a.play().catch(function () { if (audio === a) stopAudio(); }); };
+      try { a.load(); } catch (e) {}
+    });
+    audioTimer = setInterval(function () { if (audio === a) tick(a.currentTime, a.duration && isFinite(a.duration) ? a.duration : (m.dur || 1)); }, 120);
     if (m.s !== S.me && !(m.heard || []).some(function (x) { return x === S.me; })) {
       m.heard = (m.heard || []).concat([S.me]); NB.msgs.put(m);
       api('/rcpt', { member: S.me, s: 3, items: [{ id: m.id, chat: m.chat, s: m.s }] }).catch(function () {});
