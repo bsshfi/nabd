@@ -152,6 +152,20 @@ export default {
           if (lk > now) return json({ error: 'locked', wait: Math.ceil((lk - now) / 60000) }, 429);
           if (!okPin(b.pin)) return json({ error: m.pin ? 'need_pin' : 'set_pin' }, 403);
           if (!m.pin) {
+            // أول رمز لأب/أم/مشرف: لازم موافقة المدير (جهاز موثوق عنده، أو يكتب رمزه) — عشان ما يحجز أحد الحساب قبل صاحبه
+            const guards = M.filter((x) => !x.removed && x.pin && (x.kind === 'parent' || x.admin || x.id === F.owner));
+            if (guards.length && !guards.some((x) => devTrusted.includes(x.id))) {
+              if (!okPin(b.admin_pin)) return json({ error: 'need_admin' }, 403);
+              let okAdm = false;
+              for (const g of guards) if (await pinHash(F.id, g.id, b.admin_pin) === g.pin) { okAdm = true; break; }
+              if (!okAdm) {
+                const fails = (D.pin_fail || 0) + 1;
+                await env.DB.prepare('UPDATE devices SET pin_fail=?, pin_lock=? WHERE id=?').bind(fails >= 5 ? 0 : fails, fails >= 5 ? now + 10 * 60e3 : 0, D.id).run();
+                await famPinFail();
+                return json({ error: 'bad_admin_pin', left: 5 - fails }, 403);
+              }
+              await famPinOk();
+            }
             await env.DB.prepare('UPDATE members SET pin=? WHERE id=?').bind(await pinHash(F.id, m.id, b.pin), m.id).run();
           } else if (await pinHash(F.id, m.id, b.pin) !== m.pin) {
             const fails = (D.pin_fail || 0) + 1;

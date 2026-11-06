@@ -559,8 +559,8 @@ var A = (function () {
     };
   }
   function pick(id) {
-    var useIt = function (pin, pad) {
-      return api('/use', { member: id, pin: pin }).then(function (r) {
+    var useIt = function (pin, pad, adminPin) {
+      return api('/use', { member: id, pin: pin, admin_pin: adminPin }).then(function (r) {
         if (pad) pad.close();
         S.dev.members = r.members; S.dev.trusted = r.trusted; S.me = id;
         return Promise.all([saveDev(), NB.kv.set('me', id)]).then(function () { home(); syncNow(); if (!localStorage.getItem('nabd-asked')) askNotif(); });
@@ -574,7 +574,19 @@ var A = (function () {
     if (!needsPin(id)) return useIt(undefined).catch(netErr);
     var r = role(id);
     if (r && !r.pin) {
-      return setPin('اختر رمز سري لـ' + nm(id), function (p) { useIt(p).catch(netErr); });
+      return setPin('اختر رمز سري لـ' + nm(id), function (p) {
+        useIt(p).catch(function (e) {
+          if (!e || e.error !== 'need_admin') return lockErr(e) || netErr(e);
+          // أول مرة لهذا الحساب على جهاز جديد: المدير يأكّد برمزه
+          pinPad('رمز المدير', 'أول مرة لـ' + nm(id) + ' على هذا الجهاز — يحتاج تأكيد المدير', function (a, pad) {
+            useIt(p, pad, a).catch(function (e2) {
+              if (e2 && e2.error === 'bad_admin_pin') pad.fail('رمز غلط' + (e2.left > 0 ? ' · باقي ' + num(e2.left) + ' محاولات' : ''));
+              else if (e2 && e2.error === 'locked') { pad.close(); lockErr(e2); }
+              else pad.fail('ما فيه اتصال');
+            });
+          });
+        });
+      });
     }
     pinPad('الرمز السري', nm(id), function (p, pad) {
       useIt(p, pad).catch(function (e) {
@@ -584,6 +596,7 @@ var A = (function () {
       });
     }, { who: id });
   }
+  function lockErr(e) { if (e && e.error === 'locked') { toast('انقفل مؤقتاً، جرّب بعد ' + num(e.wait) + ' دقائق', 4000); return true; } return false; }
   function netErr(e) { toast(e && e.error === 'network' ? 'ما فيه اتصال بالإنترنت' : 'صار خطأ، جرّب مرة ثانية'); }
 
   /* ----- الرئيسية ----- */
