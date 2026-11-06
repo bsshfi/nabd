@@ -16,11 +16,13 @@ const MAX_MEDIA = 1950000;          // base64 (أقل من حد صف D1)
 const MAX_PROFILE = 600000;
 const ONLINE_MS = 90e3;
 const NUDGE_MAX = 3;
+const PUSH_HOSTS = [/\.push\.apple\.com$/, /^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/];
+const okPush = (u) => { try { const x = new URL(u); return x.protocol === 'https:' && PUSH_HOSTS.some((r) => r.test(x.hostname)); } catch (e) { return false; } };
 
 export default {
   async fetch(req, env, ctx) {
     const origin = req.headers.get('Origin') || '';
-    const allow = ORIGINS.includes(origin) || /^https?:\/\/([a-z0-9-]+\.)?wamdarc\.com$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ? origin : ORIGINS[0];
+    const allow = ORIGINS.includes(origin) || /^https:\/\/([a-z0-9-]+\.)?wamdarc\.com$/.test(origin) ? origin : ORIGINS[0];
     const cors = {
       'Access-Control-Allow-Origin': allow,
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -43,11 +45,11 @@ export default {
 
       /* ===== لوحة الإدارة (admin.wamdarc.com) ===== */
       if (p === '/stats' && req.method === 'GET') {
-        if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
+        { const g = await adminGate(req, env.DB, () => isAdmin(req, env)); if (g !== 'ok') return json({ error: g === 'locked' ? 'locked' : 'unauthorized' }, g === 'locked' ? 429 : 401); }
         return json(await stats(env, now));
       }
       if (p === '/broadcast' && req.method === 'POST') {
-        if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
+        { const g = await adminGate(req, env.DB, () => isAdmin(req, env)); if (g !== 'ok') return json({ error: g === 'locked' ? 'locked' : 'unauthorized' }, g === 'locked' ? 429 : 401); }
         const b = await req.json().catch(() => ({}));
         const src = b.ar || b;
         const title = String(src.title || '').trim().slice(0, 80), text = String(src.body || '').trim().slice(0, 300);
@@ -65,12 +67,12 @@ export default {
         return json(await wamdHit(env, b));
       }
       if ((p === '/wamd/log' || p === '/wamd/backup') && req.method === 'GET') {
-        if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
+        { const g = await adminGate(req, env.DB, () => isAdmin(req, env)); if (g !== 'ok') return json({ error: g === 'locked' ? 'locked' : 'unauthorized' }, g === 'locked' ? 429 : 401); }
         if (p === '/wamd/log') return json(await wamdLog(env, parseInt(q.get('before'), 10) || 0, parseInt(q.get('limit'), 10) || 30));
         return json(await wamdBackup(env));
       }
       if (p === '/wamd/analytics' && req.method === 'GET') {
-        if (!(await isAdmin(req, env))) return json({ error: 'unauthorized' }, 401);
+        { const g = await adminGate(req, env.DB, () => isAdmin(req, env)); if (g !== 'ok') return json({ error: g === 'locked' ? 'locked' : 'unauthorized' }, g === 'locked' ? 429 : 401); }
         if (!env.STATS) return json({ error: 'no-stats-db' }, 503);
         return json(await wamdAnalytics(env, parseInt(q.get('days'), 10)));
       }
@@ -124,6 +126,15 @@ export default {
       const devMembers = jarr(D.members), devTrusted = jarr(D.trusted);
       // العضو اللي يتصرف الحين (لازم يكون مضاف لهذا الجهاز)
       const actor = (id) => (id && byId[id] && !byId[id].removed && devMembers.includes(id)) ? byId[id] : null;
+      // قفل الرمز السري على مستوى العائلة كلها (مو بس الجهاز): يمنع تخمين رمز الأب/الأم من جهاز ثاني أو جهاز جديد
+      // ١٠ محاولات خاطئة خلال أسبوع ← قفل ساعة بعد كل محاولة · ٢٠ ← قفل يوم كامل · الرمز الصحيح يصفّر العدّاد
+      const famPinLock = () => ((F.pl || 0) > now ? F.pl : 0);
+      const famPinFail = async () => {
+        const pf = ((F.pfl || 0) > now - 7 * 864e5 ? (F.pf || 0) : 0) + 1;
+        const pl = pf >= 20 ? now + 864e5 : pf >= 10 ? now + 36e5 : 0;
+        await env.DB.prepare('UPDATE families SET pf=?, pfl=?, pl=? WHERE id=?').bind(pf, now, pl, F.id).run();
+      };
+      const famPinOk = async () => { if (F.pf || F.pl) await env.DB.prepare('UPDATE families SET pf=0, pl=0 WHERE id=?').bind(F.id).run(); };
       const actorAdmin = (id) => { const a = actor(id); return a && (a.admin || a.id === F.owner) && devTrusted.includes(id) ? a : null; };
 
       if (p === '/family' && req.method === 'GET') {
@@ -137,15 +148,18 @@ export default {
         if (!m || m.removed) return json({ error: 'nomember' }, 404);
         const needsPin = m.kind === 'parent' || m.admin || m.id === F.owner;
         if (needsPin) {
-          if (D.pin_lock > now) return json({ error: 'locked', wait: Math.ceil((D.pin_lock - now) / 60000) }, 429);
+          const lk = Math.max(D.pin_lock || 0, famPinLock());
+          if (lk > now) return json({ error: 'locked', wait: Math.ceil((lk - now) / 60000) }, 429);
           if (!okPin(b.pin)) return json({ error: m.pin ? 'need_pin' : 'set_pin' }, 403);
           if (!m.pin) {
             await env.DB.prepare('UPDATE members SET pin=? WHERE id=?').bind(await pinHash(F.id, m.id, b.pin), m.id).run();
           } else if (await pinHash(F.id, m.id, b.pin) !== m.pin) {
             const fails = (D.pin_fail || 0) + 1;
             await env.DB.prepare('UPDATE devices SET pin_fail=?, pin_lock=? WHERE id=?').bind(fails >= 5 ? 0 : fails, fails >= 5 ? now + 10 * 60e3 : 0, D.id).run();
+            await famPinFail();
             return json({ error: 'bad_pin', left: 5 - fails }, 403);
           }
+          await famPinOk();
         }
         const mem = uniq([...devMembers, m.id]), tr = uniq([...devTrusted, m.id]);
         await env.DB.prepare('UPDATE devices SET members=?, trusted=?, pin_fail=0 WHERE id=?').bind(JSON.stringify(mem), JSON.stringify(tr), D.id).run();
@@ -160,15 +174,18 @@ export default {
       if (p === '/pin/check' && req.method === 'POST') {
         // رمز وليّ الأمر لفتح خيارات محمية على جهاز الأطفال (أي أب أو أم أو مشرف)
         const b = await req.json().catch(() => ({}));
-        if (D.pin_lock > now) return json({ error: 'locked', wait: Math.ceil((D.pin_lock - now) / 60000) }, 429);
+        const lk = Math.max(D.pin_lock || 0, famPinLock());
+        if (lk > now) return json({ error: 'locked', wait: Math.ceil((lk - now) / 60000) }, 429);
         if (!okPin(b.pin)) return json({ error: 'bad' }, 400);
         const cands = M.filter((m) => !m.removed && m.pin && (m.kind === 'parent' || m.admin || m.id === F.owner));
         for (const m of cands) if (await pinHash(F.id, m.id, b.pin) === m.pin) {
           await env.DB.prepare('UPDATE devices SET pin_fail=0 WHERE id=?').bind(D.id).run();
+          await famPinOk();
           return json({ ok: true, member: m.id });
         }
         const fails = (D.pin_fail || 0) + 1;
         await env.DB.prepare('UPDATE devices SET pin_fail=?, pin_lock=? WHERE id=?').bind(fails >= 5 ? 0 : fails, fails >= 5 ? now + 10 * 60e3 : 0, D.id).run();
+        await famPinFail();
         return json({ error: 'bad_pin', left: 5 - fails }, 403);
       }
       if (p === '/pin' && req.method === 'POST') {
@@ -422,7 +439,7 @@ export default {
       if (p === '/sub' && req.method === 'POST') {
         const b = await req.json().catch(() => ({}));
         if (b.off) { await env.DB.prepare('UPDATE devices SET endpoint=NULL WHERE id=?').bind(D.id).run(); return json({ ok: true }); }
-        if (typeof b.endpoint !== 'string' || !/^https:\/\//.test(b.endpoint) || b.endpoint.length > 1000) return json({ error: 'bad' }, 400);
+        if (typeof b.endpoint !== 'string' || !okPush(b.endpoint) || b.endpoint.length > 1000) return json({ error: 'bad' }, 400);
         const k = b.keys || {};
         await env.DB.prepare("UPDATE devices SET endpoint=?, p256dh=?, auth=?, notif='granted' WHERE id=?")
           .bind(b.endpoint, okB64(k.p256dh, 120) ? k.p256dh : null, okB64(k.auth, 40) ? k.auth : null, D.id).run();
@@ -448,7 +465,8 @@ export default {
 
       return json({ error: 'notfound' }, 404);
     } catch (e) {
-      return json({ error: 'server', detail: String(e && e.message || e) }, 500);
+      console.error(e);
+      return json({ error: 'server' }, 500);
     }
   },
 
@@ -530,7 +548,7 @@ async function ensureSchema(env) {
     env.DB.prepare('CREATE INDEX IF NOT EXISTS sched_at ON sched (at)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS bcast (n INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER, title TEXT, body TEXT, total INTEGER)')
   ]);
-  for (const sql of ["ALTER TABLE families ADD COLUMN links TEXT DEFAULT '[]'", 'ALTER TABLE families ADD COLUMN quiet TEXT', 'ALTER TABLE devices ADD COLUMN p256dh TEXT', 'ALTER TABLE devices ADD COLUMN auth TEXT']) {
+  for (const sql of ["ALTER TABLE families ADD COLUMN links TEXT DEFAULT '[]'", 'ALTER TABLE families ADD COLUMN quiet TEXT', 'ALTER TABLE devices ADD COLUMN p256dh TEXT', 'ALTER TABLE devices ADD COLUMN auth TEXT', 'ALTER TABLE families ADD COLUMN pf INTEGER DEFAULT 0', 'ALTER TABLE families ADD COLUMN pfl INTEGER DEFAULT 0', 'ALTER TABLE families ADD COLUMN pl INTEGER DEFAULT 0']) {
     try { await env.DB.prepare(sql).run(); } catch (e) {}
   }
   schemaReady = true;
@@ -851,4 +869,33 @@ async function wamdBackup(env) {
     messages: { push: pushMsgs, siraj: sirajMsgs, nabd: nabdMsgs },
     nabd: { daily: nabdDaily }
   };
+}
+
+/* ---------- حماية مفتاح الإدارة من التخمين ----------
+   ٢٠ محاولة خاطئة من نفس الشبكة خلال ساعة ← قفل ٣٠ دقيقة لهذه الشبكة
+   ١٠٠ محاولة خاطئة من أي مكان خلال ساعة ← قفل الإدارة كاملة ١٥ دقيقة (يحمي من التخمين الموزّع)
+   الدخول الصحيح يصفّر عدّاد الشبكة. */
+const AF = { ipMax: 20, ipLock: 30 * 60e3, allMax: 100, allLock: 15 * 60e3, win: 36e5 };
+async function adminGate(req, db, check) {
+  const now = Date.now();
+  const raw = (req.headers.get('X-Admin-Key') || req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!raw) return 'bad';
+  const ipb = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('af:' + (req.headers.get('CF-Connecting-IP') || 'local'))));
+  const ip = [...ipb.slice(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  await db.prepare('CREATE TABLE IF NOT EXISTS afail (ip TEXT PRIMARY KEY, n INTEGER, last INTEGER, lock INTEGER)').run();
+  const rows = (await db.prepare("SELECT ip, n, last, lock FROM afail WHERE ip IN (?, '*')").bind(ip).all()).results || [];
+  if (rows.some((r) => r.lock > now)) return 'locked';
+  if (await check()) {
+    if (rows.some((r) => r.ip === ip)) await db.prepare('DELETE FROM afail WHERE ip=?').bind(ip).run();
+    return 'ok';
+  }
+  const st = [];
+  for (const [k, max, lock] of [[ip, AF.ipMax, AF.ipLock], ['*', AF.allMax, AF.allLock]]) {
+    const r = rows.find((x) => x.ip === k);
+    const n = (r && r.last > now - AF.win ? r.n : 0) + 1;
+    st.push(db.prepare('INSERT INTO afail (ip, n, last, lock) VALUES (?,?,?,?) ON CONFLICT(ip) DO UPDATE SET n=excluded.n, last=excluded.last, lock=excluded.lock')
+      .bind(k, n >= max ? 0 : n, now, n >= max ? now + lock : 0));
+  }
+  await db.batch(st);
+  return 'bad';
 }
