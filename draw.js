@@ -1,7 +1,7 @@
 /* نَبْض — الرسم 3.0
    فُرش (قلم، شمع، لمعة، بخاخ، مائي، رشّة أشكال، قوس قزح، نيون، ممحاة)، تعبئة، أشكال، مرآة ٢/٤/٨،
    صفحات تلوين بأقسام + العائلة + لوّن صورتك، تكبير بإصبعين، رجوع/إعادة، أصوات، رسوماتي (مسودات)،
-   صوت مع الرسمة، والرسمة تنرسم قدام اللي يستقبلها (pl) */
+   وصوت مع الرسمة */
 var DR = (function () {
   'use strict';
 
@@ -571,13 +571,11 @@ var DR = (function () {
       if (!hasInk()) return A.toast('ارسم شي أول 🎨');
       var k = Math.min(1, 1080 / Math.max(cv.width, cv.height)), c2 = document.createElement('canvas');
       c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height);
-      var pg = E.page(), pl = null;
-      if (!opt.base && pg !== 'photo') { try { pl = encode(E.ops, cv.width / cv.height); if (pl.length > 350000) pl = null; } catch (e) { pl = null; } }
       var voice = st.voice, did = st.draftId;
       leave();
       c2.toBlob(function (b) {
         S.chat = chat; A.openChat(chat);
-        A.sendMsg('draw', { w: c2.width, h: c2.height, rp: opt.rp, cap: opt.cap, pl: pl }, b);
+        A.sendMsg('draw', { w: c2.width, h: c2.height, rp: opt.rp, cap: opt.cap }, b);
         if (voice) setTimeout(function () { A.sendMsg('voice', { dur: voice.dur, wf: voice.wf, cap: '🎤 عن الرسمة' }, voice.blob); }, 250);
         dropDraft(did);
       }, 'image/jpeg', .88);
@@ -598,51 +596,5 @@ var DR = (function () {
     }, 30);
   }
 
-  /* ================= الرسمة تنرسم قدامك ================= */
-  function play(m, src) {
-    var data; try { data = decode(m.pl); } catch (e) { return A.toast('ما قدرنا نشغّل الرسمة'); }
-    var v = document.createElement('div'); v.className = 'viewer d2play';
-    v.innerHTML = '<div class="d2pbox"><canvas></canvas></div><div class="vbar" style="flex-direction:column;align-items:stretch"><div class="d2prog"><i></i></div><div class="vbtns"><button class="btn sm" id="pr">↻ من جديد</button><button class="btn sm line" id="pc">إغلاق</button></div></div>';
-    document.body.appendChild(v);
-    var cv = v.querySelector('canvas'), box = v.querySelector('.d2pbox'), bar = v.querySelector('.d2prog i');
-    var r = box.getBoundingClientRect(), ar = data.r || .75, w = r.width, h = w / ar;
-    if (h > r.height) { h = r.height; w = h * ar; }
-    var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + 'px'; cv.style.height = h + 'px';
-    var E = Engine(cv, { dpr: dpr }), all = data.o, raf = 0, stopped = false;
-    // نجهّز صفحة العائلة لو موجودة
-    var pg = null; all.forEach(function (o) { if (o.t === 'pg') pg = o.k; });
-    var prep = pg && /^av:/.test(pg) ? famLines(pg.slice(3)) : Promise.resolve(null);
-    var units = function (o) { return o.t === 's' ? o.p.length : o.t === 'f' ? 8 : o.t === 'sh' ? 10 : 1; };
-    var total = all.reduce(function (n, o) { return n + units(o); }, 0), dur = Math.max(3000, Math.min(14000, total * 9));
-    function run() {
-      cancelAnimationFrame(raf); E.ops = []; var i = 0, j = 0, done = 0, t0 = performance.now();
-      E.ops = all.filter(function (o) { return o.t === 'bg' || o.t === 'pg'; }).slice(0, 0);
-      E.clear();
-      function frame(now) {
-        if (stopped) return;
-        var target = Math.min(total, (now - t0) / dur * total);
-        while (i < all.length && done < target) {
-          var o = all[i];
-          if (o.t === 'bg' || o.t === 'pg') { E.ops.push(o); E.redraw(); done += 1; i++; continue; }
-          if (o.t === 's') {
-            if (j === 0) E.ops.push(o);
-            while (j < o.p.length && done < target) { E.seg(o, j); j++; done++; }
-            if (j >= o.p.length) { E.drawLines(); i++; j = 0; }
-            continue;
-          }
-          E.ops.push(o); E.op(o); done += units(o); i++;
-        }
-        bar.style.width = (done / total * 100) + '%';
-        if (i < all.length) raf = requestAnimationFrame(frame);
-      }
-      raf = requestAnimationFrame(frame);
-    }
-    prep.then(function (c) { E.lines = c; run(); });
-    v.querySelector('#pr').onclick = run;
-    v.querySelector('#pc').onclick = function () { stopped = true; cancelAnimationFrame(raf); v.remove(); };
-    v.onclick = function (e) { if (e.target === v) { stopped = true; cancelAnimationFrame(raf); v.remove(); } };
-    void src;
-  }
-
-  return { Engine: Engine, screen: screen, play: play, PAGES: PAGES, lineArt: lineArt, encode: encode, decode: decode };
+  return { Engine: Engine, screen: screen, PAGES: PAGES, lineArt: lineArt, encode: encode, decode: decode };
 })();

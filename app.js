@@ -907,7 +907,7 @@ var A = (function () {
     else if (m.k === 'sticker') { var su = mediaUrl(m); body = '<div class="stkmsg">' + (su ? '<img src="' + su + '" data-view="' + m.id + '" alt="ملصق">' : '') + '</div>'; }
     else if (m.k === 'photo' || m.k === 'draw') {
       var u = mediaUrl(m);
-      body = '<div class="bub media">' + (u && m.k === 'draw' && m.pl ? '<button class="d2pbtn" data-play="' + m.id + '" aria-label="شوف الرسمة تنرسم">▶</button>' : '') + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
+      body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
     } else if (m.k === 'voice') {
       var wf = m.wf || [], played = (m.st || {});
       body = '<div class="bub">' + (m.bed ? '<div class="bedtag">🌙 رسالة النوم' + (mine ? '' : ' من ' + esc(nm(m.s))) + '</div>' : '') + '<div class="voice" data-voice="' + m.id + '"><button class="pl" aria-label="تشغيل الرسالة الصوتية" style="color:' + (mine ? 'var(--accent)' : '#fff') + '">' + PLAY + '</button>' +
@@ -946,7 +946,6 @@ var A = (function () {
     box.querySelectorAll('[data-view]').forEach(function (img) {
       img.onclick = function () { var m = byId[img.dataset.view]; if (m) viewMedia(m, img.src); };
     });
-    box.querySelectorAll('[data-play]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var mm = byId[b.dataset.play]; if (mm) DR.play(mm); }; });
     box.querySelectorAll('[data-voice]').forEach(function (el) { $('.pl', el).onclick = function () { playVoice(byId[el.dataset.voice], el); }; });
     var nc = $('#nstop', box); if (nc) nc.onclick = function () { stopNudge(nc.dataset.id); };
     // ضغطة مطوّلة على الرسالة: تفاعل ❤️ ⭐ … (أو إلغاء المجدولة)
@@ -1175,12 +1174,11 @@ var A = (function () {
     var v = document.createElement('div'); v.className = 'viewer';
     var canDraw = m.k === 'draw' && chatsFor(S.me).indexOf(m.chat) >= 0;
     v.innerHTML = '<img src="' + src + '" alt=""><div class="vbar" style="flex-direction:column;align-items:stretch"><span class="small" style="color:#fff">' + esc(nm(m.s)) + ' · ' + fmtDay(m.t) + ' ' + fmtTime(m.t) + '</span><div class="vbtns">' +
-      (canDraw ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + (m.k === 'draw' && m.pl ? '<button class="btn sm" id="vp">▶️ شوفها تنرسم</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
+      (canDraw ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
     v.onclick = function (e) { if (!e.target.closest('button')) v.remove(); };
     if ($('#vd', v)) $('#vd', v).onclick = function () {
       var im = new Image(); im.onload = function () { v.remove(); S.chat = m.chat; drawScreen({ base: im, rp: m.id, cap: '🖍️ كمّل رسمة ' + nm(m.s) }); }; im.src = src;
     };
-    if ($('#vp', v)) $('#vp', v).onclick = function () { v.remove(); DR.play(m, src); };
     document.body.appendChild(v);
     $('#vs', v).onclick = function () {
       var ext = (m.mime || 'image/jpeg').split('/')[1].replace('jpeg', 'jpg'), file = new File([NB.media(m)], 'nabd-' + m.id + '.' + ext, { type: m.mime || 'image/jpeg' });
@@ -1195,7 +1193,7 @@ var A = (function () {
     new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); if (bytes) out.set(bytes, 4 + h.length);
     return out;
   }
-  var XTRA = ['ch', 'rp', 'cap', 'bed', 'pl'];
+  var XTRA = ['ch', 'rp', 'cap', 'bed'];
   function sendMsg(kind, o, blob) {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: o.at || Date.now(), st: {}, r: [S.me], out: 1 };
     if (o.at) m.sched = o.at;
