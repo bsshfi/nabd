@@ -602,20 +602,6 @@ var A = (function () {
   /* ----- الرئيسية ----- */
   function greet() { var h = new Date().getHours(); return h < 12 ? 'صباح الخير' : 'مساء الخير'; }
 
-  /* ----- تحدّي الرسم (للأب والأم) ----- */
-  var CHALS = ['ارسم لي جمل 🐪', 'ارسم بيتنا 🏠', 'ارسم وجهك وأنت مبسوط 😄', 'ارسم سيارة أحلامك 🚗', 'ارسم شجرة وعليها عصفور 🌳', 'ارسم قطة 🐱', 'ارسم البحر والسمك 🐠', 'ارسم صاروخ للفضاء 🚀', 'ارسم أكلتك المفضلة 🍕', 'ارسم عائلتنا 👨‍👩‍👧‍👦'];
-  function chalSheet() {
-    var chat = S.chat;
-    var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">🎯 تحدّي رسم</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<p class="small muted" style="margin:0">يوصلهم التحدّي، ورسمتهم ترجع لك ردّ عليه.</p>' +
-      '<div class="col" style="gap:8px">' + CHALS.map(function (c, i) { return '<button class="btn line block" data-c="' + i + '" style="justify-content:flex-start">' + esc(c) + '</button>'; }).join('') + '</div>' +
-      '<label class="field"><span>أو اكتب تحدّي من عندك</span><input class="inp" id="cc" maxlength="80" placeholder="مثلاً: ارسم لي مدرستك"></label><button class="btn block" id="go">أرسل التحدّي</button>');
-    var send = function (t) { t = (t || '').trim(); if (!t) return; sh.remove(); S.chat = chat; sendMsg('text', { text: '🎯 ' + t, ch: 1 }); };
-    $('#x', sh).onclick = function () { sh.remove(); };
-    sh.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { send(CHALS[+b.dataset.c]); }; });
-    $('#go', sh).onclick = function () { send($('#cc', sh).value); };
-  }
-
   /* ----- رسالة النوم: تسجّلها الحين وتوصل وقت النوم ----- */
   function bedSheet() {
     var at = function (h, mi) { var d = new Date(); d.setHours(h, mi, 0, 0); if (d.getTime() < Date.now() + 120e3) d.setDate(d.getDate() + 1); return d.getTime(); };
@@ -742,8 +728,10 @@ var A = (function () {
       '<div id="bdc"></div>' +
       '<div class="chips2"><div class="chip2" id="starC"><span style="font-size:17px">⭐</span><span>نجوم هالشهر</span></div>' +
       '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div>' +
+      '<button class="drawbig gl2" id="drawBig"><span class="db-ic">🎨</span><span class="grow col" style="gap:0;text-align:start"><b>ارسم للعائلة</b><small>فُرش جديدة، مرآة، وصفحات تلوين</small></span><span class="db-go">' + ic('back', 'style="transform:scaleX(-1)"') + '</span></button>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2');
     $('#sw', el).onclick = function () { picker(); };
+    $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
     var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
     el.querySelectorAll('[data-bdc]').forEach(function (b) { b.onclick = function () { var id = b.dataset.bdn; S.chat = b.dataset.bdc; sendMsg('text', { text: 'كل عام و' + (fem(id) ? 'أنتِ' : 'أنت') + ' بخير يا ' + nm(id) + ' 🎂🎉' }); toast('انرسلت التهنئة 🎉'); }; });
     if ((bdInfo(S.me) || {}).days === 0) { var k = 'nabd-bd:' + S.me + ':' + new Date().getFullYear(); try { if (!localStorage.getItem(k)) { localStorage.setItem(k, 1); setTimeout(function () { starBurst('🎂 كل عام وأنت بخير يا ' + nm(S.me) + '!'); }, 600); } } catch (e) {} }
@@ -771,7 +759,7 @@ var A = (function () {
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
       var kid = !isParent(S.me);
-      var quick = function (c) { return kid ? '<div class="quick2"><button data-q="voice" data-qc="' + esc(c) + '">🎤 صوت</button><button data-q="draw" data-qc="' + esc(c) + '">🎨 ارسم</button><button data-q="sticker" data-qc="' + esc(c) + '">🧸 ملصق</button></div>' : ''; };
+      var quick = function (c) { return kid ? '<div class="quick2"><button data-q="voice" data-qc="' + esc(c) + '">🎤 صوت</button><button data-q="draw" data-qc="' + esc(c) + '">🎨 ارسم</button><button data-q="photo" data-qc="' + esc(c) + '">📷 صورة</button></div>' : ''; };
       var meta = function (it, light) { return '<span class="meta2">' + (it.last ? '<span class="when2">' + whenShort(it.last.t) + '</span>' : '') + (it.unread ? '<span class="badge2" aria-label="' + num(it.unread) + ' رسالة جديدة">' + it.unread + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, light) : '') + '</span>'; };
       // بطاقة العائلة الكبيرة (مثل بطاقة الصلاة القادمة في فلق)
       var fam = live();
@@ -846,7 +834,6 @@ var A = (function () {
     else if (mode === 'text') setTimeout(function () { $('#txt') && $('#txt').focus(); }, 300);
     else if (mode === 'photo') setTimeout(pickPhoto, 300);
     else if (mode === 'draw') drawScreen();
-    else if (mode === 'sticker') setTimeout(stickerSheet, 200);
   }
   /* خلفية لكل محادثة (لكل شخص على جهازه) */
   var WALLS = [['dots', 'نقاط'], ['hearts', 'قلوب'], ['stars', 'نجوم'], ['clouds', 'غيوم'], ['flowers', 'ورود'], ['plain', 'سادة']];
@@ -916,12 +903,11 @@ var A = (function () {
   function msgHTML(m) {
     var mine = m.s === S.me, group = m.chat === 'g';
     var body = '';
-    if (m.k === 'text' && m.ch) body = '<div class="bub chal"><b>🎯 تحدّي الرسم' + (mine ? '' : ' من ' + esc(nm(m.s))) + '</b><span>' + esc((m.text || '').replace(/^🎯\s*/, '')) + '</span>' + (mine ? '<small style="opacity:.75">ننتظر الرسمة 🎨</small>' : '<button class="btn" data-chal="' + m.id + '">🎨 ارسمها الحين</button>') + '</div>';
-    else if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
+    if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
     else if (m.k === 'sticker') { var su = mediaUrl(m); body = '<div class="stkmsg">' + (su ? '<img src="' + su + '" data-view="' + m.id + '" alt="ملصق">' : '') + '</div>'; }
     else if (m.k === 'photo' || m.k === 'draw') {
       var u = mediaUrl(m);
-      body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
+      body = '<div class="bub media">' + (u && m.k === 'draw' && m.pl ? '<button class="d2pbtn" data-play="' + m.id + '" aria-label="شوف الرسمة تنرسم">▶</button>' : '') + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
     } else if (m.k === 'voice') {
       var wf = m.wf || [], played = (m.st || {});
       body = '<div class="bub">' + (m.bed ? '<div class="bedtag">🌙 رسالة النوم' + (mine ? '' : ' من ' + esc(nm(m.s))) + '</div>' : '') + '<div class="voice" data-voice="' + m.id + '"><button class="pl" aria-label="تشغيل الرسالة الصوتية" style="color:' + (mine ? 'var(--accent)' : '#fff') + '">' + PLAY + '</button>' +
@@ -960,7 +946,7 @@ var A = (function () {
     box.querySelectorAll('[data-view]').forEach(function (img) {
       img.onclick = function () { var m = byId[img.dataset.view]; if (m) viewMedia(m, img.src); };
     });
-    box.querySelectorAll('[data-chal]').forEach(function (b) { b.onclick = function () { var c = byId[b.dataset.chal]; if (c) drawScreen({ rp: c.id, cap: '🎯 ' + (c.text || '').replace(/^🎯\s*/, ''), title: (c.text || '').replace(/^🎯\s*/, '') }); }; });
+    box.querySelectorAll('[data-play]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var mm = byId[b.dataset.play]; if (mm) DR.play(mm); }; });
     box.querySelectorAll('[data-voice]').forEach(function (el) { $('.pl', el).onclick = function () { playVoice(byId[el.dataset.voice], el); }; });
     var nc = $('#nstop', box); if (nc) nc.onclick = function () { stopNudge(nc.dataset.id); };
     // ضغطة مطوّلة على الرسالة: تفاعل ❤️ ⭐ … (أو إلغاء المجدولة)
@@ -1108,8 +1094,8 @@ var A = (function () {
     var canSched = isParent(S.me);
     var QR = isParent(S.me) ? ['❤️', 'شاطر 👏', 'أحبك 💕', 'تعال 🏃', 'الأكل جاهز 🍽️', 'نام بدري 🌙', 'أنا جاي 🚗', 'شكراً 🙏'] : ['❤️', '😂', 'تم 👍', 'أحبك 💕', 'جاي 🏃', 'وينك؟', 'اشتقت لك 🥺', 'تصبح على خير 🌙'];
     c.innerHTML = '<div class="qr" id="qr">' + QR.map(function (q) { return '<button data-qr="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
-      '<div class="tools"><button class="dr" id="drB">' + ic('pen') + ' رسم</button><button class="st" id="stB"><span style="font-size:20px;line-height:1">🧸</span> ملصق</button><button class="ph" id="phB">' + ic('cam') + ' صورة</button>' +
-      (canSched ? '<button class="ch" id="chB">🎯 تحدّي</button>' + (S.chat !== 'g' && !isParent(otherOf(S.chat)) ? '<button class="bd" id="bdB">🌙 رسالة النوم</button>' : '') : '<button class="em" id="emB">😊 إيموجي</button>') + '</div>' +
+      '<div class="tools"><button class="dr" id="drB">' + ic('pen') + ' رسم</button><button class="ph" id="phB">' + ic('cam') + ' صورة</button>' +
+      (canSched ? (S.chat !== 'g' && !isParent(otherOf(S.chat)) ? '<button class="bd" id="bdB">🌙 رسالة النوم</button>' : '') : '<button class="em" id="emB">😊 إيموجي</button>') + '</div>' +
       '<div class="spell" id="spell" hidden></div>' +
       '<div class="sendrow"><label class="sr" for="txt">اكتب رسالة</label><textarea class="txt" id="txt" rows="1" placeholder="اكتب هنا…" maxlength="4000"></textarea>' +
       (canSched ? '<button class="icb flat" id="schB" aria-label="جدولة الرسالة" hidden style="font-size:22px">⏰</button>' : '') +
@@ -1132,10 +1118,8 @@ var A = (function () {
     };
     c.querySelectorAll('[data-qr]').forEach(function (b) { b.onclick = function () { if (navigator.vibrate) navigator.vibrate(15); sendMsg('text', { text: b.dataset.qr }); }; });
     $('#drB').onclick = drawScreen;
-    $('#stB').onclick = stickerSheet;
     var sb = $('#schB'); if (sb) sb.onclick = function () { var v = t.value.trim(); if (v) schedSheet(function (at) { t.value = ''; sync(); sendMsg('text', { text: v, at: at }); toast('⏰ تنرسل ' + fmtDay(at) + ' ' + fmtTime(at), 3000); }); };
     $('#phB').onclick = pickPhoto;
-    if ($('#chB')) $('#chB').onclick = chalSheet;
     if ($('#bdB')) $('#bdB').onclick = bedSheet;
     if ($('#emB')) $('#emB').onclick = function () { emojiSheet(t, sync); };
     $('#pf').onchange = function () { var f = this.files[0]; this.value = ''; if (f) photoPreview(f); };
@@ -1160,73 +1144,11 @@ var A = (function () {
   }
 
   /* ----- ملصقات العائلة: شخصية كل فرد مع عبارة ----- */
-  var STK_SAY = [['laugh', 'ههههه 😂'], ['grin', 'أحبك ❤️'], ['smile', 'تم 👍'], ['wink', 'اشتقت لك'], ['calm', 'تصبح على خير 🌙'], ['grin', 'برافو ⭐'], ['smile', 'وينك؟'], ['laugh', 'يا سلام!']];
-  function stickerCanvas(id, say, px) {
-    var m = member(id) || {}, a = m.av || {};
-    var tmp = a.ch ? { members: {} } : null;
-    var pid = id;
-    if (a.ch) { var cp = JSON.parse(JSON.stringify(m)); cp.av = { ch: Object.assign({}, a.ch, { e: say[0] }), bg: a.bg }; pid = id + '~' + say[0]; tmp = cp; }
-    var getImg = tmp ? (function () { var keep = (S.prof.members || {})[pid]; S.prof.members[pid] = tmp; var pr = avatarImage(pid, Math.round(px * .78)); if (!keep) delete S.prof.members[pid]; return pr; })() : avatarImage(id, Math.round(px * .78));
-    return getImg.then(function (img) {
-      var c = document.createElement('canvas'); c.width = c.height = px; var x = c.getContext('2d'), r = px * .78;
-      x.shadowColor = 'rgba(0,0,0,.18)'; x.shadowBlur = px * .03; x.shadowOffsetY = px * .01;
-      x.fillStyle = '#fff'; x.beginPath(); x.arc(px / 2, r / 2 + px * .02, r / 2 + px * .025, 0, Math.PI * 2); x.fill(); x.shadowBlur = 0; x.shadowOffsetY = 0;
-      x.drawImage(img, (px - r) / 2, px * .02, r, r);
-      var fs = Math.round(px * .125); x.font = '800 ' + fs + 'px "IBM Plex Sans Arabic","Segoe UI","Noto Sans Arabic",sans-serif'; x.direction = 'rtl';
-      var tw = Math.min(px * .96, x.measureText(say[1]).width + px * .1), bx = (px - tw) / 2, by = px * .78, bh = fs * 1.6;
-      x.fillStyle = '#fff'; x.strokeStyle = '#1B2333'; x.lineWidth = px * .012;
-      if (x.roundRect) { x.beginPath(); x.roundRect(bx, by, tw, bh, bh / 2); x.fill(); x.stroke(); } else { x.fillRect(bx, by, tw, bh); x.strokeRect(bx, by, tw, bh); }
-      x.fillStyle = '#1B2333'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(say[1], px / 2, by + bh / 2 + 1);
-      return c;
-    });
-  }
-  /* ملصقاتي: أي رسمة أو صورة تصير ملصق (محفوظة على الجهاز) */
-  function myStickers() { return NB.kv.get('mystk').then(function (a) { return a || []; }, function () { return []; }); }
-  function makeSticker(src) {
-    var im = new Image();
-    im.onload = function () {
-      var P = 360, c = document.createElement('canvas'); c.width = c.height = P; var x = c.getContext('2d');
-      var r = 44; x.fillStyle = '#fff'; x.beginPath(); x.moveTo(r, 0); x.arcTo(P, 0, P, P, r); x.arcTo(P, P, 0, P, r); x.arcTo(0, P, 0, 0, r); x.arcTo(0, 0, P, 0, r); x.closePath(); x.fill(); x.save(); x.clip();
-      var k = Math.max(P / im.width, P / im.height); x.drawImage(im, (P - im.width * k) / 2, (P - im.height * k) / 2, im.width * k, im.height * k); x.restore();
-      var d = c.toDataURL('image/png');
-      myStickers().then(function (a) { a = [{ id: rid(8), d: d }].concat(a).slice(0, 30); return NB.kv.set('mystk', a); }).then(function () { toast('انضافت لملصقاتك 🧸'); });
-    };
-    im.src = src;
-  }
-  function stickerSheet() {
-    var chat = S.chat, who = [S.me].concat(live().filter(function (x) { return x !== S.me; }));
-    var sh = sheet('<div class="row"><h2 class="grow" style="font-size:22px">🧸 ملصقات العائلة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<div class="chips" id="sw2" style="display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap"><button class="chip" data-w="mine" style="flex:none">🖍️ ملصقاتي</button>' + who.map(function (id, i) { return '<button class="chip' + (i ? '' : ' on') + '" data-w="' + id + '" style="flex:none;gap:6px;display:flex;align-items:center">' + av(id, 26) + esc(nm(id)) + '</button>'; }).join('') + '</div>' +
-      '<div id="sg" class="stkgrid"></div>');
-    $('#x', sh).onclick = function () { sh.remove(); };
-    function paint(id) {
-      var g = $('#sg', sh);
-      if (id === 'mine') return myStickers().then(function (a) {
-        if (!a.length) { g.innerHTML = '<p class="small muted" style="grid-column:1/-1;text-align:center;padding:20px 0">افتح أي رسمة وضغط «🧸 خلّها ملصق» وتطلع هنا</p>'; return; }
-        g.innerHTML = a.map(function (x, i) { return '<button data-mi="' + i + '"><img src="' + x.d + '" alt="ملصق" style="width:100%;border-radius:12px"></button>'; }).join('');
-        g.querySelectorAll('[data-mi]').forEach(function (b) { b.onclick = function () { sh.remove(); fetch(a[+b.dataset.mi].d).then(function (r) { return r.blob(); }).then(function (bl) { S.chat = chat; sendMsg('sticker', { w: 360, h: 360 }, bl); }); }; });
-      });
-      g.innerHTML = STK_SAY.map(function (s2, i) { return '<button data-i="' + i + '" aria-label="' + esc(s2[1]) + '"><span class="spin"></span></button>'; }).join('');
-      STK_SAY.forEach(function (s2, i) {
-        stickerCanvas(id, s2, 240).then(function (c) {
-          var b = g.querySelector('[data-i="' + i + '"]'); if (!b) return;
-          b.innerHTML = ''; c.style.width = '100%'; c.style.height = 'auto'; b.appendChild(c);
-          b.onclick = function () {
-            sh.remove();
-            stickerCanvas(id, s2, 360).then(function (big) { big.toBlob(function (bl) { S.chat = chat; sendMsg('sticker', { w: 360, h: 360 }, bl); }, 'image/png'); });
-          };
-        });
-      });
-    }
-    sh.querySelectorAll('[data-w]').forEach(function (b) { b.onclick = function () { sh.querySelectorAll('[data-w]').forEach(function (x) { x.classList.toggle('on', x === b); }); paint(b.dataset.w); }; });
-    paint(who[0]);
-  }
-
   /* ----- ألبوم العائلة: كل الصور والرسومات ----- */
   function album() {
     S.view = 'album';
     var el = show('<div class="row"><span class="fd grow" style="font-size:26px;font-weight:800">🖼️ ألبوم العائلة</span></div>' +
-      '<div class="chips" id="af" style="display:flex;gap:8px"><button class="chip on" data-f="all">الكل</button><button class="chip" data-f="photo">صور</button><button class="chip" data-f="draw">رسومات</button><button class="chip" data-f="sticker">ملصقات</button></div><div id="ag" class="col" style="gap:14px"></div>' + tabBar('album'), 'v2');
+      '<div class="chips" id="af" style="display:flex;gap:8px"><button class="chip on" data-f="all">الكل</button><button class="chip" data-f="photo">صور</button><button class="chip" data-f="draw">رسومات</button></div><div id="ag" class="col" style="gap:14px"></div>' + tabBar('album'), 'v2');
     var urls = [], f = 'all';
     function paint() {
       urls.forEach(function (u) { URL.revokeObjectURL(u); }); urls = [];
@@ -1251,14 +1173,14 @@ var A = (function () {
   }
   function viewMedia(m, src) {
     var v = document.createElement('div'); v.className = 'viewer';
-    var canDraw = m.k === 'draw' && chatsFor(S.me).indexOf(m.chat) >= 0, canStk = m.k === 'draw' || m.k === 'photo';
+    var canDraw = m.k === 'draw' && chatsFor(S.me).indexOf(m.chat) >= 0;
     v.innerHTML = '<img src="' + src + '" alt=""><div class="vbar" style="flex-direction:column;align-items:stretch"><span class="small" style="color:#fff">' + esc(nm(m.s)) + ' · ' + fmtDay(m.t) + ' ' + fmtTime(m.t) + '</span><div class="vbtns">' +
-      (canDraw ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + (canStk ? '<button class="btn sm" id="vk">🧸 خلّها ملصق</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
+      (canDraw ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + (m.k === 'draw' && m.pl ? '<button class="btn sm" id="vp">▶️ شوفها تنرسم</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
     v.onclick = function (e) { if (!e.target.closest('button')) v.remove(); };
     if ($('#vd', v)) $('#vd', v).onclick = function () {
       var im = new Image(); im.onload = function () { v.remove(); S.chat = m.chat; drawScreen({ base: im, rp: m.id, cap: '🖍️ كمّل رسمة ' + nm(m.s) }); }; im.src = src;
     };
-    if ($('#vk', v)) $('#vk', v).onclick = function () { makeSticker(src); };
+    if ($('#vp', v)) $('#vp', v).onclick = function () { v.remove(); DR.play(m, src); };
     document.body.appendChild(v);
     $('#vs', v).onclick = function () {
       var ext = (m.mime || 'image/jpeg').split('/')[1].replace('jpeg', 'jpg'), file = new File([NB.media(m)], 'nabd-' + m.id + '.' + ext, { type: m.mime || 'image/jpeg' });
@@ -1273,7 +1195,7 @@ var A = (function () {
     new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); if (bytes) out.set(bytes, 4 + h.length);
     return out;
   }
-  var XTRA = ['ch', 'rp', 'cap', 'bed'];
+  var XTRA = ['ch', 'rp', 'cap', 'bed', 'pl'];
   function sendMsg(kind, o, blob) {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: o.at || Date.now(), st: {}, r: [S.me], out: 1 };
     if (o.at) m.sched = o.at;
@@ -1467,23 +1389,6 @@ var A = (function () {
     }).catch(function () { toast('ما قدرنا نفتح الصورة'); });
   }
 
-  /* ----- الرسم ----- */
-  var COLORS = ['#1B2333', '#D4552B', '#F5B62A', '#23854D', '#2F6FDB', '#A13D8F', '#F28AB2', '#8A5A3C', '#FFFFFF', '#3FC1C9', '#8BD346', '#FF8A3D', '#9AD3F5', '#FFD6E7'];
-  var CN = ['أسود', 'أحمر', 'أصفر', 'أخضر', 'أزرق', 'بنفسجي', 'وردي', 'بني', 'أبيض', 'تركوازي', 'ليموني', 'برتقالي', 'سماوي', 'وردي فاتح'];
-  var BGS = ['#FFFFFF', '#FFF4C7', '#FAD9E6', '#DCEBFA', '#D6F0E0', '#E6E0FA', '#FFE0D6', '#BDE7FF', '#1B2333', '#2B3FA8', '#0F8B8D', '#F5B62A'];
-  var STICKERS = ['⭐', '❤️', '🌈', '🦄', '🐱', '🐶', '🦋', '🌸', '🌻', '☀️', '🌙', '✨', '🎈', '🎁', '👑', '🍦', '🍭', '🍉', '⚽', '🚗', '🚀', '🏠', '🐠', '🦁', '🐰', '😀', '😍', '😎', '🥳', '💖', '🌟', '🎀'];
-  /* صفحات تلوين (خطوط فقط، 100×100) — الطفل يلوّنها بالسطل أو القلم */
-  var PAGES = {
-    house: { n: 'بيت', p: ['M25 50h50v38h-50z', 'M18 52L50 22L82 52z', 'M64 31h7v12h-7z', 'M44 66h12v22h-12z', 'M30 58h10v10h-10z', 'M60 58h10v10h-10z', 'M90 16a8 8 0 1 0-16 0a8 8 0 1 0 16 0z', 'M4 88H96', 'M12 88V76a5 5 0 0 1 10 0V88'] },
-    flower: { n: 'وردة', p: ['M73.0 38.0a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M68.6 48.6a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M58.0 53.0a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M47.4 48.6a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M43.0 38.0a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M47.4 27.4a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M58.0 23.0a8 8 0 1 0-16 0a8 8 0 1 0 16 0z','M68.6 27.4a8 8 0 1 0-16 0a8 8 0 1 0 16 0z', 'M58 38a8 8 0 1 0-16 0a8 8 0 1 0 16 0z', 'M50 62V86', 'M50 74C42 64 32 66 30 70C36 78 44 78 50 74z', 'M50 72C58 62 68 64 70 68C64 76 56 76 50 72z', 'M36 86h28l-4 10h-20z'] },
-    fish: { n: 'سمكة', p: ['M17 50a28 17 0 1 0 56 0a28 17 0 1 0-56 0z', 'M72 50L92 34V66z', 'M31 46a3 3 0 1 0-6 0a3 3 0 1 0 6 0z', 'M40 34Q50 22 60 35', 'M50 34Q44 50 50 66', 'M60 37Q55 50 60 63', 'M14 30a3 3 0 1 0-6 0a3 3 0 1 0 6 0z', 'M22 20a2.5 2.5 0 1 0-5 0a2.5 2.5 0 1 0 5 0z', 'M4 84Q14 78 24 84T44 84T64 84T84 84T100 84'] },
-    car: { n: 'سيارة', p: ['M10 66L10 54L22 50L33 36L65 36L76 50L90 54L90 66z', 'M37 40L32 50H48V40z', 'M52 40V50H70L62 40z', 'M39 68a9 9 0 1 0-18 0a9 9 0 1 0 18 0z', 'M79 68a9 9 0 1 0-18 0a9 9 0 1 0 18 0z', 'M33 68a3 3 0 1 0-6 0a3 3 0 1 0 6 0z', 'M73 68a3 3 0 1 0-6 0a3 3 0 1 0 6 0z', 'M86 56h4v4h-4z', 'M2 80H98'] },
-    butterfly: { n: 'فراشة', p: ['M46.5 52a3.5 20 0 1 0 7 0a3.5 20 0 1 0-7 0z', 'M47 44C30 16 8 22 13 40C17 53 34 54 47 50z', 'M53 44C70 16 92 22 87 40C83 53 66 54 53 50z', 'M47 56C34 58 20 70 27 81C34 89 46 76 47 64z', 'M53 56C66 58 80 70 73 81C66 89 54 76 53 64z', 'M48 33Q42 22 37 19', 'M52 33Q58 22 63 19', 'M33 35a5 5 0 1 0-10 0a5 5 0 1 0 10 0z', 'M77 35a5 5 0 1 0-10 0a5 5 0 1 0 10 0z', 'M37 70a3.5 3.5 0 1 0-7 0a3.5 3.5 0 1 0 7 0z', 'M70 70a3.5 3.5 0 1 0-7 0a3.5 3.5 0 1 0 7 0z'] },
-    cat: { n: 'قطة', p: ['M22 56a28 24 0 1 0 56 0a28 24 0 1 0-56 0z', 'M27 43L25 17L44 33', 'M73 43L75 17L56 33', 'M44 52a4 5 0 1 0-8 0a4 5 0 1 0 8 0z', 'M64 52a4 5 0 1 0-8 0a4 5 0 1 0 8 0z', 'M46 61h8l-4 4z', 'M50 65q-4 6-9 3M50 65q4 6 9 3', 'M30 60H12M30 64L14 70M70 60H88M70 64L86 70'] },
-    rocket: { n: 'صاروخ', p: ['M50 8C63 21 65 40 62 66H38C35 40 37 21 50 8z', 'M57 36a7 7 0 1 0-14 0a7 7 0 1 0 14 0z', 'M38 50L24 70L38 66z', 'M62 50L76 70L62 66z', 'M42 66L50 88L58 66z', 'M38 56H62', 'M16 20l2 4 4 1-4 1-2 4-2-4-4-1 4-1z', 'M84 34l2 4 4 1-4 1-2 4-2-4-4-1 4-1z', 'M80 80l2 4 4 1-4 1-2 4-2-4-4-1 4-1z'] },
-    camel: { n: 'جمل', p: ['M18 58C18 48 26 44 32 44C36 32 46 32 50 42C54 34 62 34 64 44C70 46 74 42 75 36L77 24C78 19 86 19 88 24L91 30L86 32L83 31L80 50C80 58 76 62 70 62H24C20 62 18 60 18 58z', 'M26 62h5v24h-5z', 'M36 62h5v24h-5z', 'M60 62h5v24h-5z', 'M69 62h5v24h-5z', 'M86 26a1.4 1.4 0 1 0-2.8 0a1.4 1.4 0 1 0 2.8 0z', 'M18 54Q10 58 13 68', 'M2 90Q25 84 50 90T98 90', 'M20 20a7 7 0 1 0-14 0a7 7 0 1 0 14 0z'] }
-  };
-
   /* صورة الشخص (للملصقات والرسم): شخصية/حيوان/إيموجي/صورة ← صورة مربعة */
   var avImgCache = {};
   function avatarImage(id, px) {
@@ -1507,155 +1412,8 @@ var A = (function () {
     }));
   }
 
-  /* الرسم: قلم، قوس قزح، نيون، تعبئة، ملصقات (وصور العائلة)، الخلفية، صفحات تلوين، ممحاة — وكل شي يتراجع */
-  function drawScreen(opt) {
-    opt = opt && !opt.target ? opt : {};
-    var chat = S.chat; S.view = 'draw';
-    var ops = [], cur = null, color = COLORS[1], size = 10, tool = 'pen', sticker = STICKERS[0], page = null, snap = null;
-    var TOOLS = [['pen', '✏️', 'قلم'], ['rainbow', '🌈', 'قوس قزح'], ['glow', '💡', 'نيون'], ['fill', '🪣', 'تعبئة'], ['sticker', '⭐', 'ملصقات'], ['bg', '🎨', 'الخلفية'], ['page', '🖍️', 'تلوين'], ['erase', '🧽', 'ممحاة']];
-    var fam = live(), famImgs = {};
-    fam.forEach(function (id) { avatarImage(id, 240).then(function (c) { famImgs[id] = c; }); });
-    var el = show('<div class="row"><button class="icb" id="dx" aria-label="إلغاء">' + ic('close') + '</button><span class="fd grow" style="font-size:' + (opt.title ? 19 : 23) + 'px;font-weight:800;line-height:1.25">' + (opt.title ? '🎯 ' + esc(opt.title) : opt.base ? '🖍️ كمّل الرسمة' : 'ارسم لـ' + esc(chatTitle(chat))) + '</span>' +
-      '<button class="icb" id="du" aria-label="تراجع">' + ic('undo') + '</button></div>' +
-      '<div class="drawwrap" id="dw"><canvas id="cv"></canvas></div>' +
-      '<div class="card col" style="gap:10px;padding:12px">' +
-      '<div class="dtools">' + TOOLS.map(function (t) { return '<button data-tool="' + t[0] + '"' + (t[0] === tool ? ' class="on"' : '') + '><span>' + t[1] + '</span>' + t[2] + '</button>'; }).join('') + '</div>' +
-      '<div id="dctx"></div>' +
-      '<div class="row sizes"><button data-s="4" aria-label="صغير"><span class="dot8" style="width:6px;height:6px;background:var(--ink)"></span></button><button data-s="10" class="on" aria-label="وسط"><span class="dot8" style="width:12px;height:12px;background:var(--ink)"></span></button><button data-s="22" aria-label="كبير"><span class="dot8" style="width:20px;height:20px;background:var(--ink)"></span></button>' +
-      '<button class="btn grow" id="ds">إرسال ' + ic('send', 'style="transform:scaleX(-1)"') + '</button></div></div>', '');
-    el.style.height = '100dvh';
-    var cv = $('#cv'), wrap = $('#dw'), ctx = cv.getContext('2d', { willReadFrequently: true }), dpr = Math.min(2, window.devicePixelRatio || 1);
-    function bgColor() { for (var i = ops.length - 1; i >= 0; i--) if (ops[i].t === 'bg') return ops[i].c; return '#FFFFFF'; }
-    function curPage() { for (var i = ops.length - 1; i >= 0; i--) if (ops[i].t === 'pg') return ops[i].k; return null; }
-    function fit() { var r = wrap.getBoundingClientRect(); cv.width = r.width * dpr; cv.height = r.height * dpr; redraw(); }
-    function seg(s, from) {
-      ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = s.w * dpr; ctx.shadowBlur = 0;
-      var P = s.p, X = function (p) { return p[0] * cv.width; }, Y = function (p) { return p[1] * cv.height; };
-      if (s.rb) {
-        for (var i = Math.max(1, from || 1); i < P.length; i++) { ctx.strokeStyle = 'hsl(' + ((s.h + i * 7) % 360) + ',90%,55%)'; ctx.beginPath(); ctx.moveTo(X(P[i - 1]), Y(P[i - 1])); ctx.lineTo(X(P[i]), Y(P[i])); ctx.stroke(); }
-        if (P.length === 1) { ctx.strokeStyle = 'hsl(' + s.h + ',90%,55%)'; ctx.beginPath(); ctx.moveTo(X(P[0]), Y(P[0])); ctx.lineTo(X(P[0]) + .1, Y(P[0])); ctx.stroke(); }
-        return;
-      }
-      ctx.strokeStyle = s.e ? bgColor() : s.c;
-      if (s.g) { ctx.shadowColor = s.c; ctx.shadowBlur = 14 * dpr; }
-      var st = Math.max(0, (from || 0) - 1);
-      ctx.beginPath(); for (var j = st; j < P.length; j++) { if (j === st) ctx.moveTo(X(P[j]), Y(P[j])); else ctx.lineTo(X(P[j]), Y(P[j])); }
-      if (P.length - st === 1) ctx.lineTo(X(P[st]) + .1, Y(P[st]));
-      ctx.stroke();
-      if (s.g) { ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(1.5, s.w * .35) * dpr; ctx.stroke(); }
-    }
-    function stamp(o) {
-      var px = o.z * cv.width; ctx.shadowBlur = 0;
-      if (o.av) { var im = famImgs[o.av]; if (im) ctx.drawImage(im, o.x * cv.width - px / 2, o.y * cv.height - px / 2, px, px); return; }
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = px + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-      ctx.fillText(o.ch, o.x * cv.width, o.y * cv.height);
-    }
-    function pageLines(k) {
-      var pg = PAGES[k]; if (!pg) return;
-      var sc = Math.min(cv.width, cv.height) / 100 * .92, ox = (cv.width - 100 * sc) / 2, oy = (cv.height - 100 * sc) / 2;
-      ctx.save(); ctx.shadowBlur = 0; ctx.translate(ox, oy); ctx.scale(sc, sc);
-      ctx.lineWidth = 1.6; ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = '#1B2333';
-      pg.p.forEach(function (d) { try { ctx.stroke(new Path2D(d)); } catch (e) {} });
-      ctx.restore();
-    }
-    /* التعبئة: نلوّن المنطقة المقفلة (مثل السطل) */
-    function flood(o) {
-      var W = cv.width, H = cv.height, x0 = Math.floor(o.x * W), y0 = Math.floor(o.y * H);
-      if (x0 < 0 || y0 < 0 || x0 >= W || y0 >= H) return;
-      var img = ctx.getImageData(0, 0, W, H), d = new Uint32Array(img.data.buffer);
-      var seed = d[y0 * W + x0], sr = seed & 255, sg = (seed >> 8) & 255, sb = (seed >> 16) & 255;
-      var n = parseInt(o.c.slice(1), 16), fill = (255 << 24) | ((n & 255) << 16) | (((n >> 8) & 255) << 8) | (n >> 16);
-      if (fill === seed) return;
-      var tol = 90, seen = new Uint8Array(W * H);
-      var same = function (i) { var v = d[i]; return Math.abs((v & 255) - sr) + Math.abs(((v >> 8) & 255) - sg) + Math.abs(((v >> 16) & 255) - sb) <= tol; };
-      var stack = [x0, y0];
-      while (stack.length) {
-        var y = stack.pop(), x = stack.pop(), i = y * W + x;
-        while (x >= 0 && !seen[i] && same(i)) { x--; i--; }
-        x++; i++;
-        var up = false, dn = false;
-        while (x < W && !seen[i] && same(i)) {
-          d[i] = fill; seen[i] = 1;
-          if (y > 0) { var iu = i - W; if (!seen[iu] && same(iu)) { if (!up) { stack.push(x, y - 1); up = true; } } else up = false; }
-          if (y < H - 1) { var id = i + W; if (!seen[id] && same(id)) { if (!dn) { stack.push(x, y + 1); dn = true; } } else dn = false; }
-          x++; i++;
-        }
-      }
-      // نوسّع اللون بكسل وحد عشان ما يبقى خط أبيض عند الحواف
-      for (var k = 0; k < d.length; k++) if (seen[k]) {
-        if (k % W && !seen[k - 1]) d[k - 1] = fill;
-        if ((k + 1) % W && !seen[k + 1]) d[k + 1] = fill;
-      }
-      ctx.putImageData(img, 0, 0);
-    }
-    function redraw(skip) {
-      var pk = curPage();
-      ctx.shadowBlur = 0; ctx.fillStyle = bgColor(); ctx.fillRect(0, 0, cv.width, cv.height);
-      if (opt.base) { var bi = opt.base, k0 = Math.min(cv.width / bi.width, cv.height / bi.height), bw0 = bi.width * k0, bh0 = bi.height * k0; ctx.drawImage(bi, (cv.width - bw0) / 2, (cv.height - bh0) / 2, bw0, bh0); }
-      if (pk) pageLines(pk);
-      ops.forEach(function (o) { if (o === skip) return; if (o.t === 's') seg(o); else if (o.t === 'f') flood(o); });
-      if (pk) pageLines(pk);
-      // الملصقات فوق خطوط صفحة التلوين
-      ops.forEach(function (o) { if (o !== skip && o.t === 'st') stamp(o); });
-    }
-    // نصوّر الرسمة قبل الحركة، وأثناء السحب نرسم فوق الصورة بس (أسرع)
-    function takeSnap() { snap = document.createElement('canvas'); snap.width = cv.width; snap.height = cv.height; redraw(cur); snap.getContext('2d').drawImage(cv, 0, 0); }
-    function fromSnap() { ctx.shadowBlur = 0; ctx.drawImage(snap, 0, 0); if (cur.t === 'st') stamp(cur); else seg(cur); var pk = curPage(); if (pk) pageLines(pk); }
-    function pt(e) { var r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
-    cv.onpointerdown = function (e) {
-      cv.setPointerCapture(e.pointerId); var p = pt(e);
-      if (tool === 'bg' || tool === 'page') return;
-      if (tool === 'fill') { var o = { t: 'f', x: p[0], y: p[1], c: color }; ops.push(o); flood(o); var pk = curPage(); if (pk) pageLines(pk); if (navigator.vibrate) navigator.vibrate(15); return; }
-      if (tool === 'sticker') {
-        var z = (size === 4 ? 40 : size === 10 ? 70 : 120) / cv.getBoundingClientRect().width;
-        cur = /^av:/.test(sticker) ? { t: 'st', av: sticker.slice(3), x: p[0], y: p[1], z: z * 1.15 } : { t: 'st', ch: sticker, x: p[0], y: p[1], z: z };
-        ops.push(cur); takeSnap(); fromSnap(); if (navigator.vibrate) navigator.vibrate(15); return;
-      }
-      cur = { t: 's', c: color, w: tool === 'erase' ? Math.max(24, size * 2) : size, e: tool === 'erase', rb: tool === 'rainbow', g: tool === 'glow', h: Math.floor(Math.random() * 360), p: [p] };
-      ops.push(cur);
-      if (cur.g) { takeSnap(); fromSnap(); } else seg(cur);
-    };
-    cv.onpointermove = function (e) {
-      if (!cur) return; var p = pt(e);
-      if (cur.t === 'st') { cur.x = p[0]; cur.y = p[1]; fromSnap(); return; }
-      cur.p.push(p); if (cur.g) fromSnap(); else seg(cur, cur.p.length - 1);
-    };
-    cv.onpointerup = cv.onpointercancel = function () { if (cur && curPage() && !cur.g && cur.t !== 'st') pageLines(curPage()); cur = null; snap = null; };
-    function colorRow() { return '<div class="drow">' + COLORS.map(function (c, i) { return '<button class="sw' + (c === color ? ' on' : '') + '" data-c="' + c + '" aria-label="' + CN[i] + '" style="background:' + c + '"></button>'; }).join('') + '</div>'; }
-    function paintCtx() {
-      var box = $('#dctx'), h;
-      if (tool === 'sticker') h = '<div class="drow">' + fam.map(function (id) { return '<button class="stk' + (sticker === 'av:' + id ? ' on' : '') + '" data-stk="av:' + id + '">' + av(id, 36) + '</button>'; }).join('') + STICKERS.map(function (x) { return '<button class="stk' + (x === sticker ? ' on' : '') + '" data-stk="' + x + '">' + x + '</button>'; }).join('') + '</div><span class="tiny muted" style="display:block;margin-top:4px">اضغط على الرسمة تحط الملصق، واسحب تحرّكه · فيه صور العائلة بعد!</span>';
-      else if (tool === 'bg') h = '<div class="drow">' + BGS.map(function (c) { return '<button class="sw' + (c === bgColor() ? ' on' : '') + '" data-bgc="' + c + '" aria-label="لون الخلفية" style="background:' + c + '"></button>'; }).join('') + '</div><span class="tiny muted" style="display:block;margin-top:4px">اختر لون وتتلوّن الخلفية كاملة (رسمتك تبقى فوقها)</span>';
-      else if (tool === 'page') h = '<div class="drow">' + Object.keys(PAGES).map(function (k) { return '<button class="pgb' + (curPage() === k ? ' on' : '') + '" data-pg="' + k + '"><svg viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + PAGES[k].p.map(function (d) { return '<path d="' + d + '"/>'; }).join('') + '</g></svg>' + PAGES[k].n + '</button>'; }).join('') + '</div><span class="tiny muted" style="display:block;margin-top:4px">اختر صفحة، وبعدين لوّنها بـ 🪣 التعبئة أو بالقلم</span>';
-      else if (tool === 'rainbow') h = '<span class="small muted" style="display:block;padding:10px 4px">🌈 ارسم وتطلع الألوان لحالها!</span>';
-      else if (tool === 'erase') h = '<span class="small muted" style="display:block;padding:10px 4px">🧽 امسح بإصبعك · الحجم من تحت</span>';
-      else h = colorRow() + (tool === 'fill' ? '<span class="tiny muted" style="display:block;margin-top:4px">اضغط داخل أي شكل يتلوّن كله 🪣</span>' : '');
-      box.innerHTML = h;
-      box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { color = b.dataset.c; paintCtx(); }; });
-      box.querySelectorAll('[data-stk]').forEach(function (b) { b.onclick = function () { sticker = b.dataset.stk; paintCtx(); }; });
-      box.querySelectorAll('[data-bgc]').forEach(function (b) { b.onclick = function () { if (b.dataset.bgc !== bgColor()) { ops.push({ t: 'bg', c: b.dataset.bgc }); redraw(); } paintCtx(); }; });
-      box.querySelectorAll('[data-pg]').forEach(function (b) { b.onclick = function () {
-        var k = b.dataset.pg, go = function () { ops.push({ t: 'pg', k: k }); redraw(); setTool('fill'); };
-        if (ops.some(function (o) { return o.t === 's' || o.t === 'st' || o.t === 'f'; }) && curPage() !== k) { if (!confirm('نبدأ صفحة جديدة؟ الرسمة الحالية بتنمسح')) return; ops = []; }
-        go();
-      }; });
-    }
-    function setTool(t) { tool = t; el.querySelectorAll('[data-tool]').forEach(function (x) { x.classList.toggle('on', x.dataset.tool === t); }); paintCtx(); }
-    el.querySelectorAll('[data-tool]').forEach(function (b) { b.onclick = function () { setTool(b.dataset.tool); }; });
-    el.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { size = +b.dataset.s; el.querySelectorAll('[data-s]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
-    $('#du').onclick = function () { ops.pop(); redraw(); paintCtx(); };
-    $('#dx').onclick = function () { if (ops.length && !confirm('تلغي الرسمة؟')) return; openChat(chat); };
-    $('#ds').onclick = function () {
-      if (!ops.length) return toast('ارسم شي أول 🎨');
-      var k = Math.min(1, 1080 / Math.max(cv.width, cv.height)), c2 = document.createElement('canvas');
-      c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height);
-      c2.toBlob(function (b) { S.chat = chat; openChat(chat); sendMsg('draw', { w: c2.width, h: c2.height, rp: opt.rp, cap: opt.cap }, b); }, 'image/jpeg', .88);
-    };
-    window.addEventListener('resize', function rs() { if (S.view !== 'draw') return window.removeEventListener('resize', rs); fit(); });
-    paintCtx();
-    setTimeout(fit, 30);
-  }
+  /* الرسم صار في draw.js */
+  function drawScreen(opt) { DR.screen(opt && !opt.target ? opt : {}); }
 
   /* ================= النبضة ================= */
   function sendNudge(to) {
@@ -2118,6 +1876,7 @@ var A = (function () {
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
+    sendMsg: sendMsg, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
     tabBar: tabBar, SKIES: SKIES, sky: sky, setSky: setSky, starGallery: starGallery,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };

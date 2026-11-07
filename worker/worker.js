@@ -22,7 +22,8 @@ const okPush = (u) => { try { const x = new URL(u); return x.protocol === 'https
 export default {
   async fetch(req, env, ctx) {
     const origin = req.headers.get('Origin') || '';
-    const allow = ORIGINS.includes(origin) || /^https:\/\/([a-z0-9-]+\.)?wamdarc\.com$/.test(origin) ? origin : ORIGINS[0];
+    // DEV_ORIGIN للتجربة المحلية فقط (wrangler dev --var) — غير موجود في السيرفر الحقيقي
+    const allow = ORIGINS.includes(origin) || /^https:\/\/([a-z0-9-]+\.)?wamdarc\.com$/.test(origin) || (env.DEV_ORIGIN && origin === env.DEV_ORIGIN) ? origin : ORIGINS[0];
     const cors = {
       'Access-Control-Allow-Origin': allow,
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',

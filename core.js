@@ -126,7 +126,7 @@ var NB = (function () {
         }
         else { rec.buf = x.data.slice().buffer; rec.mime = h.mime || ''; ['dur', 'wf', 'w', 'h'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; }); }
         // إضافات 2.0: تحدّي الرسم (ch)، ردّ على رسالة (rp)، تعليق (cap)، رسالة النوم (bed)
-        ['ch', 'rp', 'cap', 'bed'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; });
+        ['ch', 'rp', 'cap', 'bed', 'pl'].forEach(function (k) { if (h[k] != null) rec[k] = h[k]; });
         return msgs.get(meta.id).then(function (o2) { return o2 ? null : msgs.put(rec).then(function () { return rec; }); });
       });
     });
