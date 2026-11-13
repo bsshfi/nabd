@@ -1875,6 +1875,9 @@ var A = (function () {
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
     sendMsg: sendMsg, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
+    standalone: standalone, plat: plat,
+    installPrompt: function () { if (!deferredInstall) return Promise.resolve(false); deferredInstall.prompt(); return deferredInstall.userChoice.then(function (c) { deferredInstall = null; return c && c.outcome === 'accepted'; }, function () { return false; }); },
+    canInstall: function () { return !!deferredInstall; },
     tabBar: tabBar, SKIES: SKIES, sky: sky, setSky: setSky, starGallery: starGallery,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };

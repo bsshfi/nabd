@@ -540,6 +540,23 @@ html,body{overflow-x:hidden}
 .d2play canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .d2prog{height:6px;border-radius:9px;background:rgba(255,255,255,.25);overflow:hidden}
 .d2prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9d45,#ffd54a);border-radius:9px}
+
+/* إعدادات: قسم نَبْض والتطبيق وشعار ومض آرك (مثل سهم وفلق) */
+.list.lt>button{min-height:62px;font-size:17px}
+.lti{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;flex:none;box-shadow:0 4px 10px rgba(0,0,0,.12)}
+.lti svg{width:22px;height:22px}
+.chev{width:18px;height:18px;color:var(--soft);flex:none}
+.setfoot{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;margin:14px 0 6px}
+.setfoot b{font-size:19px;font-weight:800}
+.setfoot>span{font-size:14px;color:var(--muted)}
+.wamdf{display:flex;flex-direction:column;align-items:center;gap:3px;width:max-content;margin:12px auto 4px;text-decoration:none;color:var(--muted)}
+.wamdf img{width:132px;height:auto;display:block}
+.wamdf .wd{display:none}
+:root[data-theme="dark"] .wamdf .wl{display:none}
+:root[data-theme="dark"] .wamdf .wd{display:block}
+.wamdf span{font-size:9.5px;letter-spacing:.26em;opacity:.8}
+.ab-by{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 0}
+.steps{margin:4px 0;padding-inline-start:22px;line-height:2;font-size:16px}
 </style>
 </head>
 <body>
@@ -551,14 +568,14 @@ html,body{overflow-x:hidden}
 </div>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=2.1.2"></script>
-<script src="core.js?v=2.1.2"></script>
-<script src="chars.js?v=2.1.2"></script>
-<script src="avatars.js?v=2.1.2"></script>
-<script src="app.js?v=2.1.2"></script>
-<script src="draw.js?v=2.1.2"></script>
-<script src="admin.js?v=2.1.2"></script>
-<script src="wamd-stats.js?v=2.1.2" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
-<script src="wamd-cfg.js?v=2.1.2" data-app="nabd" defer></script>
+<script src="config.js?v=2.2.0"></script>
+<script src="core.js?v=2.2.0"></script>
+<script src="chars.js?v=2.2.0"></script>
+<script src="avatars.js?v=2.2.0"></script>
+<script src="app.js?v=2.2.0"></script>
+<script src="draw.js?v=2.2.0"></script>
+<script src="admin.js?v=2.2.0"></script>
+<script src="wamd-stats.js?v=2.2.0" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
+<script src="wamd-cfg.js?v=2.2.0" data-app="nabd" defer></script>
 </body>
 </html>

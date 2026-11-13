@@ -10,9 +10,40 @@
   function canAdmin() { return A.isAdmin(S.me); }
 
   /* ================= الإعدادات ================= */
+
+  /* ----- قسم نَبْض في الإعدادات (مثل سهم وفلق) ----- */
+  var LTI = {
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+    mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg>'
+  };
+  var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>';
+  function logo(link) {
+    var inner = '<img class="wl" src="icons/wamdarc-light.png" alt="WAMD ARC" width="132" height="21"><img class="wd" src="icons/wamdarc-dark.png" alt="WAMD ARC" width="132" height="21"><span dir="ltr">WAMDARC.COM</span>';
+    return link ? '<a class="wamdf" href="https://wamdarc.com" target="_blank" rel="noopener" aria-label="WAMD ARC">' + inner + '</a>' : '<span class="wamdf" aria-label="WAMD ARC">' + inner + '</span>';
+  }
+  function aboutSheet(isP) {
+    var sh = A.sheet('<div class="row"><span class="grow"></span><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<div class="col center" style="gap:4px;text-align:center;margin-top:-18px"><img src="icons/apple-touch-icon.png" alt="" width="76" height="76" style="border-radius:20px;box-shadow:0 10px 24px rgba(0,0,0,.18)"><h2 class="fd" style="font-size:28px;margin:8px 0 0">نَبْض</h2><span class="small muted">الإصدار ' + CONFIG.VERSION + '</span></div>' +
+      '<p style="margin:4px 0;text-align:center;line-height:1.8">تطبيق تواصل خاص بعائلتك: الأب والأم والعيال، بالصوت والكتابة والرسم والصور.</p>' +
+      '<div class="list"><div>🔐<span class="grow">مشفّر بين أجهزة العائلة، وما نقدر نقرأ رسائلكم</span></div><div>👨‍👩‍👧<span class="grow">للعائلة فقط، ما يدخل أحد إلا بكود العائلة</span></div><div>🎨<span class="grow">رسم وتلوين وصوت للعيال</span></div><div>🌙<span class="grow">وضع النوم وتحكّم وليّ الأمر</span></div></div>' +
+      '<p class="ab-by">من تطوير</p>' + logo(isP));
+    $('#x', sh).onclick = function () { sh.remove(); };
+  }
+  function homeSheet() {
+    if (A.standalone()) return A.toast('نَبْض مضاف للشاشة الرئيسية ✓');
+    var ios = A.plat() === 'ios';
+    var sh = A.sheet('<div class="row"><h2 class="grow" style="font-size:22px">إضافة إلى الشاشة الرئيسية</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<p class="small muted" style="margin:0">عشان يشتغل نَبْض مثل التطبيق، وتوصلك التنبيهات حتى وهو مقفل.</p>' +
+      (ios ? '<ol class="steps"><li>افتح نَبْض في <b>Safari</b></li><li>اضغط زر المشاركة <b>⬆︎</b> تحت</li><li>اختر <b>«إضافة إلى الشاشة الرئيسية»</b></li><li>افتح نَبْض من الأيقونة الجديدة</li></ol>'
+        : A.canInstall() ? '<button class="btn block" id="inst">📲 ثبّت نَبْض</button>' : '<ol class="steps"><li>افتح قائمة المتصفح <b>⋮</b></li><li>اختر <b>«تثبيت التطبيق»</b> أو <b>«إضافة إلى الشاشة الرئيسية»</b></li><li>افتح نَبْض من الأيقونة الجديدة</li></ol>'));
+    $('#x', sh).onclick = function () { sh.remove(); };
+    if ($('#inst', sh)) $('#inst', sh).onclick = function () { A.installPrompt().then(function (ok) { sh.remove(); if (ok) A.toast('انضاف نَبْض ✓'); }); };
+  }
   A.settings = function () {
     S.view = 'settings';
-    var admin = canAdmin(), parent = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
+    var admin = canAdmin(), parent = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0, isP = A.isParent(S.me);
     var ids = A.live();
     var el = A.show(head('الإعدادات', false, admin ? (A.isOwner(S.me) ? 'المدير الأساسي' : A.fem(S.me) ? 'مشرفة' : 'مشرف') : parent ? 'وليّ أمر' : '') +
       '<div class="card col" style="gap:12px"><div class="row" style="gap:10px">' + A.grpIcon(44, 14) + '<span class="grow col" style="gap:0"><span class="row" style="align-items:baseline;gap:8px;flex-wrap:wrap"><span class="fd" style="font-size:22px;font-weight:800">' + esc(S.prof.name) + '</span><span class="tiny soft">منذ ' + A.fmtDate(S.fam.created || S.acct.created) + '</span></span><span class="tiny muted">القروب: ' + esc(A.grp().name) + '</span></span>' +
@@ -34,9 +65,16 @@
       (parent ? '<button id="chPin">' + ic('lock') + '<span class="grow">تغيير رمزي السري</span></button>' : '') +
       '<button id="swp">' + ic('swap') + '<span class="grow">تبديل الشخص</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button>' +
       '<button id="out" style="color:var(--danger)">' + ic('close') + '<span class="grow">خروج ' + esc(nm(S.me)) + ' من هذا الجهاز</span>' + (parent ? '' : '<span class="soft">' + ic('lock', 'style="width:16px;height:16px"') + '</span>') + '</button></div>' +
-      '<span class="label">التطبيق</span><div class="list"><button id="upd">' + ic('refresh') + '<span class="grow">حدّث التطبيق الآن</span><span class="tiny muted" dir="ltr">v' + CONFIG.VERSION + '</span></button>' +
-      '<button id="shareApp">' + ic('share') + '<span class="grow">شارك نَبْض مع عائلة ثانية</span></button></div>' +
-      '<div class="row center" style="gap:8px;margin-top:6px"><span class="tiny muted">نَبْض · الإصدار ' + CONFIG.VERSION + '</span><a href="https://wamdarc.com" target="_blank" rel="noopener" class="wamd" style="text-decoration:none">WAMD ARC</a></div>' + A.tabBar('gear'), 'v2');
+      // نَبْض: الأب والأم يشوفون كل شي، والعيال «حول التطبيق» بس (ما يطلعون برّا التطبيق)
+      '<span class="label">نَبْض</span><div class="list lt">' +
+      '<button id="about"><span class="lti" style="background:#5f86b3">' + LTI.info + '</span><span class="grow">حول التطبيق</span>' + CHEV + '</button>' +
+      (isP ? '<button id="shareApp"><span class="lti" style="background:linear-gradient(180deg,#ff9d45,#e8741c)">' + LTI.share + '</span><span class="grow">مشاركة التطبيق</span>' + CHEV + '</button>' +
+        '<button id="contact"><span class="lti" style="background:#3fa36d">' + LTI.mail + '</span><span class="grow">تواصل معنا</span>' + CHEV + '</button>' +
+        '<button id="privacy"><span class="lti" style="background:#7a5cd6">' + LTI.shield + '</span><span class="grow">سياسة الخصوصية</span>' + CHEV + '</button>' : '') + '</div>' +
+      '<span class="label">التطبيق</span><div class="list lt">' +
+      (isP || !A.standalone() ? '<button id="addHome"><span class="grow">إضافة إلى الشاشة الرئيسية</span>' + CHEV + '</button>' : '') +
+      '<button id="upd"><span class="grow">البحث عن تحديث</span><span class="small muted">الإصدار ' + CONFIG.VERSION + '</span></button></div>' +
+      '<div class="setfoot"><b>نَبْض — الإصدار ' + CONFIG.VERSION + '</b><span>تواصل خاص لعائلتك، مشفّر بين أجهزتكم.</span>' + logo(isP) + '</div>' + A.tabBar('gear'), 'v2');
     bindBack(A.home);
     el.querySelectorAll('[data-m]').forEach(function (b) { b.onclick = function () { if (admin) memberSheet(b.dataset.m); }; });
     if ($('#addM')) $('#addM').onclick = addMember;
@@ -67,8 +105,12 @@
         }, function () { A.toast('عندك آخر نسخة ✓'); });
       }).then(function () { b.disabled = false; });
     };
-    $('#shareApp').onclick = function () {
-      var t = 'نَبْض: تطبيق تواصل للعائلة فقط، صوت وكتابة وصور ورسم 💙\n' + CONFIG.SITE;
+    $('#about').onclick = function () { aboutSheet(isP); };
+    if ($('#addHome')) $('#addHome').onclick = homeSheet;
+    if ($('#contact')) $('#contact').onclick = function () { location.href = 'mailto:nabd@wamdarc.com?subject=' + encodeURIComponent('نَبْض — ملاحظة v' + CONFIG.VERSION); };
+    if ($('#privacy')) $('#privacy').onclick = function () { location.href = 'privacy.html'; };
+    if ($('#shareApp')) $('#shareApp').onclick = function () {
+      var t = 'نَبْض: تطبيق تواصل خاص للعائلة، صوت وكتابة وصور ورسم، ومشفّر بين أجهزتكم 💙\nكل عائلة تسوي مجموعتها الخاصة:\n' + CONFIG.SITE;
       if (navigator.share) navigator.share({ title: 'نَبْض', text: t }).catch(function () {}); else A.copy(t);
     };
     paintNotif(); paintStorage();
