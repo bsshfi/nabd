@@ -29,9 +29,8 @@ var A = (function () {
   function applySky() {
     var root = document.documentElement, k = sky(), dark = root.dataset.theme === 'dark';
     if (k) root.dataset.sky = k; else delete root.dataset.sky;
-    var m = document.querySelector('meta[name=theme-color]'), c = '#7fa6c6';
-    SKIES.forEach(function (x) { if (x[0] === k) c = x[2]; });
-    if (m) m.content = dark ? '#0c1424' : c;
+    var m = document.querySelector('meta[name=theme-color]');
+    if (m) m.content = getComputedStyle(root).getPropertyValue('--sky1').trim() || (dark ? '#0c1424' : '#7fa6c6');
   }
   function setTheme(t) { try { localStorage.setItem('nabd-theme', t); } catch (e) {} applyTheme(); }
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}

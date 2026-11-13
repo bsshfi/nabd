@@ -80,7 +80,7 @@
       '<div>' + ic('shield') + '<span class="grow col" style="gap:0"><span>الرسالة في السيرفر</span><span class="tiny muted">مشفّرة، وتنحذف أول ما توصل، وبحد أقصى ٣ أيام</span></span></div>' +
       '<div>' + ic('trash') + '<span class="grow col" style="gap:0"><span>الحذف التلقائي لهذا الجهاز</span><span class="tiny muted">' + autoDelText() + '</span></span></div></div>' +
       '<span class="label">المظهر</span><div class="seg" id="thm">' + [['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(function (t) { return '<button data-th="' + t[0] + '" class="' + (A.theme() === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
-      '<span class="label">لون التطبيق لـ' + esc(nm(S.me)) + ' (في الفاتح)</span><div class="card skyrow">' + A.SKIES.map(function (k) { return '<button data-sky="' + k[0] + '" class="' + (A.sky() === k[0] ? 'on' : '') + '"><i style="background:linear-gradient(180deg,' + k[2] + ',#f4ede4)"></i>' + k[1] + '</button>'; }).join('') + '</div>' +
+      '<span class="label">لون التطبيق لـ' + esc(nm(S.me)) + '</span><div class="card skyrow">' + A.SKIES.map(function (k) { return '<button data-sky="' + k[0] + '" class="' + (A.sky() === k[0] ? 'on' : '') + '"><i style="background:linear-gradient(180deg,' + k[2] + ',#f4ede4)"></i>' + k[1] + '</button>'; }).join('') + '</div>' +
       '<span class="label">' + esc(nm(S.me)) + '</span><div class="list">' +
       (admin ? '' : '<button id="myAv">' + av(S.me, 28) + '<span class="grow">' + (parent ? 'تغيير اسمي وصورتي' : 'تغيير صورتي') + '</span></button>') +
       (parent ? '<button id="chPin">' + ic('lock') + '<span class="grow">تغيير رمزي السري</span></button>' : '') +
