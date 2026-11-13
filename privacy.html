@@ -177,7 +177,7 @@ footer b{display:block;color:var(--text);font-size:15px;letter-spacing:.2em;dire
   }
   [].forEach.call(document.querySelectorAll('.lang button'), function (b) { b.onclick = function () { set(b.dataset.l); history.replaceState(null, '', '?lang=' + b.dataset.l); }; });
   var q = /[?&]lang=(en|ar)/.exec(location.search);
-  set(q ? q[1] : !/^ar/i.test(navigator.language || '') ? 'en' : 'ar');
+  set(q ? q[1] : 'ar');  // العربية افتراضياً مثل التطبيق
 })();
 </script>
 </body>

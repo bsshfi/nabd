@@ -24,11 +24,32 @@
     return link ? '<a class="wamdf" href="https://wamdarc.com" target="_blank" rel="noopener" aria-label="WAMD ARC">' + inner + '</a>' : '<span class="wamdf" aria-label="WAMD ARC">' + inner + '</span>';
   }
   function aboutSheet(isP) {
+    var row = function (e, t, d) { return '<div><span class="abi">' + e + '</span><span class="grow col" style="gap:0"><b>' + t + '</b><span class="small muted">' + d + '</span></span></div>'; };
     var sh = A.sheet('<div class="row"><span class="grow"></span><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
-      '<div class="col center" style="gap:4px;text-align:center;margin-top:-18px"><img src="icons/apple-touch-icon.png" alt="" width="76" height="76" style="border-radius:20px;box-shadow:0 10px 24px rgba(0,0,0,.18)"><h2 class="fd" style="font-size:28px;margin:8px 0 0">نَبْض</h2><span class="small muted">الإصدار ' + CONFIG.VERSION + '</span></div>' +
-      '<p style="margin:4px 0;text-align:center;line-height:1.8">تطبيق تواصل خاص بعائلتك: الأب والأم والعيال، بالصوت والكتابة والرسم والصور.</p>' +
-      '<div class="list"><div>🔐<span class="grow">مشفّر بين أجهزة العائلة، وما نقدر نقرأ رسائلكم</span></div><div>👨‍👩‍👧<span class="grow">للعائلة فقط، ما يدخل أحد إلا بكود العائلة</span></div><div>🎨<span class="grow">رسم وتلوين وصوت للعيال</span></div><div>🌙<span class="grow">وضع النوم وتحكّم وليّ الأمر</span></div></div>' +
-      '<p class="ab-by">من تطوير</p>' + logo(isP));
+      '<div class="col center" style="gap:4px;text-align:center;margin-top:-18px"><img src="icons/apple-touch-icon.png" alt="" width="76" height="76" style="border-radius:20px;box-shadow:0 10px 24px rgba(0,0,0,.18)"><h2 class="fd" style="font-size:28px;margin:8px 0 0">نَبْض</h2><span class="small muted">الإصدار ' + CONFIG.VERSION + ' · NABD</span></div>' +
+      '<p style="margin:4px 0;text-align:center;line-height:1.8">تطبيق تواصل خاص بعائلتك وبس: الأب والأم والعيال في مكان واحد آمن، بالصوت والكتابة والرسم والصور. بدون غرباء، وبدون إعلانات.</p>' +
+      '<span class="label">💬 التواصل</span><div class="list ab">' +
+        row('🎤', 'رسائل صوتية', 'بضغطة وحدة، ومع مؤثرات تغيّر الصوت للعيال') +
+        row('✍️', 'كتابة وردود سريعة', 'ردود جاهزة، وإيموجي كبيرة للعيال، ومساعدة خفيفة في الإملاء') +
+        row('❤️', 'تفاعلات ونجوم', 'اضغط مطوّل على أي رسالة وتفاعل، والنجمة ⭐ لها احتفال') +
+        row('👨‍👩‍👧', 'قروب العائلة والخاص', 'محادثة للعائلة كلها، ومحادثة خاصة مع كل واحد') + '</div>' +
+      '<span class="label">🎨 للعيال</span><div class="list ab">' +
+        row('🖌️', 'استوديو الرسم', 'فُرش شمع ولمعة وبخاخ ومائي، ومرآة تعكس الرسمة، وأشكال جاهزة') +
+        row('🖍️', 'صفحات تلوين', '٤٤ صفحة من تراثنا والحيوانات والفضاء، وشخصيات العائلة، وصورتك') +
+        row('💾', 'رسوماتي', 'الرسمة اللي ما خلصت تنحفظ لحالها وتكمّلها بعدين') +
+        row('⭐', 'معرض النجوم', 'الرسومات اللي أخذت نجمة تنحفظ للأبد') +
+        row('🔥', 'سلسلة الأيام', 'كم يوم ورا بعض وأنتم تتواصلون') + '</div>' +
+      '<span class="label">👨‍👩‍👧 للأب والأم</span><div class="list ab">' +
+        row('🌙', 'وضع النوم', 'ما توصل تنبيهات للعيال وقت النوم') +
+        row('⏰', 'رسائل مجدولة', 'تكتبها الحين وتوصل بوقتها، ورسالة النوم الصوتية') +
+        row('💓', 'النبضة', 'نداء يرن عند الطفل لين يرد') +
+        row('📱', 'أجهزة العائلة', 'تشوف كل جهاز، وتحدّثه أو تحذفه، وتتحكم بالصلاحيات') +
+        row('🎂', 'أعياد الميلاد', 'تذكير وبطاقة تهنئة بضغطة') + '</div>' +
+      '<span class="label">🔐 الخصوصية</span><div class="list ab">' +
+        row('🔒', 'تشفير بين أجهزتكم', 'الرسائل تتشفّر بمفتاح العائلة، وما نقدر نقرأها') +
+        row('🗑️', 'ما تبقى في السيرفر', 'تنمسح أول ما توصل، وبحد أقصى ٣ أيام') +
+        row('🚫', 'بدون إعلانات ولا تتبّع', 'ولا نبيع أي بيانات') + '</div>' +
+      '<p class="ab-by">من تطوير</p>' + logo(isP) + '<p class="tiny muted" style="text-align:center;margin:2px 0 0">صُنع بحب في الرياض 🇸🇦</p>');
     $('#x', sh).onclick = function () { sh.remove(); };
   }
   function homeSheet() {
