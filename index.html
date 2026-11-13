@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="نَبْض">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script>try{var t=localStorage.getItem('nabd-theme')||'auto';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';var k=localStorage.getItem('nabd-sky')||'';if(k)document.documentElement.dataset.sky=k;var c={rose:'#e98fb4',lilac:'#8f86d6',mint:'#5fb3a6'}[k]||'#7fa6c6';var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#0c1424':c}catch(e){}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg">
@@ -560,6 +560,11 @@ html,body{overflow-x:hidden}
 .abi{font-size:24px;line-height:1.2;width:30px;text-align:center;flex:none}
 .ab-by{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 0}
 .steps{margin:4px 0;padding-inline-start:22px;line-height:2;font-size:16px}
+
+/* 2.2.2: شريط الساعة فوق شفاف (مثل سهم وفلق)، فيظهر تحته لون التطبيق الحالي ويتغيّر معه */
+.chathead{background:linear-gradient(180deg,var(--sky1) 0,var(--sky1) var(--safe-t),var(--panel) var(--safe-t))!important}
+:root[data-theme="dark"] .chathead{background:linear-gradient(180deg,var(--sky1) 0,var(--sky1) var(--safe-t),rgba(28,35,54,.88) var(--safe-t))!important}
+.viewer{padding-top:var(--safe-t)}
 </style>
 </head>
 <body>
@@ -571,14 +576,14 @@ html,body{overflow-x:hidden}
 </div>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=2.2.1"></script>
-<script src="core.js?v=2.2.1"></script>
-<script src="chars.js?v=2.2.1"></script>
-<script src="avatars.js?v=2.2.1"></script>
-<script src="app.js?v=2.2.1"></script>
-<script src="draw.js?v=2.2.1"></script>
-<script src="admin.js?v=2.2.1"></script>
-<script src="wamd-stats.js?v=2.2.1" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
-<script src="wamd-cfg.js?v=2.2.1" data-app="nabd" defer></script>
+<script src="config.js?v=2.2.2"></script>
+<script src="core.js?v=2.2.2"></script>
+<script src="chars.js?v=2.2.2"></script>
+<script src="avatars.js?v=2.2.2"></script>
+<script src="app.js?v=2.2.2"></script>
+<script src="draw.js?v=2.2.2"></script>
+<script src="admin.js?v=2.2.2"></script>
+<script src="wamd-stats.js?v=2.2.2" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
+<script src="wamd-cfg.js?v=2.2.2" data-app="nabd" defer></script>
 </body>
 </html>
