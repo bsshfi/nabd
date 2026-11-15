@@ -760,7 +760,7 @@ var A = (function () {
     ding(true);
     var old = document.querySelector('.inbanner'); if (old) old.remove();
     var b = document.createElement('button'); b.className = 'inbanner';
-    b.innerHTML = '<span style="font-size:30px">' + (hit[1] === 'task' ? '✅' : '🛒') + '</span><span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + (hit[1] === 'task' ? 'المهام' : 'نبي') + '</b><span class="small muted">' + esc(hit[0]) + '</span></span>';
+    b.innerHTML = '<span style="font-size:30px">' + (hit[1] === 'task' ? '✅' : '🛒') + '</span><span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + (hit[1] === 'task' ? 'مهامي' : 'نبي من البقالة') + '</b><span class="small muted">' + esc(hit[0]) + '</span></span>';
     b.onclick = function () { b.remove(); if (hit[1] === 'task') tasksScreen(); else buyScreen(); };
     document.body.appendChild(b); setTimeout(function () { b.remove(); }, 6000);
   }
@@ -772,7 +772,7 @@ var A = (function () {
     if (!S.me) return home();
     S.view = 'buy';
     var p = isParent(S.me);
-    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">🛒 نبي</span></div>' +
+    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">🛒 نبي من البقالة</span></div>' +
       '<p class="small muted" style="margin:-4px 2px 0">' + (p ? 'العيال يطلبون من البقالة وأنت توافق أو ترفض. اللي توافق عليه ينضاف للقائمة، ولما تجيبه حط عليه ✓.' : 'اكتب وش تبي من البقالة، ولما يوافق بابا أو ماما ينضاف للقائمة.') + ' كل شي يختفي بعد يوم.</p>' +
       '<div class="card col" style="gap:10px;padding:12px"><div class="row" style="gap:8px"><input class="inp grow" id="bi" maxlength="60" placeholder="وش ' + (fem(S.me) ? 'تبين' : 'تبي') + '؟ مثلاً: حليب"><button class="btn" id="ba" style="flex:none;padding:0 18px">' + (p ? 'أضف' : 'اطلب') + '</button></div>' +
       '<div class="bq">' + BUYQ.map(function (q) { return '<button data-q="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div></div>' +
@@ -824,7 +824,7 @@ var A = (function () {
     S.view = 'tasks';
     var p = isParent(S.me), kids = live().filter(function (id) { return !isParent(id); });
     var st = { to: kids.slice(), stars: 1 };
-    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">✅ المهام</span></div>' +
+    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">✅ مهامي</span></div>' +
       (p ? '<div class="card col" style="gap:10px;padding:12px"><b style="font-size:16px">مهمة جديدة</b>' +
         '<div class="bq">' + TASKQ.map(function (q) { return '<button data-tq="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
         '<input class="inp" id="ti" maxlength="80" placeholder="أو اكتب مهمة من عندك">' +
@@ -908,9 +908,9 @@ var A = (function () {
       '<div class="chips2"><div class="chip2" id="starC"><span style="font-size:17px">⭐</span><span>نجوم هالشهر</span></div>' +
       '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div></div>' +
       '<div id="bdc"></div>' +
-      '<button class="drawbig gl2" id="drawBig"><span class="db-ic">🎨</span><span class="grow col" style="gap:0;text-align:start"><b>ارسم للعائلة</b><small>فُرش جديدة، مرآة، وصفحات تلوين</small></span><span class="db-go">' + ic('back', 'style="transform:scaleX(-1)"') + '</span></button>' +
-      '<div class="fx2"><button class="fxc gl2" id="buyB"><span class="fxi">🛒</span><span class="grow col" style="gap:0;text-align:start"><b>نبي</b><small id="buyN">طلبات البقالة</small></span><span class="fxn" id="buyC" hidden></span></button>' +
-      '<button class="fxc gl2" id="taskB"><span class="fxi">✅</span><span class="grow col" style="gap:0;text-align:start"><b>المهام</b><small id="taskN">مهام اليوم</small></span><span class="fxn" id="taskC" hidden></span></button></div>' +
+      '<div class="fx3"><button class="fxt gl2" id="drawBig"><span class="fxi fxd">🎨</span><b>ارسم للعائلة</b><small>فُرش وتلوين</small></button>' +
+      '<button class="fxt gl2" id="buyB"><span class="fxi">🛒</span><b>نبي من البقالة</b><small id="buyN">اطلب من البقالة</small><span class="fxn" id="buyC" hidden></span></button>' +
+      '<button class="fxt gl2" id="taskB"><span class="fxi">✅</span><b>مهامي</b><small id="taskN">مهام اليوم</small><span class="fxn" id="taskC" hidden></span></button></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2 hm');
     $('#sw', el).onclick = function () { picker(); };
     $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
@@ -948,8 +948,8 @@ var A = (function () {
         if (bc) { bc.hidden = !nb; bc.textContent = nb; }
         if (tc2) { tc2.hidden = !nt; tc2.textContent = nt; }
         var bn = $('#buyN'), tn = $('#taskN');
-        if (bn) bn.textContent = p ? (nb ? nb + ' تنتظر موافقتك' : E.buy.length ? E.buy.filter(function (b) { return b.st === 'ok'; }).length + ' في القائمة' : 'طلبات البقالة') : 'اطلب من البقالة';
-        if (tn) tn.textContent = p ? (nt ? nt + ' تنتظر تأكيدك' : E.tasks.length ? E.tasks.length + ' مهام اليوم' : 'أعط العيال مهام') : (nt ? 'باقي ' + nt : E.tasks.some(function (k) { return k.to.indexOf(S.me) >= 0; }) ? 'خلّصتها كلها 👏' : 'ما فيه مهام');
+        if (bn) bn.textContent = p ? (nb ? nb + ' تنتظرك' : E.buy.length ? E.buy.filter(function (b) { return b.st === 'ok'; }).length + ' بالقائمة' : 'طلبات العيال') : 'اطلب اللي تبي';
+        if (tn) tn.textContent = p ? (nt ? nt + ' تنتظرك' : E.tasks.length ? E.tasks.length + ' اليوم' : 'أعطهم مهام') : (nt ? 'باقي ' + nt : E.tasks.some(function (k) { return k.to.indexOf(S.me) >= 0; }) ? 'خلّصتها 👏' : 'ما فيه مهام');
       });
       if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
       var tc = $('#todayC'); if (tc) tc.innerHTML = '<span class="dot2"></span><b>' + today + '</b><span>' + (today === 1 ? 'رسالة' : 'رسائل') + ' جديدة اليوم</span>';
