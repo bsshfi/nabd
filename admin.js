@@ -80,7 +80,6 @@
       '<div>' + ic('shield') + '<span class="grow col" style="gap:0"><span>الرسالة في السيرفر</span><span class="tiny muted">مشفّرة، وتنحذف أول ما توصل، وبحد أقصى ٣ أيام</span></span></div>' +
       '<div>' + ic('trash') + '<span class="grow col" style="gap:0"><span>الحذف التلقائي لهذا الجهاز</span><span class="tiny muted">' + autoDelText() + '</span></span></div></div>' +
       '<span class="label">المظهر</span><div class="seg" id="thm">' + [['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(function (t) { return '<button data-th="' + t[0] + '" class="' + (A.theme() === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
-      '<span class="label">لون التطبيق لـ' + esc(nm(S.me)) + '</span><div class="card skyrow">' + A.SKIES.map(function (k) { return '<button data-sky="' + k[0] + '" class="' + (A.sky() === k[0] ? 'on' : '') + '"><i style="background:linear-gradient(180deg,' + k[2] + ',#f4ede4)"></i>' + k[1] + '</button>'; }).join('') + '</div>' +
       '<span class="label">' + esc(nm(S.me)) + '</span><div class="list">' +
       (admin ? '' : '<button id="myAv">' + av(S.me, 28) + '<span class="grow">' + (parent ? 'تغيير اسمي وصورتي' : 'تغيير صورتي') + '</span></button>') +
       (parent ? '<button id="chPin">' + ic('lock') + '<span class="grow">تغيير رمزي السري</span></button>' : '') +
@@ -89,7 +88,7 @@
       // نَبْض: الأب والأم يشوفون كل شي، والعيال «حول التطبيق» بس (ما يطلعون برّا التطبيق)
       '<span class="label">نَبْض</span><div class="list lt">' +
       '<button id="about"><span class="lti" style="background:#5f86b3">' + LTI.info + '</span><span class="grow">حول التطبيق</span>' + CHEV + '</button>' +
-      (isP ? '<button id="shareApp"><span class="lti" style="background:linear-gradient(180deg,#ff9d45,#e8741c)">' + LTI.share + '</span><span class="grow">مشاركة التطبيق</span>' + CHEV + '</button>' +
+      (isP ? '<button id="shareApp"><span class="lti" style="background:linear-gradient(180deg,#F2707A,#E5484D)">' + LTI.share + '</span><span class="grow">مشاركة التطبيق</span>' + CHEV + '</button>' +
         '<button id="contact"><span class="lti" style="background:#3fa36d">' + LTI.mail + '</span><span class="grow">تواصل معنا</span>' + CHEV + '</button>' +
         '<button id="privacy"><span class="lti" style="background:#7a5cd6">' + LTI.shield + '</span><span class="grow">سياسة الخصوصية</span>' + CHEV + '</button>' : '') + '</div>' +
       '<span class="label">التطبيق</span><div class="list lt">' +
@@ -108,7 +107,6 @@
     };
     $('#swp').onclick = function () { A.parentGate(function () { A.picker(true); }, 'تبديل الشخص يحتاج رمز الأب أو الأم'); };
     if ($('#edG')) $('#edG').onclick = groupSheet;
-    el.querySelectorAll('[data-sky]').forEach(function (b) { b.onclick = function () { A.setSky(b.dataset.sky); el.querySelectorAll('[data-sky]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
     el.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { A.setTheme(b.dataset.th); el.querySelectorAll('[data-th]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
     $('#out').onclick = function () { A.parentGate(leaveDevice, 'خروج الشخص من الجهاز يحتاج رمز الأب أو الأم'); };
     function leaveDevice() {

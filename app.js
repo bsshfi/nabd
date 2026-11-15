@@ -22,15 +22,11 @@ var A = (function () {
     document.documentElement.dataset.theme = d ? 'dark' : 'light';
     applySky();
   }
-  /* لون التطبيق (فاتح): سماء · وردي · بنفسجي · نعناعي — لكل شخص */
-  var SKIES = [['', 'سماء', '#7fa6c6'], ['rose', 'وردي', '#e98fb4'], ['lilac', 'بنفسجي', '#8f86d6'], ['mint', 'نعناعي', '#5fb3a6']];
-  function sky() { try { return localStorage.getItem('nabd-sky:' + (S.me || '')) || localStorage.getItem('nabd-sky') || ''; } catch (e) { return ''; } }
-  function setSky(k) { try { localStorage.setItem('nabd-sky:' + (S.me || ''), k); localStorage.setItem('nabd-sky', k); } catch (e) {} applySky(); }
+  /* 3.0: ما فيه ألوان سماء؛ أعلى الشاشة (تحت الساعة) لونه ثابت في الفاتح والداكن عشان شريط الآيفون يطابقه دايماً */
+  var BAND = '#3F35B8';
   function applySky() {
-    var root = document.documentElement, k = sky(), dark = root.dataset.theme === 'dark';
-    if (k) root.dataset.sky = k; else delete root.dataset.sky;
-    var m = document.querySelector('meta[name=theme-color]');
-    if (m) m.content = getComputedStyle(root).getPropertyValue('--sky1').trim() || (dark ? '#0c1424' : '#7fa6c6');
+    var root = document.documentElement; delete root.dataset.sky;
+    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = BAND;
   }
   function setTheme(t) { try { localStorage.setItem('nabd-theme', t); } catch (e) {} applyTheme(); }
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}
@@ -722,13 +718,13 @@ var A = (function () {
     if (!S.me || live().indexOf(S.me) < 0 || S.dev.members.indexOf(S.me) < 0) return picker();
     S.view = 'home'; S.chat = null;
     var el = show(
-      '<header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
+      '<div class="hband"><header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
       '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 60) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '') + '</button></header>' +
-      '<div id="bdc"></div>' +
       '<div class="chips2"><div class="chip2" id="starC"><span style="font-size:17px">⭐</span><span>نجوم هالشهر</span></div>' +
-      '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div>' +
+      '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div></div>' +
+      '<div id="bdc"></div>' +
       '<button class="drawbig gl2" id="drawBig"><span class="db-ic">🎨</span><span class="grow col" style="gap:0;text-align:start"><b>ارسم للعائلة</b><small>فُرش جديدة، مرآة، وصفحات تلوين</small></span><span class="db-go">' + ic('back', 'style="transform:scaleX(-1)"') + '</span></button>' +
-      '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2');
+      '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2 hm');
     $('#sw', el).onclick = function () { picker(); };
     $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
     var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
@@ -1877,7 +1873,7 @@ var A = (function () {
     standalone: standalone, plat: plat,
     installPrompt: function () { if (!deferredInstall) return Promise.resolve(false); deferredInstall.prompt(); return deferredInstall.userChoice.then(function (c) { deferredInstall = null; return c && c.outcome === 'accepted'; }, function () { return false; }); },
     canInstall: function () { return !!deferredInstall; },
-    tabBar: tabBar, SKIES: SKIES, sky: sky, setSky: setSky, starGallery: starGallery,
+    tabBar: tabBar, starGallery: starGallery,
     lostDevice: lostDevice, installTip: installTip, LOGO: LOGO, PLAY: PLAY, boot: boot, standalone: standalone, compress: compress, closeSheets: closeSheets
   };
 })();
