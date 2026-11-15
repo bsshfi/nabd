@@ -23,10 +23,10 @@ var A = (function () {
     applySky();
   }
   /* 3.0: ما فيه ألوان سماء؛ أعلى الشاشة (تحت الساعة) لونه ثابت في الفاتح والداكن عشان شريط الآيفون يطابقه دايماً */
-  var BAND = '#3F35B8';
+  // 3.1: أعلى الشاشة = لون خلفية الصفحة نفسها (بدون هيدر ملوّن)، فشريط الآيفون يطابقها دايماً
   function applySky() {
     var root = document.documentElement; delete root.dataset.sky;
-    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = BAND;
+    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = root.dataset.theme === 'dark' ? '#11141A' : '#F7F3EC';
   }
   function setTheme(t) { try { localStorage.setItem('nabd-theme', t); } catch (e) {} applyTheme(); }
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}

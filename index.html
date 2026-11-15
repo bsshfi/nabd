@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>نَبْض | NABD</title>
 <meta name="description" content="تواصل العائلة فقط: صوت وكتابة وصور ورسم">
-<meta name="theme-color" content="#3F35B8">
+<meta name="theme-color" content="#F7F3EC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="نَبْض">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>try{var t=localStorage.getItem('nabd-theme')||'auto';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){}</script>
+<script>try{var t=localStorage.getItem('nabd-theme')||'auto';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#11141A':'#F7F3EC';}catch(e){}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -647,6 +647,55 @@ body{background:var(--bg)!important}
 .d2wrap{box-shadow:0 6px 18px var(--gsh)}
 /* الإعدادات */
 .setfoot b{color:var(--ink)}
+
+/* ===================== نَبْض 3.1 — الحل من الجذر =====================
+   ما فيه هيدر ملوّن: أعلى الشاشة وكل الصفحة بنفس اللون (كريمي في الفاتح، كحلي في الداكن) ومعه نقوش خفيفة.
+   فاللي يرسمه الآيفون تحت الساعة دايماً نفس لون الصفحة. الأساسي فيروزي، والمرجاني للقلوب والجديد */
+:root{--bg:#F7F3EC;--sand2:#F7F3EC;--sheetbg:#F7F3EC;--card:#FFFFFF;--ink:#23201C;--fg2:#23201C;--muted:#77706A;--dim2:#77706A;--soft:#A39C95;
+  --line:rgba(35,32,28,.10);--line2:rgba(35,32,28,.06);--chip:rgba(35,32,28,.06);--panel:#FFFFFF;--gline:rgba(35,32,28,.06);--gsh:rgba(80,60,30,.08);
+  --primary:#0F8B8D;--primary2:#13A3A5;--primary-soft:#DDF1F0;--togoff:#DDD6CC;--wave:#DDD6CC;--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' fill='none' stroke='%23E9E0D2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 34c-6-4.5-9-7.8-9-11.2a4.6 4.6 0 0 1 9-1.4 4.6 4.6 0 0 1 9 1.4c0 3.4-3 6.7-9 11.2z'/%3E%3Cpath d='M118 22l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z'/%3E%3Cpath d='M70 92h22a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H80l-7 6v-6h-3a6 6 0 0 1-6-6V98a6 6 0 0 1 6-6z'/%3E%3Cpath d='M126 118l14-14 5 5-14 14-6 1z'/%3E%3Cpath d='M22 120c6-6 12 6 18 0s12 6 18 0'/%3E%3Ccircle cx='96' cy='52' r='3'/%3E%3Ccircle cx='46' cy='72' r='2'/%3E%3Ccircle cx='146' cy='76' r='2'/%3E%3C/svg%3E")}
+:root[data-theme="dark"]{--bg:#11141A;--sand2:#11141A;--sheetbg:#161A21;--card:#1B2029;--ink:#EEF0F3;--fg2:#EEF0F3;--muted:#9AA3AE;--dim2:#9AA3AE;--soft:#6F7884;
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.06);--chip:rgba(255,255,255,.07);--panel:#1B2029;--gline:rgba(255,255,255,.06);--gsh:rgba(0,0,0,.35);
+  --primary:#2BB3B1;--primary2:#3CC7C4;--primary-soft:#12312F;--togoff:#343B47;--wave:#343B47;--pat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' fill='none' stroke='%231B212B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 34c-6-4.5-9-7.8-9-11.2a4.6 4.6 0 0 1 9-1.4 4.6 4.6 0 0 1 9 1.4c0 3.4-3 6.7-9 11.2z'/%3E%3Cpath d='M118 22l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z'/%3E%3Cpath d='M70 92h22a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H80l-7 6v-6h-3a6 6 0 0 1-6-6V98a6 6 0 0 1 6-6z'/%3E%3Cpath d='M126 118l14-14 5 5-14 14-6 1z'/%3E%3Cpath d='M22 120c6-6 12 6 18 0s12 6 18 0'/%3E%3Ccircle cx='96' cy='52' r='3'/%3E%3Ccircle cx='46' cy='72' r='2'/%3E%3Ccircle cx='146' cy='76' r='2'/%3E%3C/svg%3E")}
+html{background:var(--bg)!important}
+body{background:var(--bg) var(--pat) 0 0/160px 160px repeat!important}
+#app{background:transparent!important}
+/* نشيل الهيدر النيلي */
+.screen:has(>.row:first-child)::before,.screen.hm::before,.screen.d2::before{display:none!important}
+.hband{margin:0!important;padding:4px 0 0!important;background:none!important;box-shadow:none!important;border-radius:0!important}
+.top2,.top2 *{color:var(--ink)}
+.logo2{color:var(--ink)!important}
+.pulse2{color:var(--accent)!important}
+.ptitle2{color:var(--muted)!important}
+.mebig{background:var(--card)!important;box-shadow:0 0 0 3px var(--primary-soft),0 4px 14px var(--gsh)!important}
+.chip2{background:var(--card)!important;border:1px solid var(--gline)!important;color:var(--ink)!important;box-shadow:0 4px 12px var(--gsh)!important}
+.chip2 b{color:var(--primary)!important}
+.screen>.row:first-child .fd,.screen>.row:first-child h2,.d2title{color:var(--ink)!important}
+.screen>.row:first-child .icb,.d2top .icb{background:var(--card)!important;border:1px solid var(--gline)!important;box-shadow:0 2px 8px var(--gsh)!important;color:var(--ink)!important}
+.screen>.row:first-child .pill{background:var(--primary-soft);color:var(--primary)}
+/* المحادثة: الهيدر بلون الصفحة */
+.chathead{background:var(--bg)!important;color:var(--ink)!important;border-radius:0!important;border-bottom:1px solid var(--line)!important;box-shadow:none!important}
+.chathead *{color:var(--ink)}
+.chathead .small,.chathead .muted,.chathead .tiny{color:var(--muted)!important}
+.chathead .icb{background:var(--card)!important;border:1px solid var(--gline)!important}
+.chathead .btn{background:linear-gradient(180deg,var(--primary2),var(--primary))!important}
+.chathead .btn,.chathead .btn *{color:#fff}
+.chat{background:var(--bg)!important}
+/* الألوان */
+.btn,.btn.orange,.mic,.d2send{background:linear-gradient(180deg,var(--primary2),var(--primary))!important;box-shadow:0 6px 16px rgba(15,139,141,.25)!important}
+.btn.brand{background:var(--primary)!important}
+.tabs2 button.on{background:linear-gradient(180deg,var(--primary2),var(--primary))!important;box-shadow:0 6px 14px rgba(15,139,141,.3)!important}
+.m.me .bub{background:linear-gradient(180deg,var(--primary2),var(--primary))!important}
+.m.me .voice .pl{color:var(--primary)!important}
+.m.me .dur{color:#E3F7F6!important}
+.shead2 button{color:var(--primary)!important}
+.drawbig{background:var(--card)!important}
+.drawbig .db-ic{background:linear-gradient(180deg,#F2707A,var(--accent))!important}
+.quick2 button{background:var(--primary-soft)!important}
+.d2tools button.on,.d2chips button.on{background:var(--primary-soft)!important;border-color:var(--primary)!important}
+.d2b.on,.d2sizes button.on{background:var(--primary-soft)!important;box-shadow:inset 0 0 0 2px var(--primary)!important}
+.d2guide line{stroke:rgba(15,139,141,.5)}
+.tabs2{box-shadow:0 10px 30px var(--gsh)!important}
 </style>
 </head>
 <body>
