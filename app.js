@@ -695,6 +695,191 @@ var A = (function () {
     if (soon) return '<div class="gl2 bday2" style="padding:10px 14px"><span class="big" style="font-size:28px">🎈</span><span class="grow"><b style="font-size:15px">عيد ميلاد ' + esc(nm(soon.id)) + '</b> <small>' + (soon.b.days === 1 ? 'بكرة' : 'بعد ' + soon.b.days + ' أيام') + '</small></span></div>';
     return '';
   }
+
+  /* ===================== «نبي» والمهام =====================
+     كل تغيير = حدث مشفّر (ev) في قروب العائلة، وكل جهاز يبني الحالة من الأحداث.
+     الموافقة والرفض والشراء وإعطاء المهام وتأكيدها للأب والأم بس. وكل شي يختفي بعد يوم */
+  var DAY = 864e5;
+  function parentsIds() { return live().filter(function (id) { return isParent(id); }); }
+  function evNote(e, from) {
+    var f = fem(from), n = nm(from);
+    if (e.t === 'buy') {
+      if (e.a === 'add') return isParent(from) ? null : [n + ' ' + (f ? 'تبي' : 'يبي') + ': ' + e.name, parentsIds()];
+      if (e.a === 'ok') return ['✅ ' + n + ' ' + (f ? 'وافقت' : 'وافق') + ' على: ' + e.name, [e.by]];
+      if (e.a === 'no') return ['❌ ' + n + ' ما ' + (f ? 'وافقت' : 'وافق') + ' على: ' + e.name, [e.by]];
+      return null;
+    }
+    if (e.t === 'task') {
+      if (e.a === 'new') return ['📌 مهمة من ' + n + ': ' + e.text, e.to];
+      if (e.a === 'done') return ['🙌 ' + n + ' ' + (f ? 'خلّصت' : 'خلّص') + ': ' + e.text, parentsIds()];
+      if (e.a === 'ok') return ['⭐ +' + e.st + ' ' + (e.st === 1 ? 'نجمة' : 'نجوم') + ' على: ' + e.text, [e.who]];
+    }
+    return null;
+  }
+  function sendEv(e) {
+    var note = evNote(e, S.me) || ['', []];
+    var m = { id: rid(12), chat: 'g', s: S.me, k: 'ev', t: Date.now(), st: {}, r: [S.me], out: 1, text: JSON.stringify(e), nt: note[0], to: (note[1] || []).filter(function (x) { return x && x !== S.me; }) };
+    return NB.msgs.put(m).then(function () { refreshView(); return upload(m); });
+  }
+  function evState() {
+    return NB.msgs.all().then(function (all) {
+      var now = Date.now(), m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0);
+      var buy = {}, tasks = {}, stars = {};
+      all.filter(function (m) { return m.k === 'ev' && m.t > now - 32 * DAY; }).sort(function (a, b) { return a.t - b.t; }).forEach(function (m) {
+        var e; try { e = JSON.parse(m.text); } catch (x) { return; }
+        var par = isParent(m.s);
+        if (e.t === 'buy') {
+          var b = buy[e.id];
+          if (e.a === 'add') { if (!b) buy[e.id] = { id: e.id, name: String(e.name || '').slice(0, 60), by: m.s, t: m.t, st: par ? 'ok' : 'req' }; }
+          else if (b && par && /^(ok|no|got)$/.test(e.a)) { b.st = e.a; b.who = m.s; b.at = m.t; }
+          else if (b && e.a === 'del' && (par || b.by === m.s)) delete buy[e.id];
+        } else if (e.t === 'task') {
+          var k = tasks[e.id];
+          if (e.a === 'new' && par && !k) tasks[e.id] = { id: e.id, text: String(e.text || '').slice(0, 80), by: m.s, t: m.t, to: e.to || [], st: Math.max(1, Math.min(3, e.st | 0)), done: {}, ok: {} };
+          else if (k && e.a === 'done' && k.to.indexOf(m.s) >= 0) k.done[m.s] = m.t;
+          else if (k && e.a === 'undo' && k.to.indexOf(m.s) >= 0 && !k.ok[m.s]) delete k.done[m.s];
+          else if (k && e.a === 'ok' && par && k.done[e.who] && !k.ok[e.who]) { k.ok[e.who] = m.t; if (m.t >= +m0) stars[e.who] = (stars[e.who] || 0) + k.st; }
+          else if (k && e.a === 'del' && par) delete tasks[e.id];
+        }
+      });
+      var vals = function (o) { return Object.keys(o).map(function (x) { return o[x]; }); };
+      return {
+        buy: vals(buy).filter(function (b) { return b.t > now - DAY; }).sort(function (a, b) { return b.t - a.t; }),
+        tasks: vals(tasks).filter(function (k) { return k.t > now - DAY; }).sort(function (a, b) { return b.t - a.t; }),
+        stars: stars
+      };
+    });
+  }
+  function evAlert(list) {
+    var mine = list.filter(function (m) { return m.s !== S.me; });
+    if (!mine.length) return;
+    if (S.view === 'buy' || S.view === 'tasks' || S.view === 'home') refreshView();
+    var hit = null;
+    mine.forEach(function (m) { var e; try { e = JSON.parse(m.text); } catch (x) { return; } var n = evNote(e, m.s); if (n && (n[1] || []).some(function (id) { return S.dev.members.indexOf(id) >= 0; })) hit = [n[0], e.t]; });
+    if (!hit || document.visibilityState !== 'visible') return;
+    ding(true);
+    var old = document.querySelector('.inbanner'); if (old) old.remove();
+    var b = document.createElement('button'); b.className = 'inbanner';
+    b.innerHTML = '<span style="font-size:30px">' + (hit[1] === 'task' ? '✅' : '🛒') + '</span><span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + (hit[1] === 'task' ? 'المهام' : 'نبي') + '</b><span class="small muted">' + esc(hit[0]) + '</span></span>';
+    b.onclick = function () { b.remove(); if (hit[1] === 'task') tasksScreen(); else buyScreen(); };
+    document.body.appendChild(b); setTimeout(function () { b.remove(); }, 6000);
+  }
+  function whenAgo(t) { var d = (Date.now() - t) / 6e4; return d < 1 ? 'الحين' : d < 60 ? 'قبل ' + Math.round(d) + ' د' : 'قبل ' + Math.round(d / 60) + ' س'; }
+
+  /* ---- 🛒 نبي ---- */
+  var BUYQ = ['🥛 حليب', '🍞 خبز', '🥚 بيض', '🧃 عصير', '💧 ماء', '🍎 تفاح', '🍌 موز', '🧀 جبن', '🍪 بسكويت', '🍫 شوكولاتة', '🍦 آيسكريم', '🥤 لبن'];
+  function buyScreen() {
+    if (!S.me) return home();
+    S.view = 'buy';
+    var p = isParent(S.me);
+    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">🛒 نبي</span></div>' +
+      '<p class="small muted" style="margin:-4px 2px 0">' + (p ? 'العيال يطلبون من البقالة وأنت توافق أو ترفض. اللي توافق عليه ينضاف للقائمة، ولما تجيبه حط عليه ✓.' : 'اكتب وش تبي من البقالة، ولما يوافق بابا أو ماما ينضاف للقائمة.') + ' كل شي يختفي بعد يوم.</p>' +
+      '<div class="card col" style="gap:10px;padding:12px"><div class="row" style="gap:8px"><input class="inp grow" id="bi" maxlength="60" placeholder="وش ' + (fem(S.me) ? 'تبين' : 'تبي') + '؟ مثلاً: حليب"><button class="btn" id="ba" style="flex:none;padding:0 18px">' + (p ? 'أضف' : 'اطلب') + '</button></div>' +
+      '<div class="bq">' + BUYQ.map(function (q) { return '<button data-q="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div></div>' +
+      '<div id="bl" class="col" style="gap:12px"></div>', 'sub');
+    $('#bk', el).onclick = home;
+    var add = function (name) {
+      name = (name || '').trim(); if (!name) return;
+      sendEv({ t: 'buy', a: 'add', id: rid(8), name: name.slice(0, 60) }); $('#bi').value = '';
+      toast(p ? 'انضاف للقائمة ✓' : 'وصل طلبك لبابا وماما 👍');
+    };
+    $('#ba', el).onclick = function () { add($('#bi').value); };
+    $('#bi', el).onkeydown = function (e) { if (e.key === 'Enter') add(this.value); };
+    el.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { add(b.dataset.q); }; });
+    renderBuy();
+  }
+  function renderBuy() {
+    var box = $('#bl'); if (!box || S.view !== 'buy') return;
+    var p = isParent(S.me);
+    evState().then(function (E) {
+      var req = E.buy.filter(function (b) { return b.st === 'req'; }), ok = E.buy.filter(function (b) { return b.st === 'ok'; }), got = E.buy.filter(function (b) { return b.st === 'got'; }), no = E.buy.filter(function (b) { return b.st === 'no' && (p || b.by === S.me); });
+      var who = function (b) { return '<span class="bwho">' + av(b.by, 22) + esc(nm(b.by)) + ' · ' + whenAgo(b.t) + '</span>'; };
+      var del = function (b) { return p || b.by === S.me ? '<button class="bdel" data-del="' + b.id + '" aria-label="حذف">✕</button>' : ''; };
+      var h = '';
+      if (req.length) h += '<span class="label">⏳ ' + (p ? 'تنتظر موافقتك' : 'تنتظر الموافقة') + '</span><div class="list blist">' + req.map(function (b) {
+        return '<div><span class="grow col" style="gap:2px"><b>' + esc(b.name) + '</b>' + who(b) + '</span>' + (p ? '<button class="bok" data-ok="' + b.id + '" aria-label="موافق">✓</button><button class="bno" data-no="' + b.id + '" aria-label="رفض">✕</button>' : del(b)) + '</div>';
+      }).join('') + '</div>';
+      h += '<span class="label">🛒 القائمة</span>' + (ok.length ? '<div class="list blist">' + ok.map(function (b) {
+        return '<div>' + (p ? '<button class="bchk" data-got="' + b.id + '" aria-label="انجاب"></button>' : '<span class="bchk"></span>') + '<span class="grow col" style="gap:2px"><b>' + esc(b.name) + '</b>' + who(b) + '</span>' + del(b) + '</div>';
+      }).join('') + '</div>' : '<div class="card small muted" style="text-align:center;padding:16px">القائمة فاضية</div>');
+      if (got.length) h += '<span class="label">✅ انجابت</span><div class="list blist">' + got.map(function (b) {
+        return '<div class="bgot"><span class="bchk on">✓</span><span class="grow col" style="gap:2px"><b>' + esc(b.name) + '</b>' + who(b) + '</span></div>';
+      }).join('') + '</div>';
+      if (no.length) h += '<span class="label">ما انوافق عليها</span><div class="list blist">' + no.map(function (b) {
+        return '<div class="bno2"><span class="grow col" style="gap:2px"><b>' + esc(b.name) + '</b>' + who(b) + '</span>' + del(b) + '</div>';
+      }).join('') + '</div>';
+      box.innerHTML = h;
+      var find = function (id) { return E.buy.filter(function (b) { return b.id === id; })[0]; };
+      box.querySelectorAll('[data-ok]').forEach(function (x) { x.onclick = function () { var b = find(x.dataset.ok); sendEv({ t: 'buy', a: 'ok', id: b.id, name: b.name, by: b.by }); }; });
+      box.querySelectorAll('[data-no]').forEach(function (x) { x.onclick = function () { var b = find(x.dataset.no); sendEv({ t: 'buy', a: 'no', id: b.id, name: b.name, by: b.by }); }; });
+      box.querySelectorAll('[data-got]').forEach(function (x) { x.onclick = function () { var b = find(x.dataset.got); x.classList.add('on'); x.textContent = '✓'; if (navigator.vibrate) navigator.vibrate(10); sendEv({ t: 'buy', a: 'got', id: b.id, name: b.name, by: b.by }); }; });
+      box.querySelectorAll('[data-del]').forEach(function (x) { x.onclick = function () { var b = find(x.dataset.del); sendEv({ t: 'buy', a: 'del', id: b.id, name: b.name }); }; });
+    });
+  }
+
+  /* ---- ✅ المهام ---- */
+  var TASKQ = ['🧹 نظّفوا الغرفة', '📚 ذاكروا', '✏️ حلّوا الواجب', '🕌 صلّوا', '🛏️ رتّبوا السرير', '🧸 رتّبوا الألعاب', '📖 اقرأوا قصة', '🦷 فرّشوا أسنانكم'];
+  function tasksScreen() {
+    if (!S.me) return home();
+    S.view = 'tasks';
+    var p = isParent(S.me), kids = live().filter(function (id) { return !isParent(id); });
+    var st = { to: kids.slice(), stars: 1 };
+    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">✅ المهام</span></div>' +
+      (p ? '<div class="card col" style="gap:10px;padding:12px"><b style="font-size:16px">مهمة جديدة</b>' +
+        '<div class="bq">' + TASKQ.map(function (q) { return '<button data-tq="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
+        '<input class="inp" id="ti" maxlength="80" placeholder="أو اكتب مهمة من عندك">' +
+        '<div class="tkids">' + kids.map(function (id) { return '<button class="on" data-k="' + id + '">' + av(id, 30) + '<span>' + esc(nm(id)) + '</span></button>'; }).join('') + '</div>' +
+        '<div class="seg" id="tst">' + [1, 2, 3].map(function (n) { return '<button data-n="' + n + '" class="' + (n === 1 ? 'on' : '') + '">' + '⭐'.repeat(n) + '</button>'; }).join('') + '</div>' +
+        '<button class="btn block" id="tgo">أرسل المهمة</button></div>' : '<p class="small muted" style="margin:-4px 2px 0">خلّص مهامك واضغط «خلّصت»، ولما يأكّد بابا أو ماما تاخذ نجومك ⭐</p>') +
+      '<div id="tl" class="col" style="gap:12px"></div>', 'sub');
+    $('#bk', el).onclick = home;
+    if (p) {
+      el.querySelectorAll('[data-tq]').forEach(function (b) { b.onclick = function () { $('#ti').value = b.dataset.tq; }; });
+      el.querySelectorAll('[data-k]').forEach(function (b) { b.onclick = function () { b.classList.toggle('on'); st.to = [].map.call(el.querySelectorAll('[data-k].on'), function (x) { return x.dataset.k; }); }; });
+      el.querySelectorAll('[data-n]').forEach(function (b) { b.onclick = function () { st.stars = +b.dataset.n; el.querySelectorAll('[data-n]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+      $('#tgo', el).onclick = function () {
+        var t = $('#ti').value.trim();
+        if (!t) return toast('اختر مهمة أو اكتبها');
+        if (!st.to.length) return toast('اختر مين يسويها');
+        sendEv({ t: 'task', a: 'new', id: rid(8), text: t.slice(0, 80), to: st.to, st: st.stars }); $('#ti').value = '';
+        toast('انرسلت المهمة 📌');
+      };
+    }
+    renderTasks();
+  }
+  function renderTasks() {
+    var box = $('#tl'); if (!box || S.view !== 'tasks') return;
+    var p = isParent(S.me);
+    evState().then(function (E) {
+      var list = p ? E.tasks : E.tasks.filter(function (k) { return k.to.indexOf(S.me) >= 0; });
+      if (!list.length) { box.innerHTML = '<div class="card col center" style="gap:6px;padding:28px 16px;text-align:center"><span style="font-size:44px">' + (p ? '📌' : '🎉') + '</span><b>' + (p ? 'ما فيه مهام اليوم' : 'ما عندك مهام') + '</b></div>'; return; }
+      box.innerHTML = list.map(function (k) {
+        var stars = '<span class="tstar">' + '⭐'.repeat(k.st) + '</span>';
+        if (!p) {
+          var ok = k.ok[S.me], done = k.done[S.me];
+          return '<div class="card tcard' + (ok ? ' tok' : '') + '"><div class="row" style="gap:8px"><b class="grow" style="font-size:18px">' + esc(k.text) + '</b>' + stars + '</div>' +
+            '<span class="small muted">من ' + esc(nm(k.by)) + ' · ' + whenAgo(k.t) + '</span>' +
+            (ok ? '<div class="tdone">⭐ +' + k.st + ' — أحسنت!</div>' : done ? '<div class="twait">⏳ تنتظر تأكيد ' + esc(nm(k.by)) + ' <button class="linkb" data-undo="' + k.id + '">تراجع</button></div>' : '<button class="btn block" data-done="' + k.id + '">خلّصت ✓</button>') + '</div>';
+        }
+        return '<div class="card tcard"><div class="row" style="gap:8px"><b class="grow" style="font-size:18px">' + esc(k.text) + '</b>' + stars + '<button class="bdel" data-tdel="' + k.id + '" aria-label="حذف">✕</button></div>' +
+          '<div class="col" style="gap:6px">' + k.to.map(function (id) {
+            var s2 = k.ok[id] ? '<span class="tchip tok">⭐ +' + k.st + '</span>' : k.done[id] ? '<button class="btn sm" data-tok="' + k.id + '" data-who="' + id + '">' + (fem(id) ? 'خلّصت' : 'خلّص') + ' — أكّد ⭐</button>' : '<span class="tchip">لسى</span>';
+            return '<div class="row" style="gap:8px">' + av(id, 30) + '<span class="grow">' + esc(nm(id)) + '</span>' + s2 + '</div>';
+          }).join('') + '</div></div>';
+      }).join('');
+      var find = function (id) { return E.tasks.filter(function (k) { return k.id === id; })[0]; };
+      box.querySelectorAll('[data-done]').forEach(function (x) { x.onclick = function () { var k = find(x.dataset.done); sendEv({ t: 'task', a: 'done', id: k.id, text: k.text }); if (navigator.vibrate) navigator.vibrate(15); toast('برافو! وصل لـ' + nm(k.by) + ' 👏'); }; });
+      box.querySelectorAll('[data-undo]').forEach(function (x) { x.onclick = function () { var k = find(x.dataset.undo); sendEv({ t: 'task', a: 'undo', id: k.id, text: k.text }); }; });
+      box.querySelectorAll('[data-tok]').forEach(function (x) { x.onclick = function () { var k = find(x.dataset.tok); sendEv({ t: 'task', a: 'ok', id: k.id, text: k.text, who: x.dataset.who, st: k.st }); }; });
+      box.querySelectorAll('[data-tdel]').forEach(function (x) { x.onclick = function () { var k = find(x.dataset.tdel); if (confirm('تحذف المهمة؟')) sendEv({ t: 'task', a: 'del', id: k.id, text: k.text }); }; });
+      // احتفال للطفل أول ما تتأكّد مهمته
+      if (!p) list.forEach(function (k) {
+        if (!k.ok[S.me]) return;
+        var key = 'nabd-tcel:' + S.me + ':' + k.id;
+        try { if (!localStorage.getItem(key)) { localStorage.setItem(key, 1); starBurst('⭐ +' + k.st + ' — ' + k.text); } } catch (e) {}
+      });
+    });
+  }
   /* ===== الواجهة 2.0 — نفس هوية سهم وفلق وسراج: سماء تذوب في الرمل، ألواح زجاجية، برتقالي واحد ===== */
   var PULSE = '<svg class="pulse2" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 27C7 20.5 3.5 16.4 3.5 11.6A6.6 6.6 0 0 1 16 8.4a6.6 6.6 0 0 1 12.5 3.2c0 1.2-.2 2.3-.7 3.4"/><path d="M14 17h3l2-4 3 8 2-4h5"/></svg>';
   var TABI = {
@@ -724,9 +909,12 @@ var A = (function () {
       '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div></div>' +
       '<div id="bdc"></div>' +
       '<button class="drawbig gl2" id="drawBig"><span class="db-ic">🎨</span><span class="grow col" style="gap:0;text-align:start"><b>ارسم للعائلة</b><small>فُرش جديدة، مرآة، وصفحات تلوين</small></span><span class="db-go">' + ic('back', 'style="transform:scaleX(-1)"') + '</span></button>' +
+      '<div class="fx2"><button class="fxc gl2" id="buyB"><span class="fxi">🛒</span><span class="grow col" style="gap:0;text-align:start"><b>نبي</b><small id="buyN">طلبات البقالة</small></span><span class="fxn" id="buyC" hidden></span></button>' +
+      '<button class="fxc gl2" id="taskB"><span class="fxi">✅</span><span class="grow col" style="gap:0;text-align:start"><b>المهام</b><small id="taskN">مهام اليوم</small></span><span class="fxn" id="taskC" hidden></span></button></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2 hm');
     $('#sw', el).onclick = function () { picker(); };
     $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
+    $('#buyB', el).onclick = buyScreen; $('#taskB', el).onclick = tasksScreen;
     var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
     el.querySelectorAll('[data-bdc]').forEach(function (b) { b.onclick = function () { var id = b.dataset.bdn; S.chat = b.dataset.bdc; sendMsg('text', { text: 'كل عام و' + (fem(id) ? 'أنتِ' : 'أنت') + ' بخير يا ' + nm(id) + ' 🎂🎉' }); toast('انرسلت التهنئة 🎉'); }; });
     if ((bdInfo(S.me) || {}).days === 0) { var k = 'nabd-bd:' + S.me + ':' + new Date().getFullYear(); try { if (!localStorage.getItem(k)) { localStorage.setItem(k, 1); setTimeout(function () { starBurst('🎂 كل عام وأنت بخير يا ' + nm(S.me) + '!'); }, 600); } } catch (e) {} }
@@ -749,7 +937,21 @@ var A = (function () {
       // نجوم هالشهر: كم ⭐ جتني على رسايلي
       var m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0); var stars = 0;
       lists.forEach(function (ms) { ms.forEach(function (m) { if (m.s === S.me && m.t >= +m0 && m.re) Object.keys(m.re).forEach(function (k) { if (m.re[k] === '⭐') stars++; }); }); });
-      var sc = $('#starC'); if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
+      var sc = $('#starC');
+      evState().then(function (E) {
+        if (S.view !== 'home') return;
+        var p = isParent(S.me), ts = E.stars[S.me] || 0;
+        var st2 = stars + ts; if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + st2 + '</b><span>' + (st2 === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
+        var nb = p ? E.buy.filter(function (b) { return b.st === 'req'; }).length : E.buy.filter(function (b) { return b.st === 'ok'; }).length;
+        var nt = p ? E.tasks.reduce(function (n, k) { return n + Object.keys(k.done).filter(function (w) { return !k.ok[w]; }).length; }, 0) : E.tasks.filter(function (k) { return k.to.indexOf(S.me) >= 0 && !k.done[S.me]; }).length;
+        var bc = $('#buyC'), tc2 = $('#taskC');
+        if (bc) { bc.hidden = !nb; bc.textContent = nb; }
+        if (tc2) { tc2.hidden = !nt; tc2.textContent = nt; }
+        var bn = $('#buyN'), tn = $('#taskN');
+        if (bn) bn.textContent = p ? (nb ? nb + ' تنتظر موافقتك' : E.buy.length ? E.buy.filter(function (b) { return b.st === 'ok'; }).length + ' في القائمة' : 'طلبات البقالة') : 'اطلب من البقالة';
+        if (tn) tn.textContent = p ? (nt ? nt + ' تنتظر تأكيدك' : E.tasks.length ? E.tasks.length + ' مهام اليوم' : 'أعط العيال مهام') : (nt ? 'باقي ' + nt : E.tasks.some(function (k) { return k.to.indexOf(S.me) >= 0; }) ? 'خلّصتها كلها 👏' : 'ما فيه مهام');
+      });
+      if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
       var tc = $('#todayC'); if (tc) tc.innerHTML = '<span class="dot2"></span><b>' + today + '</b><span>' + (today === 1 ? 'رسالة' : 'رسائل') + ' جديدة اليوم</span>';
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
@@ -1200,19 +1402,19 @@ var A = (function () {
   }
   function upload(m) {
     var mb = NB.media(m), bytesP = mb ? mb.arrayBuffer().then(function (b) { return new Uint8Array(b); }) : Promise.resolve(null);
-    var head = m.k === 'text' ? { text: m.text } : { mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h };
+    var head = m.k === 'text' || m.k === 'ev' ? { text: m.text } : { mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h };
     XTRA.forEach(function (k) { if (m[k] != null) head[k] = m[k]; });
     return bytesP.then(function (bytes) {
-      return Promise.all([NB.enc(pack(head, bytes)), m.k === 'text' ? NB.encJSON({ x: m.text.slice(0, 80) }) : Promise.resolve('')]);
+      return Promise.all([NB.enc(pack(head, bytes)), m.k === 'text' ? NB.encJSON({ x: m.text.slice(0, 80) }) : m.k === 'ev' && m.nt ? NB.encJSON({ x: m.nt.slice(0, 120) }) : Promise.resolve('')]);
     }).then(function (r) {
       if (r[0].length > 1950000) throw { error: 'toolarge' };
-      var q = '?member=' + encodeURIComponent(m.s) + '&chat=' + encodeURIComponent(m.chat) + '&id=' + m.id + '&kind=' + m.k + (r[1] ? '&prev=' + r[1] : '') + (m.sched ? '&at=' + m.sched : '');
+      var q = '?member=' + encodeURIComponent(m.s) + '&chat=' + encodeURIComponent(m.chat) + '&id=' + m.id + '&kind=' + m.k + (r[1] ? '&prev=' + r[1] : '') + (m.sched ? '&at=' + m.sched : '') + (m.k === 'ev' && m.to && m.to.length ? '&to=' + m.to.join(',') : '');
       return api('/send' + q, null, { raw: r[0] });
     }).then(function (j) {
       // المجدولة: تبقى "⏰" عندنا لين يجي وقتها
       if (j && j.sched) { m.out = 2; return NB.msgs.put(m); }
       delete m.out; delete m.err; delete m.sched; return NB.msgs.put(m);
-    }).then(function () { if (S.view === 'chat') renderMsgs(); else renderChats(); })
+    }).then(function () { if (S.view === 'chat') renderMsgs(); else refreshView(); })
       .catch(function (e) {
         if (e && (e.error === 'toolarge' || e.status === 413)) { NB.msgs.del(m.id); toast('الملف كبير، جرّب أقصر أو أصغر'); renderMsgs(); }
         else if (e && e.status === 403) { NB.msgs.del(m.id); toast('ما تقدر ترسل في هذي المحادثة'); renderMsgs(); }
@@ -1547,9 +1749,9 @@ var A = (function () {
       if (needFam) return loadFamily().then(function () { changed = true; });
     }).then(function () {
       if (changed) refreshView();
-      var rx = fresh.filter(function (m) { return m.k === 'react'; });
-      if (fresh.length > rx.length) inAppAlert(fresh.filter(function (m) { return m.k !== 'react'; }));
-      reactAlert(rx);
+      var rx = fresh.filter(function (m) { return m.k === 'react'; }), ev = fresh.filter(function (m) { return m.k === 'ev'; });
+      if (fresh.length > rx.length + ev.length) inAppAlert(fresh.filter(function (m) { return m.k !== 'react' && m.k !== 'ev'; }));
+      reactAlert(rx); evAlert(ev);
       if (S.view === 'home' && !S.me) home();
     }).catch(function (e) {
       if (e && e.status === 401) return lostDevice();
@@ -1562,6 +1764,7 @@ var A = (function () {
   }
   function refreshView() {
     if (S.view === 'chat') renderMsgs(); else if (S.view === 'home') renderChats();
+    else if (S.view === 'buy') renderBuy(); else if (S.view === 'tasks') renderTasks();
     else if (S.view === 'picker') picker();
     if (A.onSync) A.onSync();
   }
@@ -1822,9 +2025,9 @@ var A = (function () {
         if (d.type === 'fresh' && d.ids && d.ids.length) {
           Promise.all(d.ids.map(function (id) { return NB.msgs.get(id); })).then(function (l) {
             l = l.filter(Boolean); refreshView();
-            var rx = l.filter(function (m) { return m.k === 'react'; });
-            if (l.length > rx.length) inAppAlert(l.filter(function (m) { return m.k !== 'react'; }));
-            reactAlert(rx);
+            var rx = l.filter(function (m) { return m.k === 'react'; }), ev = l.filter(function (m) { return m.k === 'ev'; });
+            if (l.length > rx.length + ev.length) inAppAlert(l.filter(function (m) { return m.k !== 'react' && m.k !== 'ev'; }));
+            reactAlert(rx); evAlert(ev);
           });
         }
         if (d.type === 'open') route(d.hash);
@@ -1850,6 +2053,7 @@ var A = (function () {
       history.replaceState(null, '', location.pathname);
       home(); showNudge({ id: m[1], f: m[2], to: m[3] }); return true;
     }
+    if (/^#?(buy|tasks)$/.test(hash)) { history.replaceState(null, '', location.pathname); if (S.me) { if (/buy/.test(hash)) buyScreen(); else tasksScreen(); return true; } }
     if ((m = /chat=([^&]+)/.exec(hash))) {
       history.replaceState(null, '', location.pathname);
       var c = decodeURIComponent(m[1]);

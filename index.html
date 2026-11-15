@@ -706,6 +706,44 @@ body{background:var(--bg) var(--pat) 0 0/160px 160px repeat!important}
 .d2grid button{aspect-ratio:1;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
 .d2grid button.on{box-shadow:0 0 0 3px var(--sheetbg),0 0 0 5px var(--primary)}
 .d2grid button:active{transform:scale(1.15)}
+
+/* ===== نبي والمهام ===== */
+.fx2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fxc{display:flex;align-items:center;gap:10px;padding:12px;border-radius:22px;position:relative;text-align:start;min-width:0}
+.fxc b{font-size:17px;color:var(--ink)}
+.fxc small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fxi{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:var(--primary-soft);flex:none}
+.fxn{position:absolute;top:8px;inset-inline-end:10px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:linear-gradient(180deg,#F2707A,var(--accent));color:#fff;font-size:12.5px;font-weight:800;display:grid;place-items:center}
+.bq{display:flex;gap:6px;flex-wrap:wrap}
+.bq button{height:36px;padding:0 12px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+.bq button:active{transform:scale(.96)}
+.blist>div{display:flex;align-items:center;gap:10px;padding:12px 14px;min-height:62px}
+.blist b{font-size:17px}
+.bwho{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.bwho .av{border-radius:50%}
+.bok,.bno{width:44px;height:44px;border-radius:50%;font-size:20px;font-weight:800;flex:none;display:grid;place-items:center}
+.bok{background:#2f9a68;color:#fff}
+.bno{background:var(--danger-soft,#fde2e2);color:var(--danger,#c62828)}
+.bdel{width:32px;height:32px;border-radius:50%;background:var(--chip);color:var(--muted);font-size:14px;flex:none}
+.bchk{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--soft);flex:none;display:grid;place-items:center;font-size:17px;font-weight:900;color:#fff}
+.bchk.on{background:#2f9a68;border-color:#2f9a68}
+.bgot b{text-decoration:line-through;color:var(--muted)}
+.bno2{opacity:.55}.bno2 b{text-decoration:line-through}
+.tkids{display:flex;gap:8px;flex-wrap:wrap}
+.tkids button{display:flex;align-items:center;gap:6px;height:42px;padding:0 12px 0 6px;border-radius:99px;background:var(--bg);border:2px solid var(--line);font-weight:600;color:var(--muted)}
+.tkids button .av{border-radius:50%}
+.tkids button.on{border-color:var(--primary);background:var(--primary-soft);color:var(--ink)}
+.tcard{display:flex;flex-direction:column;gap:8px;padding:14px}
+.tcard.tok{background:linear-gradient(135deg,var(--card),#FFF6D6)!important}
+:root[data-theme="dark"] .tcard.tok{background:linear-gradient(135deg,var(--card),#3a3212)!important}
+.tstar{font-size:15px;flex:none}
+.tdone{font-size:17px;font-weight:800;color:#b07d00}
+:root[data-theme="dark"] .tdone{color:#FFD166}
+.twait{font-size:14.5px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.linkb{color:var(--primary);font-weight:700;font-size:14px}
+.tchip{font-size:13px;font-weight:700;padding:4px 10px;border-radius:99px;background:var(--chip);color:var(--muted)}
+.tchip.tok{background:#FFF1C2;color:#8a6200}
+:root[data-theme="dark"] .tchip.tok{background:#3a3212;color:#FFD166}
 </style>
 </head>
 <body>

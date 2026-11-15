@@ -11,7 +11,7 @@
 const ORIGINS = ['https://nabd.wamdarc.com', 'https://admin.wamdarc.com', 'https://bsshfi.github.io'];
 const SIRAJ_API = 'https://siraj-api.bsshfi.workers.dev';
 const TTL = 3 * 864e5;              // أقصى مدة للرسالة في السيرفر
-const KINDS = ['text', 'voice', 'photo', 'draw', 'sticker', 'react'];
+const KINDS = ['text', 'voice', 'photo', 'draw', 'sticker', 'react', 'ev'];  // ev = تحديثات «نبي» والمهام (مخفية من المحادثة)
 const MAX_MEDIA = 1950000;          // base64 (أقل من حد صف D1)
 const MAX_PROFILE = 600000;
 const ONLINE_MS = 90e3;
@@ -340,7 +340,9 @@ export default {
             .bind(id, F.id, chat, a.id, D.id, kind, body, prev || null, at, now).run();
           return json({ ok: true, sched: at });
         }
-        const r = await deliver(env, ctx, F, M, { id, chat, sender: a.id, sdev: D.id, kind, body, prev }, now);
+        // ev: يوصل لكل أجهزة العائلة (عشان القائمة تتحدّث عند الكل)، بس التنبيه لأصحاب الشأن فقط (to)
+        const to = kind === 'ev' ? (q.get('to') || '').split(',').filter((x) => M.some((mm) => mm.id === x)).slice(0, 20) : null;
+        const r = await deliver(env, ctx, F, M, { id, chat, sender: a.id, sdev: D.id, kind, body, prev, to }, now);
         return json({ ok: true, created: now, to: r });
       }
       if (p === '/sched/cancel' && req.method === 'POST') {
@@ -626,8 +628,9 @@ async function deliver(env, ctx, F, M, m, now) {
   // المرسل نفسه يعرف إن المجدولة انرسلت
   await env.DB.batch(stmts);
   const quiet = qparse(F.quiet);
-  const loud = targets.filter((t) => t.endpoint && !(quiet.on && jarr(t.members).every((x) => kids.has(x)) && inQuiet(quiet, t.tz, now)));
-  ctx.waitUntil(push(env, loud, { t: 'm', id: m.id, chat: m.chat, s: m.sender, k: m.kind, p: m.prev || '', at: now, ...((m.kind === 'text' || m.kind === 'react') && m.body.length <= 2400 ? { b: m.body } : {}) }));
+  let loud = targets.filter((t) => t.endpoint && !(quiet.on && jarr(t.members).every((x) => kids.has(x)) && inQuiet(quiet, t.tz, now)));
+  if (m.kind === 'ev') loud = loud.filter((t) => (m.to || []).length && jarr(t.members).some((x) => m.to.includes(x)));
+  if (loud.length) ctx.waitUntil(push(env, loud, { t: 'm', id: m.id, chat: m.chat, s: m.sender, k: m.kind, p: m.prev || '', at: now, ...(m.to ? { to: m.to } : {}), ...((m.kind === 'text' || m.kind === 'react' || m.kind === 'ev') && m.body.length <= 2400 ? { b: m.body } : {}) }));
   ctx.waitUntil((async () => {
     if (!targets.length) await env.DB.prepare('DELETE FROM msgs WHERE id=?').bind(m.id).run();
     await count(env, 'msg_' + m.kind, 1);

@@ -74,7 +74,7 @@ async function onPush(data) {
     }
   } catch (e) {}
   // رقم الأيقونة أول شي (قبل الإشعار): آيفون يوقف الـ SW بسرعة بعد ما يطلع الإشعار
-  const nNew = items.filter((it) => it.t === 'm' && it.k !== 'react').length;
+  const nNew = items.filter((it) => it.t === 'm' && it.k !== 'react' && it.k !== 'ev').length;
   if (nNew) { try { const n = (await NB.kv.get('badge').catch(() => 0)) || 0; await NB.badge(n + nNew); } catch (e) {} }
   const prof = await NB.profile().catch(() => ({ members: {} }));
   const dev = (await NB.kv.get('dev').catch(() => null)) || { members: [] };
@@ -101,6 +101,17 @@ async function onPush(data) {
       }
       body = NB.KIND[it.k] || 'رسالة';
       if (it.k === 'text' && it.p) { try { body = (await NB.decJSON(it.p)).x || body; } catch (e) {} }
+      if (it.k === 'ev') {
+        // «نبي» والمهام: النص جاهز ومشفّر في p، ويوصل بس لصاحب الشأن
+        let x = '', kind = 'buy';
+        try { x = (await NB.decJSON(it.p)).x || ''; } catch (e) {}
+        try { kind = JSON.parse(NB.unpack(await NB.dec(it.b)).head.text).t === 'task' ? 'task' : 'buy'; } catch (e) {}
+        if (!x) continue;
+        opt.data = Object.assign({}, it, { ev: kind });
+        Object.assign(opt, { tag: 'ev-' + kind, renotify: true, timestamp: Date.now() });
+        shown.push(self.registration.showNotification(kind === 'task' ? '✅ المهام' : '🛒 نبي', Object.assign(opt, { body: x })));
+        continue;
+      }
       if (it.k === 'react') {
         let e = '';
         try { e = NB.unpack(await NB.dec(it.b)).head.e || ''; } catch (x) {}
@@ -148,6 +159,7 @@ self.addEventListener('notificationclick', (e) => {
   const it = e.notification.data || {};
   let q = '';
   if (it.t === 'n') q = '#nudge=' + it.id + '&f=' + it.f + '&to=' + it.to;
+  else if (it.t === 'm' && it.k === 'ev') q = '#' + (it.ev === 'task' ? 'tasks' : 'buy');
   else if (it.t === 'm') q = '#chat=' + encodeURIComponent(it.chat);
   else if (it.t === 'b') q = '#backup';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
