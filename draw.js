@@ -79,6 +79,15 @@ var DR = (function () {
   var CATS = [['h', '🐪 تراثنا'], ['a', '🐱 حيوانات'], ['v', '🚀 فضاء ومركبات'], ['n', '🌈 أشياء حلوة'], ['fam', '👨‍👩‍👧 العائلة'], ['photo', '📷 صورتك'], ['bg', '🎨 لون الورقة']];
 
   var COLORS = ['#1B2333', '#E53935', '#FF7043', '#FF8A3D', '#F5B62A', '#FFE14D', '#8BD346', '#23854D', '#00A896', '#3FC1C9', '#9AD3F5', '#2F6FDB', '#3D3DB4', '#7E57C2', '#A13D8F', '#F28AB2', '#FFD6E7', '#8A5A3C', '#C49A6C', '#FFE0B2', '#9E9E9E', '#FFFFFF'];
+  // لوحة الألوان الكاملة (٧٢ لون في مجموعات)
+  var PALETTE = [
+    ['🌈 زاهية', ['#E53935', '#F4511E', '#FB8C00', '#FFB300', '#FDD835', '#C0CA33', '#7CB342', '#43A047', '#00897B', '#00ACC1', '#1E88E5', '#3949AB', '#5E35B1', '#8E24AA', '#D81B60', '#6D4C41']],
+    ['🍭 فاتحة', ['#FFCDD2', '#FFCCBC', '#FFE0B2', '#FFECB3', '#FFF9C4', '#F0F4C3', '#DCEDC8', '#C8E6C9', '#B2DFDB', '#B2EBF2', '#BBDEFB', '#C5CAE9', '#D1C4E9', '#E1BEE7', '#F8BBD0', '#D7CCC8']],
+    ['🌙 غامقة', ['#B71C1C', '#BF360C', '#E65100', '#FF6F00', '#F57F17', '#827717', '#33691E', '#1B5E20', '#004D40', '#006064', '#0D47A1', '#1A237E', '#311B92', '#4A148C', '#880E4F', '#3E2723']],
+    ['⚡ فسفورية', ['#FF1744', '#FF3D00', '#FF9100', '#FFEA00', '#C6FF00', '#76FF03', '#00E676', '#1DE9B6', '#00E5FF', '#2979FF', '#651FFF', '#D500F9']],
+    ['🧑 بشرة وشعر', ['#FDE3CF', '#F9D3B4', '#EDB98A', '#D59A6A', '#B07850', '#8D5524', '#5C3A21', '#2B1B12', '#F2D16B', '#C68B59', '#A0522D', '#E6E6E6']],
+    ['⚪ رمادي', ['#FFFFFF', '#E0E0E0', '#BDBDBD', '#9E9E9E', '#757575', '#616161', '#424242', '#212121', '#000000']]
+  ];
   var BGS = ['#FFFFFF', '#FFF4C7', '#FAD9E6', '#DCEBFA', '#D6F0E0', '#E6E0FA', '#FFE0D6', '#BDE7FF', '#1B2333', '#2B3FA8', '#0F8B8D', '#F5B62A'];
   var BRUSHES = [['pen', '✏️', 'قلم'], ['crayon', '🖍️', 'شمع'], ['glitter', '✨', 'لمعة'], ['spray', '💨', 'بخاخ'], ['water', '💧', 'مائي'], ['pattern', '⭐', 'رشّة أشكال'], ['rainbow', '🌈', 'قوس قزح'], ['glow', '💡', 'نيون'], ['fill', '🪣', 'تعبئة'], ['shape', '🔷', 'أشكال'], ['erase', '🧽', 'ممحاة']];
   var PATS = [['star', '⭐'], ['heart', '❤️'], ['flower', '🌸'], ['dot', '⚪'], ['rb', '🌈']];
@@ -454,9 +463,25 @@ var DR = (function () {
     $('#dzr').onclick = function () { view = { s: 1, x: 0, y: 0 }; applyView(); };
 
     /* ---- اللوحة ---- */
+    var recent = (function () { try { return JSON.parse(localStorage.getItem('nabd-dcol') || '[]'); } catch (e) { return []; } })();
+    function setColor(c) {
+      st.color = c; recent = [c].concat(recent.filter(function (x) { return x !== c; })).slice(0, 8);
+      try { localStorage.setItem('nabd-dcol', JSON.stringify(recent)); } catch (e) {}
+      pop(880); paintCtx();
+    }
     function colorRow() {
-      return '<div class="d2colors">' + COLORS.map(function (c) { return '<button class="sw' + (c === st.color ? ' on' : '') + '" data-c="' + c + '" aria-label="لون" style="background:' + c + '"></button>'; }).join('') +
-        '<label class="sw d2pick' + (COLORS.indexOf(st.color) < 0 ? ' on' : '') + '" aria-label="لون من عندك"' + (COLORS.indexOf(st.color) < 0 ? ' style="background:' + st.color + '"' : '') + '><input type="color" id="dcp" value="' + st.color + '"></label></div>';
+      var rec = recent.filter(function (c) { return COLORS.indexOf(c) < 0; }).slice(0, 6);
+      var sw = function (c) { return '<button class="sw' + (c === st.color ? ' on' : '') + '" data-c="' + c + '" aria-label="لون" style="background:' + c + '"></button>'; };
+      var known = COLORS.indexOf(st.color) >= 0 || rec.indexOf(st.color) >= 0;
+      return '<div class="d2colors"><button class="d2pal" id="dpal" aria-label="كل الألوان">🎨<b>ألوان</b></button>' +
+        (rec.length ? rec.map(sw).join('') + '<i class="d2sep"></i>' : '') + COLORS.map(sw).join('') +
+        '<label class="sw d2pick' + (known ? '' : ' on') + '" aria-label="لون من عندك"' + (known ? '' : ' style="background:' + st.color + '"') + '><input type="color" id="dcp" value="' + st.color + '"></label></div>';
+    }
+    function paletteSheet() {
+      var sh = A.sheet('<div class="row"><h2 class="grow" style="font-size:22px">🎨 كل الألوان</h2><button class="icb flat" id="x" aria-label="إغلاق">' + A.ic('close') + '</button></div>' +
+        PALETTE.map(function (g) { return '<div class="d2pg"><span class="label" style="margin:0">' + g[0] + '</span><div class="d2grid">' + g[1].map(function (c) { return '<button class="' + (c === st.color ? 'on' : '') + '" data-pc="' + c + '" aria-label="لون" style="background:' + c + '"></button>'; }).join('') + '</div></div>'; }).join(''));
+      $('#x', sh).onclick = function () { sh.remove(); };
+      sh.querySelectorAll('[data-pc]').forEach(function (b) { b.onclick = function () { sh.remove(); setColor(b.dataset.pc); }; });
     }
     function paintCtx() {
       var box = $('#dctx'), t = st.tool, h = '';
@@ -466,10 +491,13 @@ var DR = (function () {
       else if (t === 'erase') h = '<p class="d2hint">🧽 امسح بإصبعك · الحجم من تحت</p>';
       else h = colorRow() + (t === 'fill' ? '<p class="d2hint" style="padding:4px 2px 0">اضغط داخل أي شكل يتلوّن كله 🪣</p>' : '');
       box.innerHTML = h;
-      box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { st.color = b.dataset.c; pop(880); paintCtx(); }; });
+      box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { setColor(b.dataset.c); }; });
+      if ($('#dpal')) $('#dpal').onclick = paletteSheet;
+      var on = box.querySelector('.d2colors .on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) {}
       box.querySelectorAll('[data-pt]').forEach(function (b) { b.onclick = function () { st.pat = b.dataset.pt; paintCtx(); }; });
       box.querySelectorAll('[data-sh]').forEach(function (b) { b.onclick = function () { st.shape = b.dataset.sh; paintCtx(); }; });
-      var cp = $('#dcp'); if (cp) cp.oninput = function () { st.color = cp.value.toUpperCase(); var l = cp.parentNode; l.style.background = st.color; box.querySelectorAll('.sw').forEach(function (x) { x.classList.toggle('on', x === l); }); };
+      var cp = $('#dcp'); if (cp) cp.onchange = function () { setColor(cp.value.toUpperCase()); };
+      if (cp) cp.oninput = function () { st.color = cp.value.toUpperCase(); var l = cp.parentNode; l.style.background = st.color; box.querySelectorAll('.sw').forEach(function (x) { x.classList.toggle('on', x === l); }); };
     }
     function setTool(t) { st.tool = t; el.querySelectorAll('[data-tool]').forEach(function (x) { x.classList.toggle('on', x.dataset.tool === t); }); paintCtx(); }
     el.querySelectorAll('[data-tool]').forEach(function (b) { b.onclick = function () { setTool(b.dataset.tool); pop(600); }; });
