@@ -1020,7 +1020,7 @@ var A = (function () {
     K.sort(function (a, b) { return b.age - a.age; });
     if (K.length > 1) { var mid = [], k2 = K.slice(); while (k2.length) { mid.push(k2.shift()); if (k2.length) mid.unshift(k2.shift()); } K = mid; }
     if (!P.length && !K.length && !pets.length) return '';
-    var W = wIn || Math.max(260, Math.min(360, (window.innerWidth || 390) - 40)), H = Math.round(W * .47);
+    var W = wIn || Math.max(260, Math.min(360, (window.innerWidth || 390) - 40)), H = Math.round(W * (wIn ? .47 : .4));
     var u = H / 172;   // كل المقاسات نسبةً للارتفاع
     var bg = FPBG[g.bg] && g.bg ? FPBG[g.bg] : null;
     var fig = function (f, sz, x, bottom, z) {
@@ -1078,7 +1078,7 @@ var A = (function () {
     var el = show(
       '<div class="hband"><header class="hero4"><div class="h4brand"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="h4tag">مع عائلتي دائماً</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
       '<div class="h4fam">' + famPortrait() + '</div>' +
-      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 58) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '<span class="swb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>') + '</button></header>' +
+      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 48) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '<span class="swb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>') + '</button></header>' +
       '<div class="chips2"><button class="chip2" id="starC"><img class="i3" src="icons/3d/star.png" alt=""><span>نجوم هالشهر</span></button>' +
       '<button class="chip2" id="rwC"><span style="font-size:19px">🎁</span><span>المكافآت</span></button></div></div>' +
       '<div id="bdc"></div>' +
