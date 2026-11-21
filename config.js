@@ -2,7 +2,7 @@
    VERSION: غيّره مع كل تحديث (ومعه CACHE في sw.js و ?v= في index.html)
    API: رابط السيرفر (nabd-api) · VAPID: المفتاح العام للإشعارات */
 var CONFIG = {
-  VERSION: '4.2.0',
+  VERSION: '4.2.1',
   SITE: 'https://nabd.wamdarc.com',
   API: 'https://nabd-api.bsshfi.workers.dev',
   // مفتاح دخول Google (OAuth Client ID) للنسخ على Google Drive — عام وآمن (مو سر)، فاضي = الميزة مخفية

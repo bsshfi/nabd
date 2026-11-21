@@ -450,9 +450,9 @@
       var last = R[0], gl = R[1], go = R[2], gon = !!R[3], parentT = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
       var gcard = GD.ok() && parentT ? '<div class="card col gdcard" style="gap:12px"><div class="row"><span class="gdic"><svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true"><path fill="#0F9D58" d="M16 6h16l14 24H30z"/><path fill="#FFC107" d="M16 6 2 30l8 14 14-24z"/><path fill="#4285F4" d="M10 44h28l8-14H18z"/></svg></span><span class="col grow" style="gap:0"><b style="font-size:17px">Google Drive</b><span class="tiny muted">' + (gl ? 'آخر نسخة: ' + A.fmtDate(gl.t) + ' · ' + A.num(gl.n) + ' رسالة' : 'ما فيه نسخة على Drive بعد') + '</span></span></div>' +
         '<div class="gdopts"><label><input type="checkbox" checked disabled> 🔑 كود العائلة والأفراد</label><label><input type="checkbox" id="gdC"' + (go.chats ? ' checked' : '') + '> 💬 المحادثات والصوتيات</label><label><input type="checkbox" id="gdM"' + (go.media ? ' checked' : '') + '> 🖼️ الصور والرسومات</label></div>' +
-        '<div class="row" style="gap:8px"><button class="btn" id="gdB" style="flex:3">☁️ انسخ على Drive الحين</button><button class="btn ghost" id="gdR" style="flex:2">استرجاع</button></div>' +
+        '<div class="row" style="gap:8px"><button class="btn" id="gdB" style="flex:3">☁️ نسخ احتياطي Google Drive</button><button class="btn ghost" id="gdR" style="flex:2">استرجاع</button></div>' +
         '<button class="row gdauto" id="gdA"><span class="grow col" style="gap:0;text-align:start"><span>تذكير بالنسخة كل أسبوع</span><span class="tiny muted">يطلع لك زر في الرئيسية لما تصير النسخة أقدم من أسبوع</span></span><span class="tog' + (gon ? ' on' : '') + '" id="gdAT"></span></button>' +
-        '<span class="tiny muted">نبض يشوف بس الملفات اللي سواها في Drive (مجلد «نبض — نسخ احتياطية»)، ونخلي آخر ٦ نسخ. الكود في النسخة يرجّع العائلة كلها، فلا تشارك الملف مع أحد.</span></div>' : '';
+        '<span class="tiny muted">النسخة تنحفظ في حسابك الشخصي في Google Drive، داخل مجلد «نبض — نسخ احتياطية»، وتروح من جوالك لـ Google مباشرة، وما تنرفع أي نسخة على خوادمنا. ونبض يقدر يشوف بس الملفات اللي سواها، ويخلي آخر ٦ نسخ. وفي النسخة كود العائلة، فلا تشارك الملف مع أحد.</span></div>' : '';
       var el = A.show(head('النسخ الاحتياطي') + gcard +
         (admin ? '<div class="card col" style="gap:12px"><div class="row"><span class="av" style="width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink)">' + ic('key') + '</span><span class="col grow" style="gap:0"><b style="font-size:17px">كود العائلة</b><span class="tiny muted">يرجّع المجموعة لأي جهاز انحذف منه التطبيق</span></span></div>' +
           '<div class="inp code" id="cd" style="height:auto;padding:14px;border-style:dashed;font-size:24px">' + esc(S.acct.code || '—') + '</div>' +
@@ -552,7 +552,7 @@
           if (!quiet) A.toast('☁️ انحفظت في Google Drive (' + A.num(r.n) + ' رسالة)', 3500);
         });
       });
-    }).catch(function (e) { A.toast((e && e.msg) || 'ما قدرنا ننسخ على Drive', 3500); throw e; }).then(function () { if (btn) { btn.disabled = false; btn.textContent = '☁️ انسخ على Drive الحين'; } }, function () { if (btn) { btn.disabled = false; btn.textContent = '☁️ انسخ على Drive الحين'; } });
+    }).catch(function (e) { A.toast((e && e.msg) || 'ما قدرنا ننسخ على Drive', 3500); throw e; }).then(function () { if (btn) { btn.disabled = false; btn.textContent = '☁️ نسخ احتياطي Google Drive'; } }, function () { if (btn) { btn.disabled = false; btn.textContent = '☁️ نسخ احتياطي Google Drive'; } });
   }
   /* قائمة النسخ في Drive، ونرجّع اللي يختاره. onPick(file, json) */
   function gdPick(onPick) {
