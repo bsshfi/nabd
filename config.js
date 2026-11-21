@@ -5,5 +5,7 @@ var CONFIG = {
   VERSION: '4.1.1',
   SITE: 'https://nabd.wamdarc.com',
   API: 'https://nabd-api.bsshfi.workers.dev',
+  // مفتاح دخول Google (OAuth Client ID) للنسخ على Google Drive — عام وآمن (مو سر)، فاضي = الميزة مخفية
+  GCLIENT: '',
   VAPID: 'BA1DWhF8CIJMdDMHRC6gILasjlvmJt0S2Oaice-WbL3g-eqcXIYMsW3R289wnajDBCTUD2wSC0V30OGxQkkwflY'
 };

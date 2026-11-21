@@ -262,6 +262,7 @@ var A = (function () {
       '<button class="btn block" id="joinB">رجّعني للعائلة</button><div class="err" id="jerr">' + esc(err || '') + '</div><span class="tiny muted" style="text-align:center;margin-top:-8px">بعدها تختار مين أنت من الأفراد</span></form>' +
       '<div class="card row"><span style="color:var(--brand)">' + ic('up') + '</span><span class="grow col" style="gap:0"><b style="font-size:15px">عندك نسخة كاملة؟</b><span class="tiny muted">ترجع رسائلك وصورك من ملف على جهازك</span></span>' +
       '<label class="btn sm" style="background:var(--brand-soft);color:var(--brand-ink)">اختر ملف<input type="file" id="bfile" accept=".nabd,.json,application/json" hidden></label></div>' +
+      (window.GD && GD.ok() ? '<button class="card row" id="gdW" style="text-align:start;gap:12px"><span style="font-size:26px">☁️</span><span class="grow col" style="gap:0"><b style="font-size:15px">رجّع من Google Drive</b><span class="tiny muted">لو ولي الأمر نسخ العائلة على Drive: الكود والأفراد والرسائل</span></span></button>' : '') +
       installTip() +
       '<div class="col center" style="margin-top:auto;gap:8px"><span class="small muted">أول مرة تستخدم نَبْض؟</span><button class="btn line" id="newF">أنشئ عائلة جديدة</button></div>'
     );
@@ -270,6 +271,8 @@ var A = (function () {
     $('#joinF').onsubmit = function (e) { e.preventDefault(); join($('#code').value); };
     $('#newF').onclick = createFlow;
     $('#bfile').onchange = function () { var f = this.files[0]; if (f) { S.restoreFile = f; welcome(); } };
+    if ($('#gdW')) { GD.preload(); $('#gdW').onclick = function () { A.gdWelcome(); }; }
+    if (A.gdResume) setTimeout(A.gdResume, 300);
     bindInstall(el);
   }
   var deferredInstall = null;
@@ -308,7 +311,7 @@ var A = (function () {
     }).then(function () {
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
       history.replaceState(null, '', location.pathname);
-      if (S.restoreFile) return A.importBackup(S.restoreFile).then(function (n) { S.restoreFile = null; toast('رجّعنا ' + num(n) + ' رسالة من النسخة ✓', 3500); });
+      // النسخة (لو فيه) نرجّعها بعد ما يختار مين يستخدم الجهاز، عشان ياخذ بس محادثاته
     }).then(function () { picker(true); startLoop(); }).catch(function (e) {
       b.disabled = false; b.textContent = 'رجّعني للعائلة';
       $('#jerr').textContent = e && e.status === 404 ? 'الكود غير صحيح. تأكد منه من جوال الأب أو الأم.' : e && e.status === 429 ? 'محاولات كثيرة، جرّب بعد ' + (e.wait || 15) + ' دقيقة.' : e && e.error === 'network' ? 'ما فيه اتصال بالإنترنت.' : 'ما قدرنا نكمل، جرّب مرة ثانية.';
@@ -1072,16 +1075,20 @@ var A = (function () {
     if (b.classList.contains('on') && t !== 'me') return;
     if (t === 'home') home(); else if (t === 'album') album(); else if (t === 'stars') starGallery(); else if (t === 'me') editMe(); else if (t === 'gear') A.settings();
   });
+  /* محادثات كل الأفراد اللي على هذا الجهاز */
+  function deviceChats() { var o = []; S.dev.members.forEach(function (id) { if (live().indexOf(id) >= 0) chatsFor(id).forEach(function (c) { if (o.indexOf(c) < 0) o.push(c); }); }); return o; }
   function home() {
     if (!S.me || live().indexOf(S.me) < 0 || S.dev.members.indexOf(S.me) < 0) return picker();
     S.view = 'home'; S.chat = null;
+    if (S.restoreFile && A.importBackup) { var rf = S.restoreFile; S.restoreFile = null; A.importBackup(rf, deviceChats()).then(function (n) { toast('رجّعنا ' + num(n) + ' رسالة من النسخة ✓', 3500); if (S.view === 'home') renderChats(); }, function (e) { toast(e && e.msg || 'النسخة ما رجعت'); }); }
+    if (A.gdResume) setTimeout(A.gdResume, 300);
     var el = show(
       '<div class="hband"><header class="hero4"><div class="h4brand"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="h4tag">مع عائلتي دائماً</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
       '<div class="h4fam">' + famPortrait() + '</div>' +
       '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 48) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '<span class="swb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>') + '</button></header>' +
       '<div class="chips2"><button class="chip2" id="starC"><img class="i3" src="icons/3d/star.png" alt=""><span>نجوم هالشهر</span></button>' +
       '<button class="chip2" id="rwC"><span style="font-size:19px">🎁</span><span>المكافآت</span></button></div></div>' +
-      '<div id="bdc"></div>' +
+      '<div id="bdc"></div><div id="gdn"></div>' +
       '<div class="fx3"><button class="fxt gl2 t-or" id="drawBig"><span class="fxi"><img src="icons/3d/palette.png" alt=""></span><b>ارسم للعائلة</b><small>فُرش وتلوين</small><span class="fxg">' + CHEV + '</span></button>' +
       '<button class="fxt gl2 t-bl" id="buyB"><span class="fxi"><img src="icons/3d/cart.png" alt=""></span><b>نبي من البقالة</b><small id="buyN">اطلب من البقالة</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="buyC" hidden></span></button>' +
       '<button class="fxt gl2 t-gr" id="taskB"><span class="fxi"><img src="icons/3d/check.png" alt=""></span><b>مهامي</b><small id="taskN">مهام اليوم</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="taskC" hidden></span></button></div>' +
@@ -1094,6 +1101,11 @@ var A = (function () {
     $('#buyB', el).onclick = buyScreen; $('#taskB', el).onclick = tasksScreen;
     $('#starC', el).onclick = rewardsScreen; $('#rwC', el).onclick = rewardsScreen;
     var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
+    if (A.gdDue) A.gdDue().then(function (due) {
+      var g = $('#gdn'); if (!due || !g || S.view !== 'home') return;
+      g.innerHTML = '<div class="card row gdnote"><span style="font-size:26px">☁️</span><span class="grow col" style="gap:0"><b>نسخة Drive الأسبوعية</b><small class="muted">صار لها أكثر من أسبوع</small></span><button class="btn sm" id="gdNb">انسخ</button></div>';
+      $('#gdNb').onclick = function () { var b = this; GD.preload(); A.gdNow(b); };
+    });
     el.querySelectorAll('[data-bdc]').forEach(function (b) { b.onclick = function () { var id = b.dataset.bdn; S.chat = b.dataset.bdc; sendMsg('text', { text: 'كل عام و' + (fem(id) ? 'أنتِ' : 'أنت') + ' بخير يا ' + nm(id) + ' 🎂🎉' }); toast('انرسلت التهنئة 🎉'); }; });
     if ((bdInfo(S.me) || {}).days === 0) { var k = 'nabd-bd:' + S.me + ':' + new Date().getFullYear(); try { if (!localStorage.getItem(k)) { localStorage.setItem(k, 1); setTimeout(function () { starBurst('🎂 كل عام وأنت بخير يا ' + nm(S.me) + '!'); }, 600); } } catch (e) {} }
     renderChats(); renderHomeNotice();
@@ -2306,7 +2318,7 @@ var A = (function () {
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, famPortrait: famPortrait, FPBG: FPBG, FPX: FPX, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
-    sendMsg: sendMsg, sendReact: sendReact, starBurst: starBurst, liveOk: !!window.WebSocket, rewardsScreen: rewardsScreen, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
+    sendMsg: sendMsg, deviceChats: deviceChats, sendReact: sendReact, starBurst: starBurst, liveOk: !!window.WebSocket, rewardsScreen: rewardsScreen, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
     standalone: standalone, plat: plat,
     installPrompt: function () { if (!deferredInstall) return Promise.resolve(false); deferredInstall.prompt(); return deferredInstall.userChoice.then(function (c) { deferredInstall = null; return c && c.outcome === 'accepted'; }, function () { return false; }); },
     canInstall: function () { return !!deferredInstall; },

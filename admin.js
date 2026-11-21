@@ -446,8 +446,14 @@
     if (!A.isParent(S.me) && !canAdmin()) return A.settings();
     S.view = 'backup';
     var admin = canAdmin();
-    NB.kv.get('lastBackup').then(function (last) {
-      var el = A.show(head('النسخ الاحتياطي') +
+    Promise.all([NB.kv.get('lastBackup'), NB.kv.get('gdLast'), gdOpt(), NB.kv.get('gdOn')]).then(function (R) {
+      var last = R[0], gl = R[1], go = R[2], gon = !!R[3], parentT = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
+      var gcard = GD.ok() && parentT ? '<div class="card col gdcard" style="gap:12px"><div class="row"><span class="gdic"><svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true"><path fill="#0F9D58" d="M16 6h16l14 24H30z"/><path fill="#FFC107" d="M16 6 2 30l8 14 14-24z"/><path fill="#4285F4" d="M10 44h28l8-14H18z"/></svg></span><span class="col grow" style="gap:0"><b style="font-size:17px">Google Drive</b><span class="tiny muted">' + (gl ? 'آخر نسخة: ' + A.fmtDate(gl.t) + ' · ' + A.num(gl.n) + ' رسالة' : 'ما فيه نسخة على Drive بعد') + '</span></span></div>' +
+        '<div class="gdopts"><label><input type="checkbox" checked disabled> 🔑 كود العائلة والأفراد</label><label><input type="checkbox" id="gdC"' + (go.chats ? ' checked' : '') + '> 💬 المحادثات والصوتيات</label><label><input type="checkbox" id="gdM"' + (go.media ? ' checked' : '') + '> 🖼️ الصور والرسومات</label></div>' +
+        '<div class="row" style="gap:8px"><button class="btn" id="gdB" style="flex:3">☁️ انسخ على Drive الحين</button><button class="btn ghost" id="gdR" style="flex:2">استرجاع</button></div>' +
+        '<button class="row gdauto" id="gdA"><span class="grow col" style="gap:0;text-align:start"><span>تذكير بالنسخة كل أسبوع</span><span class="tiny muted">يطلع لك زر في الرئيسية لما تصير النسخة أقدم من أسبوع</span></span><span class="tog' + (gon ? ' on' : '') + '" id="gdAT"></span></button>' +
+        '<span class="tiny muted">نبض يشوف بس الملفات اللي سواها في Drive (مجلد «نبض — نسخ احتياطية»)، ونخلي آخر ٦ نسخ. الكود في النسخة يرجّع العائلة كلها، فلا تشارك الملف مع أحد.</span></div>' : '';
+      var el = A.show(head('النسخ الاحتياطي') + gcard +
         (admin ? '<div class="card col" style="gap:12px"><div class="row"><span class="av" style="width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink)">' + ic('key') + '</span><span class="col grow" style="gap:0"><b style="font-size:17px">كود العائلة</b><span class="tiny muted">يرجّع المجموعة لأي جهاز انحذف منه التطبيق</span></span></div>' +
           '<div class="inp code" id="cd" style="height:auto;padding:14px;border-style:dashed;font-size:24px">' + esc(S.acct.code || '—') + '</div>' +
           '<div class="row" style="gap:8px"><button class="btn sm block" id="cc">نسخ الكود</button><button class="btn sm ghost block" id="cs">مشاركة</button><button class="btn sm danger block" id="cn">كود جديد</button></div>' +
@@ -461,6 +467,14 @@
         '<span class="tiny muted">الرسائل ما تنحفظ في السيرفر، فهذي النسخة هي الطريقة الوحيدة لترجيعها لو انحذف التطبيق.</span></div>' +
         '<button class="card row" id="rem" style="text-align:start"><span class="grow col" style="gap:0"><span>تذكير أسبوعي بالنسخ</span><span class="tiny muted">إشعار كل جمعة الساعة ٨ مساءً</span></span><span class="tog' + (S.reminder ? ' on' : '') + '" id="remT"></span></button>');
       bindBack(A.settings);
+      if ($('#gdB')) {
+        GD.preload();
+        var saveO = function () { NB.kv.set('gdOpt', { chats: $('#gdC').checked, media: $('#gdM').checked }); };
+        $('#gdC').onchange = saveO; $('#gdM').onchange = saveO;
+        $('#gdB').onclick = function () { var b = this; if (!$('#gdC').checked && !$('#gdM').checked) A.toast('🔑 بننسخ الكود والأفراد بس'); GD.signIn('backup').then(function () { return gdBackup(b).then(function () { A.backup(); }); }, function (e) { if (e && e.msg) A.toast(e.msg); }); };
+        $('#gdR').onclick = function () { GD.signIn('restore').then(gdRestoreHere, function (e) { if (e && e.msg) A.toast(e.msg); }); };
+        $('#gdA').onclick = function () { var on = !$('#gdAT').classList.contains('on'); $('#gdAT').classList.toggle('on', on); NB.kv.set('gdOn', on); if (on) A.toast('🔔 بنذكرك كل أسبوع في الرئيسية'); };
+      }
       NB.msgs.all().then(function (all) { var b = all.reduce(function (t, m) { return t + NB.mediaSize(m) + (m.text || '').length * 2; }, 0); var e = $('#bs'); if (e) e.textContent = 'الحجم: ' + mb(b * 1.35) + ' · ' + A.num(all.length) + ' رسالة'; });
       if (admin) {
         $('#cc').onclick = function () { A.copy(S.acct.code); };
@@ -493,35 +507,107 @@
   };
 
   function blobB64(b) { return new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(',')[1] || ''); }; fr.readAsDataURL(b); }); }
-  function exportBackup(kinds, btn) {
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
-    NB.msgs.all().then(function (all) {
+  /* نجهّز ملف النسخة (نفس الصيغة للملف وللـ Drive). withCode: نضيف كود العائلة (نسخة Drive لولي الأمر) */
+  var BXTRA = ['ch', 'rp', 'cap', 'bed', 'cm', 'fr', 'lv'];
+  function buildBackup(kinds, withCode) {
+    return NB.msgs.all().then(function (all) {
       all = all.filter(function (m) { return kinds.indexOf(m.k === 'sticker' ? 'draw' : m.k) >= 0 && !m.out; }).sort(function (a, b) { return a.t - b.t; });
-      var parts = ['{"app":"nabd","v":1,"fam":' + JSON.stringify(S.acct.fam) + ',"name":' + JSON.stringify(S.prof.name) + ',"exported":' + Date.now() + ',"profile":' + JSON.stringify(S.prof) + ',"msgs":['];
+      var parts = ['{"app":"nabd","v":1,"fam":' + JSON.stringify(S.acct.fam) + ',"name":' + JSON.stringify(S.prof.name) + ',"exported":' + Date.now() + (withCode && S.acct.code ? ',"code":' + JSON.stringify(S.acct.code) : '') + ',"profile":' + JSON.stringify(S.prof) + ',"msgs":['];
       var i = 0;
       return all.reduce(function (p, m) {
         return p.then(function () {
           var o = { id: m.id, chat: m.chat, s: m.s, k: m.k, t: m.t, text: m.text, mime: m.mime, dur: m.dur, wf: m.wf, w: m.w, h: m.h, st: m.st, r: m.r, re: m.re };
+          BXTRA.forEach(function (k) { if (m[k] != null) o[k] = m[k]; });
           return (NB.media(m) ? blobB64(NB.media(m)) : Promise.resolve(null)).then(function (d) { if (d) o.data = d; parts.push((i++ ? ',' : '') + JSON.stringify(o)); });
         });
       }, Promise.resolve()).then(function () {
         parts.push(']}');
         var day = new Date().toISOString().slice(0, 10);
-        var file = new File(parts, 'nabd-' + day + '.json', { type: 'application/json' });
-        var done = function () { NB.kv.set('lastBackup', Date.now()); A.toast('انحفظت النسخة ✓ (' + A.num(all.length) + ' رسالة)', 3500); };
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && A.plat() !== 'desktop') {
-          return navigator.share({ files: [file], title: 'نسخة نَبْض' }).then(done, function (e) { if (e && e.name !== 'AbortError') download(file, done); });
-        }
-        download(file, done);
+        return { file: new File(parts, 'nabd-' + day + '.json', { type: 'application/json' }), n: all.length };
       });
+    });
+  }
+  function exportBackup(kinds, btn) {
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    buildBackup(kinds, false).then(function (r) {
+      var file = r.file;
+      var done = function () { NB.kv.set('lastBackup', Date.now()); A.toast('انحفظت النسخة ✓ (' + A.num(r.n) + ' رسالة)', 3500); };
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && A.plat() !== 'desktop') {
+        return navigator.share({ files: [file], title: 'نسخة نَبْض' }).then(done, function (e) { if (e && e.name !== 'AbortError') download(file, done); });
+      }
+      download(file, done);
     }).catch(function () { A.toast('ما قدرنا نجهز النسخة'); }).then(function () { btn.disabled = false; btn.textContent = 'حفظ نسخة كاملة'; });
   }
+
+  /* ===== ☁️ Google Drive ===== */
+  function gdOpt() { return NB.kv.get('gdOpt').then(function (o) { return Object.assign({ chats: true, media: true }, o || {}); }); }
+  function gdBackup(btn, quiet) {
+    return gdOpt().then(function (o) {
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> نجهّز النسخة…'; }
+      return buildBackup(o.chats ? (o.media ? ['text', 'voice', 'photo', 'draw'] : ['text', 'voice']) : (o.media ? ['photo', 'draw'] : []), true).then(function (r) {
+        if (btn) btn.innerHTML = '<span class="spin"></span> نرفعها لـ Drive…';
+        return GD.upload(r.file, { nabd: '1', fam: String(S.acct.fam || ''), n: String(r.n), who: String(S.me || '') }).then(function () {
+          var t = Date.now(); NB.kv.set('gdLast', { t: t, n: r.n, size: r.file.size }); NB.kv.set('lastBackup', t);
+          GD.prune(6);
+          if (!quiet) A.toast('☁️ انحفظت في Google Drive (' + A.num(r.n) + ' رسالة)', 3500);
+        });
+      });
+    }).catch(function (e) { A.toast((e && e.msg) || 'ما قدرنا ننسخ على Drive', 3500); throw e; }).then(function () { if (btn) { btn.disabled = false; btn.textContent = '☁️ انسخ على Drive الحين'; } }, function () { if (btn) { btn.disabled = false; btn.textContent = '☁️ انسخ على Drive الحين'; } });
+  }
+  /* قائمة النسخ في Drive، ونرجّع اللي يختاره. onPick(file, json) */
+  function gdPick(onPick) {
+    var sh = A.sheet('<div class="row"><h2 class="grow fd" style="font-size:22px">☁️ نسخك في Drive</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div><div id="gdl" class="col" style="gap:8px"><span class="small muted"><span class="spin"></span> نجيب القائمة…</span></div>');
+    $('#x', sh).onclick = function () { sh.remove(); };
+    GD.list().then(function (l) {
+      var box = $('#gdl', sh); if (!box) return;
+      if (!l.length) { box.innerHTML = '<div class="small muted" style="text-align:center;padding:18px">ما فيه نسخ في Drive لحد الحين</div>'; return; }
+      box.innerHTML = l.map(function (f, i) {
+        var ap = f.appProperties || {};
+        return '<button class="card row gdrow" data-gi="' + i + '"><span style="font-size:28px">☁️</span><span class="grow col" style="gap:0;text-align:start"><b>' + A.fmtDate(new Date(f.createdTime).getTime()) + ' · ' + A.fmtTime(new Date(f.createdTime).getTime()) + '</b><small class="muted">' + (ap.n ? A.num(+ap.n) + ' رسالة · ' : '') + mb(+f.size || 0) + (i === 0 ? ' · الأحدث' : '') + '</small></span>' + ic('back', 'style="transform:scaleX(-1);color:var(--soft)"') + '</button>';
+      }).join('');
+      box.querySelectorAll('[data-gi]').forEach(function (b) {
+        b.onclick = function () {
+          var f = l[+b.dataset.gi]; b.disabled = true; b.querySelector('b').innerHTML = '<span class="spin"></span> نحمّل النسخة…';
+          GD.download(f.id).then(function (blob) { return blob.text().then(function (t) { var j = JSON.parse(t); if (j.app !== 'nabd') throw 0; sh.remove(); onPick(new File([t], f.name, { type: 'application/json' }), j); }); })
+            .catch(function () { A.toast('ما قدرنا نفتح النسخة'); b.disabled = false; });
+        };
+      });
+    }, function (e) { var box = $('#gdl', sh); if (box) box.innerHTML = '<div class="err">' + esc((e && e.msg) || 'ما قدرنا نوصل لـ Drive') + '</div>'; });
+    return sh;
+  }
+  function gdRestoreHere() {
+    gdPick(function (file) {
+      A.importBackup(file, A.deviceChats()).then(function (n) { A.toast('☁️ رجعت ' + A.num(n) + ' رسالة من Drive ✓', 3500); A.backup(); }, function (e) { A.toast(e && e.msg || 'النسخة هذي ما تنفع'); });
+    });
+  }
+  /* بعد الرجوع من صفحة Google (آيفون): نكمّل اللي كان مطلوب */
+  A.gdResume = function () {
+    var act = GD.takeAct(); if (!act) return;
+    if (act === 'backup') { A.backup(); setTimeout(function () { gdBackup($('#gdB')); }, 400); }
+    else if (act === 'restore') { A.backup(); setTimeout(gdRestoreHere, 400); }
+    else if (act === 'pick') A.gdWelcomePick();
+  };
+  /* جهاز جديد (شاشة الترحيب): نختار نسخة من Drive، ونعبّي الكود منها، ونرجع للعائلة */
+  A.gdWelcomePick = function () {
+    gdPick(function (file, j) {
+      S.restoreFile = file; A.welcome();
+      var c = $('#code'); if (c && j.code) { c.value = j.code; A.toast('☁️ لقينا كود العائلة في النسخة، اضغط «رجّعني للعائلة»', 4000); }
+    });
+  };
+  A.gdWelcome = function () { GD.signIn('pick').then(function () { A.gdWelcomePick(); }, function (e) { if (e && e.msg) A.toast(e.msg); }); };
+  /* تذكير الرئيسية: صارت النسخة أقدم من أسبوع؟ */
+  A.gdDue = function () {
+    if (!GD.ok() || !A.isParent(S.me) || S.dev.trusted.indexOf(S.me) < 0) return Promise.resolve(false);
+    return Promise.all([NB.kv.get('gdLast'), NB.kv.get('gdOn')]).then(function (r) { return !!r[1] && (!r[0] || Date.now() - r[0].t > 7 * 864e5); });
+  };
+  A.gdNow = function (btn) { GD.signIn('backup').then(function () { return gdBackup(btn); }).catch(function (e) { if (e && e.msg && !btn) A.toast(e.msg); }); };
+
   function download(file, done) {
     var u = URL.createObjectURL(file), a = document.createElement('a');
     a.href = u; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(u); }, 20000); done();
   }
-  A.importBackup = function (file) {
+  A.importBackup = function (file, onlyChats) {
     return file.text().then(function (t) {
       var j; try { j = JSON.parse(t); } catch (e) { throw { msg: 'الملف هذا مو نسخة نَبْض' }; }
       if (!j || j.app !== 'nabd' || !Array.isArray(j.msgs)) throw { msg: 'الملف هذا مو نسخة نَبْض' };
@@ -531,7 +617,10 @@
         return p.then(function () {
           return NB.msgs.get(o.id).then(function (old) {
             if (old) return;
+            // كل جهاز ياخذ بس محادثات أصحابه
+            if (onlyChats && onlyChats.indexOf(o.chat) < 0) return;
             var m = { id: o.id, chat: o.chat, s: o.s, k: o.k, t: o.t, st: o.st || {}, r: o.r || [] };
+            BXTRA.forEach(function (k) { if (o[k] != null) m[k] = o[k]; });
             if (o.text != null) m.text = o.text;
             ['mime', 'dur', 'wf', 'w', 'h', 're'].forEach(function (k) { if (o[k] != null) m[k] = o[k]; });
             if (o.data) { var bin = atob(o.data), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); m.buf = u.buffer; m.mime = o.mime || ''; }

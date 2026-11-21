@@ -49,7 +49,7 @@ footer b{display:block;color:var(--text);font-size:15px;letter-spacing:.2em;dire
     <a class="back" href="./" id="backTop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg><span id="backTxt">نَبْض</span></a>
     <img src="icons/apple-touch-icon.png" alt="" width="76" height="76">
     <h1 id="ttl">سياسة الخصوصية</h1>
-    <p class="sub" id="sub">نَبْض NABD · آخر تحديث: ١٣ نوفمبر ٢٠٢٦</p>
+    <p class="sub" id="sub">نَبْض NABD · آخر تحديث: ٢١ نوفمبر ٢٠٢٦</p>
     <div class="lang" role="group" aria-label="Language">
       <button type="button" data-l="ar" aria-pressed="true">العربية</button>
       <button type="button" data-l="en" aria-pressed="false">English</button>
@@ -84,6 +84,9 @@ footer b{display:block;color:var(--text);font-size:15px;letter-spacing:.2em;dire
 
       <h2><span>📱</span>على أجهزتكم</h2>
       <p>الرسائل نفسها بعد ما توصل، ورسوماتكم المحفوظة، ولون التطبيق، والخلفيات. وتنمسح الرسائل حسب إعداد «المسح التلقائي» اللي يختاره وليّ الأمر، أو بإزالة التطبيق.</p>
+
+      <h2><span>☁️</span>النسخ على Google Drive (اختياري)</h2>
+      <p>إذا فعّله وليّ الأمر، تنرفع نسخة من العائلة (كود العائلة والأفراد، ومعها المحادثات والصور إذا اختارها) إلى حسابه هو في Google Drive، داخل مجلد «نبض — نسخ احتياطية». الملف يروح من الجهاز إلى Google مباشرة وما يمر على سيرفر نَبْض. ونطلب صلاحية <b>drive.file</b> بس، يعني نَبْض يشوف الملفات اللي سواها هو فقط، وما يقدر يفتح باقي ملفاتك. تقدر تشيل الصلاحية أي وقت من إعدادات حساب Google.</p>
 
       <h2><span>🧒</span>الأطفال</h2>
       <p>حسابات الأبناء يضيفها وليّ الأمر من داخل العائلة، وما يتواصلون إلا مع أفراد عائلتهم. وليّ الأمر يتحكم بالأجهزة والصلاحيات ووضع النوم، ويقدر يحذف أي جهاز. وما نجمع من الأطفال أي بيانات غير اللي لازمة لتوصيل رسائل العائلة.</p>
@@ -137,6 +140,9 @@ footer b{display:block;color:var(--text);font-size:15px;letter-spacing:.2em;dire
       <h2><span>📱</span>On your devices</h2>
       <p>Delivered messages, saved drawings, app color and wallpapers. Messages are deleted by the “auto-delete” setting a parent chooses, or by removing the app.</p>
 
+      <h2><span>☁️</span>Google Drive backup (optional)</h2>
+      <p>If a parent turns it on, a copy of the family (family code and members, plus chats and photos if chosen) is uploaded to <b>their own</b> Google Drive, in a folder named “نبض — نسخ احتياطية”. The file goes straight from the device to Google and never passes through the NABD server. We only request the <b>drive.file</b> permission, so NABD can see only the files it created and nothing else in your Drive. You can revoke access anytime in your Google account settings.</p>
+
       <h2><span>🧒</span>Children</h2>
       <p>Children’s profiles are added by a parent inside the family, and they can only talk to their own family. Parents control devices, permissions and quiet hours, and can remove any device. We collect nothing from children beyond what’s needed to deliver family messages.</p>
 
@@ -167,7 +173,7 @@ footer b{display:block;color:var(--text);font-size:15px;letter-spacing:.2em;dire
 </div>
 <script>
 (function () {
-  var T = { ar: ['سياسة الخصوصية', 'نَبْض NABD · آخر تحديث: ١٣ نوفمبر ٢٠٢٦', 'نَبْض'], en: ['Privacy Policy', 'NABD · Last updated: November 13, 2026', 'NABD'] };
+  var T = { ar: ['سياسة الخصوصية', 'نَبْض NABD · آخر تحديث: ٢١ نوفمبر ٢٠٢٦', 'نَبْض'], en: ['Privacy Policy', 'NABD · Last updated: November 21, 2026', 'NABD'] };
   function set(l) {
     document.documentElement.lang = l; document.documentElement.dir = l === 'en' ? 'ltr' : 'rtl';
     document.getElementById('ar').hidden = l !== 'ar'; document.getElementById('en').hidden = l !== 'en';
