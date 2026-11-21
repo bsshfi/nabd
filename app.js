@@ -225,6 +225,21 @@ var A = (function () {
     window.scrollTo(0, 0);
     return app.firstChild;
   }
+  /* زر يستجيب من أول لمسة: آيفون أحياناً ما يرسل click إذا تغيّر شي في الصفحة لحظة اللمس
+     (مثل وصول علامات القراءة بعد إرسال رسمة)، فنسمع لرفع الإصبع نفسه */
+  function fastTap(el, fn) {
+    if (!el) return;
+    var sx = 0, sy = 0, on = false, last = 0;
+    el.addEventListener('touchstart', function (e) { var t = e.touches[0]; on = e.touches.length === 1; sx = t.clientX; sy = t.clientY; }, { passive: true });
+    el.addEventListener('touchend', function (e) {
+      if (!on) return; on = false;
+      var t = e.changedTouches[0];
+      if (Math.abs(t.clientX - sx) + Math.abs(t.clientY - sy) > 14) return;
+      e.preventDefault(); last = Date.now(); fn(e);   // نمنع الـclick المتأخر عشان ما يضغط على الشاشة الجديدة
+    }, { passive: false });
+    el.addEventListener('touchcancel', function () { on = false; });
+    el.onclick = function (e) { if (Date.now() - last < 900) return; fn(e); };
+  }
   function sheet(html) {
     var el = document.createElement('div'); el.className = 'sheet';
     el.innerHTML = '<div role="dialog" aria-modal="true">' + html + '</div>';
@@ -777,7 +792,7 @@ var A = (function () {
       '<div class="card col" style="gap:10px;padding:12px"><div class="row" style="gap:8px"><input class="inp grow" id="bi" maxlength="60" placeholder="وش ' + (fem(S.me) ? 'تبين' : 'تبي') + '؟ مثلاً: حليب"><button class="btn" id="ba" style="flex:none;padding:0 18px">' + (p ? 'أضف' : 'اطلب') + '</button></div>' +
       '<div class="bq">' + BUYQ.map(function (q) { return '<button data-q="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div></div>' +
       '<div id="bl" class="col" style="gap:12px"></div>', 'sub');
-    $('#bk', el).onclick = home;
+    fastTap($('#bk', el), function () { home(); });
     var add = function (name) {
       name = (name || '').trim(); if (!name) return;
       sendEv({ t: 'buy', a: 'add', id: rid(8), name: name.slice(0, 60) }); $('#bi').value = '';
@@ -832,7 +847,7 @@ var A = (function () {
         '<div class="seg" id="tst">' + [1, 2, 3].map(function (n) { return '<button data-n="' + n + '" class="' + (n === 1 ? 'on' : '') + '">' + '⭐'.repeat(n) + '</button>'; }).join('') + '</div>' +
         '<button class="btn block" id="tgo">أرسل المهمة</button></div>' : '<p class="small muted" style="margin:-4px 2px 0">خلّص مهامك واضغط «خلّصت»، ولما يأكّد بابا أو ماما تاخذ نجومك ⭐</p>') +
       '<div id="tl" class="col" style="gap:12px"></div>', 'sub');
-    $('#bk', el).onclick = home;
+    fastTap($('#bk', el), function () { home(); });
     if (p) {
       el.querySelectorAll('[data-tq]').forEach(function (b) { b.onclick = function () { $('#ti').value = b.dataset.tq; }; });
       el.querySelectorAll('[data-k]').forEach(function (b) { b.onclick = function () { b.classList.toggle('on'); st.to = [].map.call(el.querySelectorAll('[data-k].on'), function (x) { return x.dataset.k; }); }; });
@@ -1022,7 +1037,7 @@ var A = (function () {
       '<button class="icb flat" id="wpB" aria-label="خلفية المحادثة" style="font-size:20px">🎨</button>' +
       (canNudge ? '<button class="btn sm orange" id="nudgeB" aria-label="أرسل نبضة لـ' + esc(nm(o)) + '">' + ic('pulse') + ' نبضة</button>' : '') + '</div>' +
       '<div class="msgs" id="msgs"></div><div class="compose" id="comp"></div></section>';
-    $('#bk').onclick = function () { home(); };
+    fastTap($('#bk'), function () { if (S.view === 'chat') home(); });
     $('#wpB').onclick = function () { wallSheet(chat); };
     if (canNudge) $('#nudgeB').onclick = function () { sendNudge(o); };
     composer();
@@ -1061,6 +1076,9 @@ var A = (function () {
       if (!ms.length) html = '<div class="col center" style="margin:auto;gap:6px;color:var(--muted)">' + (chat === 'g' ? '<span style="font-size:44px">' + (grp().e || '👨‍👩‍👧‍👦') + '</span><b>' + esc(grp().name) + '</b><span class="small">ابدأوا السوالف 👋</span>' : av(otherOf(chat), 80) + '<b>' + esc(nm(otherOf(chat))) + '</b><span class="small">ابدأ السوالف 👋</span>') + '</div>';
       html += nudgeCardHTML();
       var stick = scroll || atBottom;
+      // نفس المحتوى؟ ما نعيد بناء القائمة (إعادة البناء وقت اللمس تضيّع الضغطات في الآيفون)
+      if (box._h === html && box.childElementCount) { markRead(ms); return; }
+      box._h = html;
       box.innerHTML = html;
       bindMsgs(box, ms);
       var settle = function () { if (stick) box.scrollTop = box.scrollHeight; else box.scrollTop = box.scrollHeight - fromBottom; };
