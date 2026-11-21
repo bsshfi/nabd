@@ -446,9 +446,9 @@
     if (!A.isParent(S.me) && !canAdmin()) return A.settings();
     S.view = 'backup';
     var admin = canAdmin();
-    Promise.all([NB.kv.get('lastBackup'), NB.kv.get('gdLast'), gdOpt(), NB.kv.get('gdOn')]).then(function (R) {
-      var last = R[0], gl = R[1], go = R[2], gon = !!R[3], parentT = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
-      var gcard = GD.ok() && parentT ? '<div class="card col gdcard" style="gap:12px"><div class="row"><span class="gdic"><svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true"><path fill="#0F9D58" d="M16 6h16l14 24H30z"/><path fill="#FFC107" d="M16 6 2 30l8 14 14-24z"/><path fill="#4285F4" d="M10 44h28l8-14H18z"/></svg></span><span class="col grow" style="gap:0"><b style="font-size:17px">Google Drive</b><span class="tiny muted">' + (gl ? 'آخر نسخة: ' + A.fmtDate(gl.t) + ' · ' + A.num(gl.n) + ' رسالة' : 'ما فيه نسخة على Drive بعد') + '</span></span></div>' +
+    Promise.all([NB.kv.get('lastBackup'), NB.kv.get('gdLast'), gdOpt(), NB.kv.get('gdOn'), NB.kv.get('gdEmail')]).then(function (R) {
+      var last = R[0], gl = R[1], go = R[2], gon = !!R[3], gem = R[4] || '', parentT = A.isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0;
+      var gcard = GD.ok() && parentT ? '<div class="card col gdcard" style="gap:12px"><div class="row"><span class="gdic"><svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true"><path fill="#0F9D58" d="M16 6h16l14 24H30z"/><path fill="#FFC107" d="M16 6 2 30l8 14 14-24z"/><path fill="#4285F4" d="M10 44h28l8-14H18z"/></svg></span><span class="col grow" style="gap:0"><b style="font-size:17px">Google Drive</b><span class="tiny muted">' + (gl ? 'آخر نسخة: ' + A.fmtDate(gl.t) + ' · ' + A.num(gl.n) + ' رسالة' : 'ما فيه نسخة على Drive بعد') + '</span>' + (gem ? '<span class="tiny gdem">✓ تم الربط بإيميل: <b dir="ltr">' + esc(gem) + '</b></span>' : '') + '</span></div>' +
         '<div class="gdopts"><label><input type="checkbox" checked disabled> 🔑 كود العائلة والأفراد</label><label><input type="checkbox" id="gdC"' + (go.chats ? ' checked' : '') + '> 💬 المحادثات والصوتيات</label><label><input type="checkbox" id="gdM"' + (go.media ? ' checked' : '') + '> 🖼️ الصور والرسومات</label></div>' +
         '<div class="row" style="gap:8px"><button class="btn" id="gdB" style="flex:3">☁️ نسخ احتياطي Google Drive</button><button class="btn ghost" id="gdR" style="flex:2">استرجاع</button></div>' +
         '<button class="row gdauto" id="gdA"><span class="grow col" style="gap:0;text-align:start"><span>تذكير بالنسخة كل أسبوع</span><span class="tiny muted">يطلع لك زر في الرئيسية لما تصير النسخة أقدم من أسبوع</span></span><span class="tog' + (gon ? ' on' : '') + '" id="gdAT"></span></button>' +
@@ -548,7 +548,7 @@
         if (btn) btn.innerHTML = '<span class="spin"></span> نرفعها لـ Drive…';
         return GD.upload(r.file, { nabd: '1', fam: String(S.acct.fam || ''), n: String(r.n), who: String(S.me || '') }).then(function () {
           var t = Date.now(); NB.kv.set('gdLast', { t: t, n: r.n, size: r.file.size }); NB.kv.set('lastBackup', t);
-          GD.prune(6);
+          GD.prune(6); GD.email().then(function (e) { if (e) NB.kv.set('gdEmail', e); });
           if (!quiet) A.toast('☁️ انحفظت في Google Drive (' + A.num(r.n) + ' رسالة)', 3500);
         });
       });

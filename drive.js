@@ -120,9 +120,11 @@ var GD = (function () {
     });
   }
   function download(id) { return call(API + '/' + id + '?alt=media').then(function (r) { return r.blob(); }); }
+  /* إيميل حساب Google المربوط (نعرضه تحت «آخر نسخة») */
+  function email() { return call('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)').then(function (r) { return r.json(); }).then(function (j) { return (j.user && j.user.emailAddress) || ''; }, function () { return ''; }); }
   function remove(id) { return call(API + '/' + id, { method: 'DELETE' }).then(function () {}, function () {}); }
   /* نخلي آخر ٦ نسخ بس */
   function prune(keep) { return list().then(function (l) { return Promise.all(l.slice(keep || 6).map(function (f) { return remove(f.id); })); }); }
 
-  return { ok: ok, iosApp: iosApp, preload: preload, has: has, signIn: signIn, signOut: signOut, takeAct: takeAct, upload: upload, list: list, download: download, prune: prune };
+  return { email: email, ok: ok, iosApp: iosApp, preload: preload, has: has, signIn: signIn, signOut: signOut, takeAct: takeAct, upload: upload, list: list, download: download, prune: prune };
 })();
