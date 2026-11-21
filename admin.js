@@ -159,7 +159,7 @@
 
   /* ----- قروب العائلة: الاسم والرمز واللون ----- */
   var GE = ['', '🏠', '🏡', '👨‍👩‍👧‍👦', '👨‍👩‍👧', '❤️', '💙', '💚', '🧡', '💜', '🌟', '🌙', '☀️', '🌴', '🐪', '🦅', '🌸', '🍉', '☕', '🎉', '⚽', '🎮', '🕌', '📚', '✈️', '🏕️', '🦁', '🐱'];
-  var GC = ['#0F8B8D', '#3C5BD6', '#6C4BD6', '#A13D8F', '#C2410C', '#D4552B', '#23854D', '#1B2333'];
+  var GC = ['#6E3FD9', '#3C5BD6', '#0F8B8D', '#A13D8F', '#C2410C', '#D4552B', '#23854D', '#1B2333'];
   function groupSheet() {
     var g = Object.assign({}, S.prof.group || {}), fam = S.prof.name;
     var sh = A.sheet('<div class="row"><h2 class="grow fd" style="font-size:22px">قروب العائلة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
@@ -170,7 +170,33 @@
         return '<button data-ge="' + i + '" class="' + ((g.e || '') === e ? 'on' : '') + '" style="width:44px;height:44px;font-size:24px;line-height:1;background:var(--card);box-shadow:0 1px 0 var(--line)" aria-label="' + (e || 'بيت') + '">' + (e || '<svg class="ic" viewBox="0 0 24 24">' + A.IC.home + '</svg>') + '</button>';
       }).join('') + '</div></div>' +
       '<div class="field"><span>اللون</span><div class="row" style="justify-content:space-between">' + GC.map(function (c) { return '<button data-gc="' + c + '" aria-label="لون" style="width:38px;height:38px;border-radius:50%;background:' + c + ';border:3px solid var(--card);outline:' + ((g.c || GC[0]) === c ? '3px solid var(--ink)' : '0') + '"></button>'; }).join('') + '</div></div>' +
+      '<div class="field"><span>صورة العائلة في الرئيسية</span><div class="row" style="gap:8px"><button class="chip' + (g.ph ? '' : ' on') + '" id="phA" style="flex:1">🎨 من شخصياتنا</button><button class="chip' + (g.ph ? ' on' : '') + '" id="phB" style="flex:1">📷 صورة من جهازك</button></div>' +
+      '<div id="phv" style="margin-top:8px"></div><input type="file" id="phF" accept="image/*" hidden><small class="muted">«من شخصياتنا» تنرسم تلقائياً من شخصية كل فرد، وتتغيّر لحالها لو تغيّرت.</small></div>' +
       '<button class="btn block" id="gs">حفظ</button>');
+    function phv() {
+      $('#phA', sh).classList.toggle('on', !g.ph); $('#phB', sh).classList.toggle('on', !!g.ph);
+      $('#phv', sh).innerHTML = g.ph ? '<img src="' + esc(g.ph) + '" alt="" style="width:100%;aspect-ratio:1.74;object-fit:cover;border-radius:18px;display:block">' : '';
+    }
+    $('#phA', sh).onclick = function () { g.ph = ''; phv(); };
+    $('#phB', sh).onclick = function () { $('#phF', sh).click(); };
+    $('#phF', sh).onchange = function () {
+      var f = this.files[0]; this.value = ''; if (!f) return;
+      var u = URL.createObjectURL(f), im = new Image();
+      im.onload = function () {
+        // نقصّها على مقاس مكانها في الرئيسية ونصغّرها عشان تنحفظ مع بيانات العائلة المشفّرة
+        var R = 1.74, w = im.naturalWidth, h = im.naturalHeight, sw = w, sh2 = w / R;
+        if (sh2 > h) { sh2 = h; sw = h * R; }
+        var c = document.createElement('canvas'); c.width = 640; c.height = Math.round(640 / R);
+        c.getContext('2d').drawImage(im, (w - sw) / 2, (h - sh2) / 2, sw, sh2, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        var q = .8, d = c.toDataURL('image/jpeg', q);
+        while (d.length > 90000 && q > .4) { q -= .1; d = c.toDataURL('image/jpeg', q); }
+        g.ph = d; phv();
+      };
+      im.onerror = function () { URL.revokeObjectURL(u); A.toast('ما قدرنا نفتح الصورة'); };
+      im.src = u;
+    };
+    phv();
     function pv() {
       var keep = S.prof.group; S.prof.group = g;
       $('#gpv', sh).innerHTML = '<div class="chatcard fam" style="background:' + A.grp().c + ';pointer-events:none">' + A.grpIcon(56, 20) + '<span class="grow col" style="gap:2px"><span class="nm">' + esc(A.grp().name) + '</span><span class="pv">معاينة</span></span></div>';
@@ -182,7 +208,7 @@
     sh.querySelectorAll('[data-gc]').forEach(function (b) { b.onclick = function () { g.c = b.dataset.gc; sh.querySelectorAll('[data-gc]').forEach(function (x) { x.style.outline = x === b ? '3px solid var(--ink)' : '0'; }); pv(); }; });
     $('#gs', sh).onclick = function () {
       var oldG = S.prof.group, oldN = S.prof.name, nn = $('#fn2', sh).value.trim();
-      A.saveProfile({}, function () { S.prof.group = { name: g.name || '', e: g.e || '', c: g.c || '' }; if (nn) S.prof.name = nn; })
+      A.saveProfile({}, function () { S.prof.group = { name: g.name || '', e: g.e || '', c: g.c || '' }; if (g.ph) S.prof.group.ph = g.ph; if (nn) S.prof.name = nn; })
         .then(function () { sh.remove(); A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.group = oldG; S.prof.name = oldN; A.toast('ما قدرنا نحفظ'); });
     };
     pv();

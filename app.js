@@ -26,7 +26,7 @@ var A = (function () {
   // 3.1: أعلى الشاشة = لون خلفية الصفحة نفسها (بدون هيدر ملوّن)، فشريط الآيفون يطابقها دايماً
   function applySky() {
     var root = document.documentElement; delete root.dataset.sky;
-    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = root.dataset.theme === 'dark' ? '#11141A' : '#F7F3EC';
+    var m = document.querySelector('meta[name=theme-color]'); if (m) m.content = root.dataset.theme === 'dark' ? '#14121D' : '#FAF7FE';
   }
   function setTheme(t) { try { localStorage.setItem('nabd-theme', t); } catch (e) {} applyTheme(); }
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}
@@ -133,7 +133,7 @@ var A = (function () {
   }
   function linked(a, b) { var k = a < b ? a + ':' + b : b + ':' + a; return (S.fam.links || []).indexOf(k) >= 0; }
   function otherOf(chat) { var p = NB.chatParts(chat); return p ? (p[0] === S.me ? p[1] : p[0]) : null; }
-  function grp() { var g = S.prof.group || {}; return { name: g.name || 'العائلة', e: g.e || '', c: g.c || '#0F8B8D' }; }
+  function grp() { var g = S.prof.group || {}; return { name: g.name || 'العائلة', e: g.e || '', c: g.c || '#6E3FD9' }; }
   function grpIcon(size, radius) {
     var g = grp();
     return '<span class="homeic" style="width:' + size + 'px;height:' + size + 'px;border-radius:' + radius + 'px;background:' + (radius > 20 ? 'rgba(255,255,255,.18)' : g.c) + '">' +
@@ -896,6 +896,41 @@ var A = (function () {
     });
   }
   /* ===== الواجهة 2.0 — نفس هوية سهم وفلق وسراج: سماء تذوب في الرمل، ألواح زجاجية، برتقالي واحد ===== */
+  var CHEV = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>';
+  /* صورة العائلة فوق الرئيسية: تتركّب تلقائياً من شخصيات الأفراد (الأب والأم ورا، والعيال قدّام بطول أعمارهم)،
+     أو صورة يرفعها الأب/الأم من إعدادات القروب */
+  function famPortrait() {
+    var g = S.prof.group || {};
+    if (g.ph) return '<div class="fp4 ph"><img src="' + esc(g.ph) + '" alt="صورة العائلة"></div>';
+    var ids = live(), par = ids.filter(isParent), kids = ids.filter(function (id) { return !isParent(id); });
+    par.sort(function (a, b) { return (member(a).g === 'f') - (member(b).g === 'f'); });
+    var ageOf = function (id) { var i = bdInfo(id); return i && i.age ? i.age : 9; };
+    kids.sort(function (a, b) { return ageOf(b) - ageOf(a); });
+    if (kids.length > 1) { var mid = [], k2 = kids.slice(); while (k2.length) { mid.push(k2.shift()); if (k2.length) mid.unshift(k2.shift()); } kids = mid; }
+    var W = Math.max(260, Math.min(380, (window.innerWidth || 390) - 24)), H = 188;
+    var fig = function (id, sz, x, bottom, z) {
+      var a = (member(id) || {}).av || {}, m = member(id) || {};
+      var inner = a.ch && window.CH ? CH.svg(a.ch) : (!a.photo && !a.e && !a.a && window.CH) ? CH.svg(CH.presetFor(isParent(id) ? 'parent' : 'child', m.g).ch) : '<span class="fphd">' + av(id, Math.round(sz * .56)) + '</span>';
+      return '<span class="fpf" style="width:' + sz + 'px;height:' + sz + 'px;left:' + Math.round(x - sz / 2) + 'px;bottom:' + bottom + 'px;z-index:' + z + '">' + inner + '</span>';
+    };
+    var row = function (list, sizeOf, step) {
+      var sz = list.map(sizeOf), w = sz.reduce(function (n, v, i) { return n + (i ? (sz[i - 1] + v) / 2 * step : 0); }, 0);
+      return { sz: sz, w: w + (sz[0] || 0) * .9 };
+    };
+    var kSize = function (id) { var a = ageOf(id); return a < 4 ? 92 : a < 7 ? 100 : a < 10 ? 108 : a < 13 ? 116 : 124; };
+    var pSize = function () { return 140; };
+    var P = row(par, pSize, .66), K = row(kids, kSize, .7);
+    var k = Math.min(1, W / Math.max(P.w, K.w, 1));
+    if (!kids.length && !par.length) return '';
+    var out = '', place = function (list, R, step, bottom, z0) {
+      var tot = 0; R.sz.forEach(function (v, i) { if (i) tot += (R.sz[i - 1] + v) / 2 * step * k; });
+      var x = W / 2 - tot / 2;
+      list.forEach(function (id, i) { if (i) x += (R.sz[i - 1] + R.sz[i]) / 2 * step * k; out += fig(id, Math.round(R.sz[i] * k), x, bottom, z0 + (i === Math.floor(list.length / 2) ? 2 : 1)); });
+    };
+    place(par, P, .66, kids.length ? 56 : 0, 1);
+    place(kids, K, .7, -6, 4);
+    return '<div class="fp4" style="width:' + W + 'px;height:' + H + 'px"><img class="fpd d1" src="icons/3d/yheart.png" alt=""><img class="fpd d2" src="icons/3d/heart.png" alt=""><img class="fpd d3" src="icons/3d/sparkles.png" alt="">' + out + '</div>';
+  }
   var PULSE = '<svg class="pulse2" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 27C7 20.5 3.5 16.4 3.5 11.6A6.6 6.6 0 0 1 16 8.4a6.6 6.6 0 0 1 12.5 3.2c0 1.2-.2 2.3-.7 3.4"/><path d="M14 17h3l2-4 3 8 2-4h5"/></svg>';
   var TABI = {
     home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5"/>',
@@ -918,14 +953,15 @@ var A = (function () {
     if (!S.me || live().indexOf(S.me) < 0 || S.dev.members.indexOf(S.me) < 0) return picker();
     S.view = 'home'; S.chat = null;
     var el = show(
-      '<div class="hband"><header class="top2"><div class="brand2"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
-      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 60) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '') + '</button></header>' +
-      '<div class="chips2"><div class="chip2" id="starC"><span style="font-size:17px">⭐</span><span>نجوم هالشهر</span></div>' +
-      '<div class="chip2" id="todayC"><span class="dot2"></span><span>رسائل اليوم</span></div></div></div>' +
+      '<div class="hband"><header class="hero4"><div class="h4brand"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="h4tag">مع عائلتي دائماً</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
+      '<div class="h4fam">' + famPortrait() + '</div>' +
+      '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 58) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '<span class="swb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>') + '</button></header>' +
+      '<div class="chips2"><div class="chip2" id="starC"><img class="i3" src="icons/3d/star.png" alt=""><span>نجوم هالشهر</span></div>' +
+      '<div class="chip2" id="todayC"><img class="i3" src="icons/3d/mail.png" alt=""><span>رسائل اليوم</span></div></div></div>' +
       '<div id="bdc"></div>' +
-      '<div class="fx3"><button class="fxt gl2" id="drawBig"><span class="fxi fxd">🎨</span><b>ارسم للعائلة</b><small>فُرش وتلوين</small></button>' +
-      '<button class="fxt gl2" id="buyB"><span class="fxi">🛒</span><b>نبي من البقالة</b><small id="buyN">اطلب من البقالة</small><span class="fxn" id="buyC" hidden></span></button>' +
-      '<button class="fxt gl2" id="taskB"><span class="fxi">✅</span><b>مهامي</b><small id="taskN">مهام اليوم</small><span class="fxn" id="taskC" hidden></span></button></div>' +
+      '<div class="fx3"><button class="fxt gl2 t-or" id="drawBig"><span class="fxi"><img src="icons/3d/palette.png" alt=""></span><b>ارسم للعائلة</b><small>فُرش وتلوين</small><span class="fxg">' + CHEV + '</span></button>' +
+      '<button class="fxt gl2 t-bl" id="buyB"><span class="fxi"><img src="icons/3d/cart.png" alt=""></span><b>نبي من البقالة</b><small id="buyN">اطلب من البقالة</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="buyC" hidden></span></button>' +
+      '<button class="fxt gl2 t-gr" id="taskB"><span class="fxi"><img src="icons/3d/check.png" alt=""></span><b>مهامي</b><small id="taskN">مهام اليوم</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="taskC" hidden></span></button></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2 hm');
     $('#sw', el).onclick = function () { picker(); };
     $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
@@ -956,7 +992,7 @@ var A = (function () {
       evState().then(function (E) {
         if (S.view !== 'home') return;
         var p = isParent(S.me), ts = E.stars[S.me] || 0;
-        var st2 = stars + ts; if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + st2 + '</b><span>' + (st2 === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
+        var st2 = stars + ts; if (sc) sc.innerHTML = '<img class="i3" src="icons/3d/star.png" alt=""><b>' + st2 + '</b><span>' + (st2 === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
         var nb = p ? E.buy.filter(function (b) { return b.st === 'req'; }).length : E.buy.filter(function (b) { return b.st === 'ok'; }).length;
         var nt = p ? E.tasks.reduce(function (n, k) { return n + Object.keys(k.done).filter(function (w) { return !k.ok[w]; }).length; }, 0) : E.tasks.filter(function (k) { return k.to.indexOf(S.me) >= 0 && !k.done[S.me]; }).length;
         var bc = $('#buyC'), tc2 = $('#taskC');
@@ -966,8 +1002,8 @@ var A = (function () {
         if (bn) bn.textContent = p ? (nb ? nb + ' تنتظرك' : E.buy.length ? E.buy.filter(function (b) { return b.st === 'ok'; }).length + ' بالقائمة' : 'طلبات العيال') : 'اطلب اللي تبي';
         if (tn) tn.textContent = p ? (nt ? nt + ' تنتظرك' : E.tasks.length ? E.tasks.length + ' اليوم' : 'أعطهم مهام') : (nt ? 'باقي ' + nt : E.tasks.some(function (k) { return k.to.indexOf(S.me) >= 0; }) ? 'خلّصتها 👏' : 'ما فيه مهام');
       });
-      if (sc) sc.innerHTML = '<span style="font-size:17px">⭐</span><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
-      var tc = $('#todayC'); if (tc) tc.innerHTML = '<span class="dot2"></span><b>' + today + '</b><span>' + (today === 1 ? 'رسالة' : 'رسائل') + ' جديدة اليوم</span>';
+      if (sc) sc.innerHTML = '<img class="i3" src="icons/3d/star.png" alt=""><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
+      var tc = $('#todayC'); if (tc) tc.innerHTML = '<img class="i3" src="icons/3d/mail.png" alt=""><b>' + today + '</b><span>' + (today === 1 ? 'رسالة' : 'رسائل') + ' جديدة اليوم</span>';
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
       var kid = !isParent(S.me);
@@ -975,17 +1011,18 @@ var A = (function () {
       var meta = function (it, light) { return '<span class="meta2">' + (it.last ? '<span class="when2">' + whenShort(it.last.t) + '</span>' : '') + (it.unread ? '<span class="badge2" aria-label="' + num(it.unread) + ' رسالة جديدة">' + it.unread + '</span>' : it.last && it.last.s === S.me ? tickSvg(it.last, light) : '') + '</span>'; };
       // بطاقة العائلة الكبيرة (مثل بطاقة الصلاة القادمة في فلق)
       var fam = live();
-      var hero = '<div class="hero2 gl2' + (g.unread ? ' hot2' : '') + '"><button class="herob" data-c="g">' + grpIcon(58, 18) +
-        '<span class="grow col" style="gap:2px;min-width:0"><small class="lbl2">محادثة العائلة</small><span class="hn2">' + esc(grp().name) + fireT(g) + '</span>' +
-        '<span class="pv2' + (g.unread ? ' un' : '') + '">' + (g.last ? previewOf(g.last) : 'ابدأوا السوالف 👋') + '</span></span>' + meta(g) + '</button>' +
-        '<div class="faces2">' + fam.slice(0, 7).map(function (id) { return '<span style="--cc:' + colorOf(id) + '">' + av(id, 34) + '</span>'; }).join('') + (fam.length > 7 ? '<span class="more2">+' + (fam.length - 7) + '</span>' : '') +
-        '<small>' + fam.length + ' في العائلة</small></div>' + quick('g') + '</div>';
+      var hero = '<div class="hero2 hero4c gl2' + (g.unread ? ' hot2' : '') + '"><button class="herob" data-c="g">' +
+        '<span class="grow col" style="gap:2px;min-width:0"><small class="lbl2">محادثة العائلة</small><span class="hn2">' + esc(grp().name) + (grp().e ? ' <span class="ge4">' + esc(grp().e) + '</span>' : ' <img class="ge4" src="icons/3d/heart.png" alt="">') + fireT(g) + '</span>' +
+        '<span class="pv2' + (g.unread ? ' un' : '') + '">' + (g.last ? previewOf(g.last) : 'ابدأوا السوالف 👋') + '</span></span>' +
+        '<span class="house4"><img src="icons/3d/house.png" alt=""></span>' + meta(g) + '<span class="go4">' + CHEV + '</span></button>' +
+        '<div class="faces2">' + fam.slice(0, 7).map(function (id) { return '<span style="--cc:' + colorOf(id) + '">' + av(id, 36) + '</span>'; }).join('') + (fam.length > 7 ? '<span class="more2">+' + (fam.length - 7) + '</span>' : '') +
+        '<small class="cnt4"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9" r="2.6"/><path d="M2.5 19c.4-3.6 3.2-5.6 6.5-5.6s6.1 2 6.5 5.6zM15.6 13.6c2.9-.3 5.5 1.3 5.9 4.9h-4.6c-.2-1.9-.6-3.5-1.3-4.9z"/></svg>' + fam.length + ' في العائلة</small></div>' + quick('g') + '</div>';
       var rows = items.map(function (it) {
         var o = otherOf(it.c), col = colorOf(o);
         return '<div class="row2 gl2' + (it.unread ? ' hot2' : '') + '" style="--cc:' + col + '"><button class="rowb" data-c="' + esc(it.c) + '"><span class="ring2">' + av(o, 50) + '</span>' +
           '<span class="grow col" style="gap:1px;min-width:0"><span class="nm2">' + esc(nm(o)) + fireT(it) + '</span><span class="pv2' + (it.unread ? ' un' : '') + '">' + (it.last ? previewOf(it.last) : 'ابدأ السوالف 👋') + '</span></span>' + meta(it) + '</button>' + quick(it.c) + '</div>';
       }).join('');
-      box.innerHTML = hero + (rows ? '<div class="shead2"><h2>المحادثات</h2><button id="alL">الألبوم <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button></div>' + rows : '');
+      box.innerHTML = hero + (rows ? '<div class="shead2"><h2><img class="i3" src="icons/3d/chat.png" alt="">المحادثات</h2><button id="alL"><img class="i3" src="icons/3d/album.png" alt="">الألبوم <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button></div>' + rows : '');
       var al = $('#alL'); if (al) al.onclick = album;
       box.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.c); }; });
       box.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { openChat(b.dataset.qc, b.dataset.q); }; });

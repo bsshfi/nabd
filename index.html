@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>نَبْض | NABD</title>
 <meta name="description" content="تواصل العائلة فقط: صوت وكتابة وصور ورسم">
-<meta name="theme-color" content="#F7F3EC">
+<meta name="theme-color" content="#FAF7FE">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="نَبْض | NABD">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>try{var t=localStorage.getItem('nabd-theme')||'auto';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#11141A':'#F7F3EC';}catch(e){}</script>
+<script>try{var t=localStorage.getItem('nabd-theme')||'auto';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#14121D':'#FAF7FE';}catch(e){}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -751,6 +751,85 @@ body{background:var(--bg) var(--pat) 0 0/160px 160px repeat!important}
 .tchip{font-size:13px;font-weight:700;padding:4px 10px;border-radius:99px;background:var(--chip);color:var(--muted)}
 .tchip.tok{background:#FFF1C2;color:#8a6200}
 :root[data-theme="dark"] .tchip.tok{background:#3a3212;color:#FFD166}
+
+/* ===================== نَبْض 4.0 — بنفسجي ناعم + صورة العائلة =====================
+   أعلى الشاشة بنفس لون الصفحة (عشان شريط الآيفون)، والزينة بقع لافندر خفيفة داخل الصفحة.
+   الأيقونات المجسّمة من Microsoft Fluent Emoji (رخصة MIT — icons/3d/LICENSE.txt) */
+:root{--bg:#FAF7FE;--sand2:#FAF7FE;--sheetbg:#FAF7FE;--card:#FFFFFF;--ink:#231E3A;--fg2:#231E3A;--muted:#7A7391;--dim2:#7A7391;--soft:#A7A1BA;
+  --line:rgba(60,40,130,.10);--line2:rgba(60,40,130,.06);--chip:rgba(60,40,130,.06);--panel:#FFFFFF;--gline:rgba(60,40,130,.07);--gsh:rgba(90,60,180,.10);
+  --primary:#6E3FD9;--primary2:#8A5CF5;--primary-soft:#F0EAFE;--acc2:#6E3FD9;--togoff:#DDD7EA;--wave:#DDD7EA;--blob:#EDE5FD;--blob2:#F4EFFE;--pat:none}
+:root[data-theme="dark"]{--bg:#14121D;--sand2:#14121D;--sheetbg:#1A1726;--card:#1F1B2D;--ink:#EFEBFA;--fg2:#EFEBFA;--muted:#A49DBA;--dim2:#A49DBA;--soft:#6F6987;
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.06);--chip:rgba(255,255,255,.07);--panel:#1F1B2D;--gline:rgba(255,255,255,.06);--gsh:rgba(0,0,0,.4);
+  --primary:#9B7BFA;--primary2:#B39BFF;--primary-soft:#2C2445;--acc2:#B39BFF;--togoff:#3A3450;--wave:#3A3450;--blob:#231D36;--blob2:#1C182A;--pat:none}
+@media (prefers-color-scheme:dark){:root[data-theme="auto"]{--bg:#14121D;--card:#1F1B2D;--ink:#EFEBFA;--primary:#9B7BFA;--primary2:#B39BFF;--primary-soft:#2C2445;--blob:#231D36;--blob2:#1C182A}}
+body{background:var(--bg)!important}
+.screen.hm{overflow:hidden}
+.screen.hm::after{content:"";position:absolute;z-index:0;width:240px;height:240px;border-radius:50%;background:var(--blob);top:calc(var(--safe-t) - 150px);left:-110px;pointer-events:none}
+/* الهيدر */
+.hero4{position:relative;display:grid;grid-template-columns:1fr auto;grid-template-areas:"brand me" "fam fam";align-items:start;margin:0 -16px;padding:2px 16px 0}
+.hero4::before{content:"";position:absolute;left:0;right:0;bottom:0;height:128px;background:linear-gradient(180deg,var(--blob2),var(--blob));border-radius:44px 44px 0 0;z-index:0}
+.hero4>*{position:relative;z-index:1}
+.h4brand{grid-area:brand;display:flex;flex-direction:column;align-items:flex-start;padding-top:6px}
+.h4brand .logo2{font-size:40px!important;color:var(--primary)!important;font-weight:800;letter-spacing:-.5px}
+:root[data-theme="dark"] .h4brand .logo2{color:var(--ink)!important}
+.h4brand .pulse2{width:34px;height:34px;color:var(--primary)!important}
+.h4tag{font-size:15px;font-weight:700;color:var(--ink);margin-top:0;white-space:nowrap}
+.h4brand .ptitle2{font-size:12.5px!important;margin-top:1px!important;white-space:nowrap}
+.h4fam{grid-area:fam;display:flex;justify-content:center;margin-top:-6px;pointer-events:none}
+.fp4{position:relative;-webkit-mask-image:linear-gradient(#000 84%,transparent);mask-image:linear-gradient(#000 84%,transparent)}
+.fp4 .fpf{position:absolute;display:block;filter:drop-shadow(0 4px 8px rgba(60,30,120,.16))}
+.fp4 .fpf svg{width:100%;height:100%;display:block}
+.fp4 .fphd{position:absolute;left:50%;top:14%;transform:translateX(-50%);border-radius:50%;box-shadow:0 0 0 3px #fff}
+.fp4 .fpd{position:absolute;width:28px;height:28px;z-index:9;animation:bob 5s ease-in-out infinite}
+.fp4 .d1{top:40px;right:6%}.fp4 .d2{top:96px;left:3%;width:24px;height:24px;animation-delay:-2s}.fp4 .d3{top:44px;left:10%;width:22px;height:22px;animation-delay:-3.5s}
+.fp4.ph{-webkit-mask-image:none;mask-image:none;width:100%;max-width:380px;aspect-ratio:1.74;height:auto;margin:40px 0 12px;border-radius:28px;overflow:hidden;box-shadow:0 10px 26px var(--gsh);border:3px solid var(--card)}
+.fp4.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.hero4 .mebig{grid-area:me;position:relative!important;margin:4px 0 0!important;z-index:5;animation:none;background:var(--card)!important;box-shadow:0 0 0 4px var(--blob),0 6px 16px var(--gsh)!important}
+.mebig .swb{position:absolute;bottom:-2px;right:-4px;width:22px;height:22px;border-radius:50%;background:linear-gradient(180deg,#8A5CF5,#6E3FD9);color:#fff;display:grid;place-items:center;box-shadow:0 0 0 2.5px var(--card)}
+.mebig .swb svg{width:13px;height:13px}
+/* الشرائح */
+.i3{width:22px;height:22px;flex:none;display:inline-block}
+.screen.hm .chips2{margin-top:10px!important}
+.chip2{height:46px!important;border-radius:18px!important;box-shadow:0 6px 16px var(--gsh)!important;border:1px solid var(--gline)!important;font-size:13.5px}
+.chip2 b{color:var(--primary)!important;font-size:16px}
+/* المربعات الثلاثة */
+.fx3{gap:10px}
+.fxt{padding:14px 6px 12px!important;border-radius:24px!important;background:var(--card)!important;border:1px solid var(--gline)!important;box-shadow:0 8px 20px var(--gsh)!important}
+.fxt .fxi{width:64px!important;height:56px!important;border-radius:50%!important;background:var(--tb)!important;display:grid;place-items:center;box-shadow:none!important}
+.fxt .fxi img{width:46px;height:46px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.12))}
+.fxt b{font-size:14.5px!important;margin-top:4px}
+.fxt .fxg{margin-top:6px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--tb);color:var(--tc)}
+.t-or{--tb:#FFF1E6;--tc:#F07A2B}.t-bl{--tb:#E8F1FF;--tc:#2F74E0}.t-gr{--tb:#E5F7EC;--tc:#23A15A}
+:root[data-theme="dark"] .t-or{--tb:#3A2A22;--tc:#FFA061}:root[data-theme="dark"] .t-bl{--tb:#1E2A40;--tc:#7FB0FF}:root[data-theme="dark"] .t-gr{--tb:#1C3326;--tc:#6BD796}
+/* بطاقة العائلة */
+.hero4c{padding:16px 16px 14px!important;border-radius:26px!important;background:linear-gradient(110deg,var(--card) 35%,var(--blob2))!important;border:1px solid var(--gline)!important;box-shadow:0 10px 24px var(--gsh)!important;overflow:hidden}
+.hero4c .herob{align-items:center}
+.hero4c .hn2{font-size:24px;font-weight:800;color:var(--ink)}
+.ge4{font-size:20px;display:inline-block;vertical-align:-3px}
+img.ge4{width:24px;height:24px}
+.house4{flex:none;width:100px;height:86px;display:grid;place-items:center}
+.house4 img{width:100px;height:100px;filter:drop-shadow(0 8px 10px rgba(60,30,120,.14))}
+.hero4c .meta2{position:absolute;top:14px;inset-inline-end:132px;display:none}
+.go4{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--primary);background:var(--primary-soft)}
+.hero4c .faces2{border-top:0!important;margin-top:8px!important;padding-top:0!important}
+.cnt4{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--primary-soft);color:var(--primary)!important;font-weight:600}
+/* المحادثات */
+.shead2 h2{display:flex;align-items:center;gap:8px;font-size:17px!important}
+.shead2 button{gap:6px!important}
+.row2{background:var(--card)!important;border:1px solid var(--gline)!important;box-shadow:0 6px 16px var(--gsh)!important;border-radius:24px!important;padding:12px 14px!important}
+.row2 .go4{width:26px;height:26px}
+/* الألوان العامة */
+.btn,.btn.orange,.mic,.d2send{background:linear-gradient(180deg,#8A5CF5,#6E3FD9)!important;box-shadow:0 6px 16px rgba(110,63,217,.25)!important}
+.btn.ghost{background:var(--primary-soft)!important;color:var(--primary)!important;box-shadow:none!important}
+.tabs2 button.on{background:linear-gradient(180deg,#8A5CF5,#6E3FD9)!important;box-shadow:0 6px 14px rgba(110,63,217,.32)!important}
+.tabs2{box-shadow:0 10px 30px var(--gsh)!important}
+.m.me .bub{background:linear-gradient(180deg,#8A5CF5,#6E3FD9)!important}
+.m.me .dur{color:#F0EAFE!important}
+.d2guide line{stroke:rgba(110,63,217,.5)}
+.chathead{background:var(--bg)!important}
+.chat{background:var(--bg)!important}
+.chip.on{background:linear-gradient(180deg,#8A5CF5,#6E3FD9)!important;color:#fff!important;border-color:transparent!important}
+.avgrid button.on{outline-color:var(--primary)!important}
 </style>
 </head>
 <body>
@@ -762,14 +841,14 @@ body{background:var(--bg) var(--pat) 0 0/160px 160px repeat!important}
 </div>
 <div id="app" aria-live="polite"></div>
 <noscript>نَبْض يحتاج JavaScript.</noscript>
-<script src="config.js?v=3.2.2"></script>
-<script src="core.js?v=3.2.2"></script>
-<script src="chars.js?v=3.2.2"></script>
-<script src="avatars.js?v=3.2.2"></script>
-<script src="app.js?v=3.2.2"></script>
-<script src="draw.js?v=3.2.2"></script>
-<script src="admin.js?v=3.2.2"></script>
-<script src="wamd-stats.js?v=3.2.2" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
-<script src="wamd-cfg.js?v=3.2.2" data-app="nabd" defer></script>
+<script src="config.js?v=4.0.0"></script>
+<script src="core.js?v=4.0.0"></script>
+<script src="chars.js?v=4.0.0"></script>
+<script src="avatars.js?v=4.0.0"></script>
+<script src="app.js?v=4.0.0"></script>
+<script src="draw.js?v=4.0.0"></script>
+<script src="admin.js?v=4.0.0"></script>
+<script src="wamd-stats.js?v=4.0.0" data-app="nabd" data-api="https://nabd-api.bsshfi.workers.dev/wamd/hit" defer></script>
+<script src="wamd-cfg.js?v=4.0.0" data-app="nabd" defer></script>
 </body>
 </html>
