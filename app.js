@@ -899,37 +899,73 @@ var A = (function () {
   var CHEV = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>';
   /* صورة العائلة فوق الرئيسية: تتركّب تلقائياً من شخصيات الأفراد (الأب والأم ورا، والعيال قدّام بطول أعمارهم)،
      أو صورة يرفعها الأب/الأم من إعدادات القروب */
-  function famPortrait() {
-    var g = S.prof.group || {};
+  /* خلفيات صورة العائلة (يختارها ولي الأمر) */
+  var FPBG = {
+    '': { n: 'بنفسجي', sw: 'linear-gradient(180deg,#F4EFFE,#E6DBFC)' },
+    garden: { n: 'حديقة', sw: 'linear-gradient(180deg,#CFE8FF 55%,#8CCB5E 55%)', s: '<defs><linearGradient id="fg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BFE2FF"/><stop offset="1" stop-color="#EAF6FF"/></linearGradient></defs><rect width="380" height="200" fill="url(#fg1)"/><circle cx="330" cy="42" r="20" fill="#FFD45C"/><g fill="#fff" opacity=".9"><ellipse cx="70" cy="40" rx="28" ry="10"/><ellipse cx="92" cy="34" rx="18" ry="10"/><ellipse cx="230" cy="58" rx="24" ry="8"/></g><path d="M0 132 Q90 100 190 126 T380 118 V200 H0Z" fill="#A6D875"/><path d="M0 156 Q110 128 230 150 T380 144 V200 H0Z" fill="#7FC255"/>' },
+    night: { n: 'ليل', sw: 'linear-gradient(180deg,#1E1B4B,#4338CA)', s: '<defs><linearGradient id="fg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E1B4B"/><stop offset="1" stop-color="#4C3FC4"/></linearGradient></defs><rect width="380" height="200" fill="url(#fg2)"/><path d="M332 26a20 20 0 1 0 14 34a16 16 0 1 1 -14 -34z" fill="#FFE59A"/><g fill="#fff"><circle cx="40" cy="30" r="1.8"/><circle cx="96" cy="58" r="1.4"/><circle cx="150" cy="22" r="1.6"/><circle cx="210" cy="46" r="1.2"/><circle cx="262" cy="18" r="1.6"/><circle cx="292" cy="80" r="1.3"/><circle cx="24" cy="92" r="1.2"/></g><path d="M0 160 Q190 136 380 160 V200 H0Z" fill="#2A2470"/>' },
+    sea: { n: 'بحر', sw: 'linear-gradient(180deg,#BDE3FF 45%,#4FB3E8 45% 75%,#F3DDB0 75%)', s: '<rect width="380" height="200" fill="#C7E8FF"/><circle cx="60" cy="44" r="18" fill="#FFD45C"/><g fill="#fff" opacity=".9"><ellipse cx="280" cy="36" rx="30" ry="10"/><ellipse cx="300" cy="30" rx="18" ry="9"/></g><rect y="96" width="380" height="60" fill="#4FB3E8"/><path d="M0 108 q20 -6 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0" stroke="#fff" stroke-width="2" fill="none" opacity=".6"/><path d="M0 150 Q190 132 380 150 V200 H0Z" fill="#F3DDB0"/>' },
+    desert: { n: 'برّ', sw: 'linear-gradient(180deg,#FFE7C2 55%,#E8AE5E 55%)', s: '<defs><linearGradient id="fg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD9A0"/><stop offset="1" stop-color="#FFF0D6"/></linearGradient></defs><rect width="380" height="200" fill="url(#fg3)"/><circle cx="300" cy="56" r="26" fill="#FFB547" opacity=".9"/><path d="M0 128 Q120 92 240 126 T380 112 V200 H0Z" fill="#F2C27B"/><path d="M0 158 Q150 126 300 152 T380 150 V200 H0Z" fill="#E3A552"/>' },
+    home: { n: 'البيت', sw: 'linear-gradient(180deg,#F8E9D8 60%,#D9B98F 60%)', s: '<rect width="380" height="200" fill="#F8E9D8"/><rect x="40" y="24" width="64" height="74" rx="32" fill="#CFE8FF" stroke="#E2C7A6" stroke-width="6"/><path d="M72 24 V98 M40 64 H104" stroke="#E2C7A6" stroke-width="4"/><rect x="286" y="30" width="56" height="44" rx="6" fill="#FFF7EC" stroke="#D9B98F" stroke-width="5"/><circle cx="314" cy="52" r="10" fill="#F4A8B8"/><rect y="150" width="380" height="50" fill="#D9B98F"/><rect y="146" width="380" height="8" fill="#C9A57A"/>' }
+  };
+  /* أشكال جاهزة لإضافة أحد مو في التطبيق (جد، جدة، بيبي…) */
+  var FPX = [
+    { n: 'جد', k: 'p', ch: { s: 1, h: 'short', hc: 5, hw: 'shmagh', o: 'thobe', e: 'smile', b: 3 } },
+    { n: 'جد بغترة', k: 'p', ch: { s: 2, h: 'short', hc: 5, hw: 'ghutra', o: 'thobe', e: 'calm', b: 3, gl: 1 } },
+    { n: 'جدة', k: 'p', ch: { s: 1, h: 'long', hc: 5, hw: 'hijab', wc: 1, o: 'abaya', e: 'smile', gl: 1 } },
+    { n: 'جدة بأبيض', k: 'p', ch: { s: 2, h: 'long', hc: 5, hw: 'hijab', wc: 0, o: 'trad', e: 'smile' } },
+    { n: 'عم / خال', k: 'p', ch: { s: 1, h: 'short', hc: 0, hw: 'shmagh', o: 'thobe', e: 'grin', b: 2 } },
+    { n: 'عمة / خالة', k: 'p', ch: { s: 1, h: 'long', hc: 0, hw: 'hijab', wc: 4, o: 'trad', e: 'grin' } },
+    { n: 'بيبي ولد', k: 'c', age: 1, ch: { s: 1, h: 'short', hc: 2, hw: 'none', o: 'tee', oc: 6, e: 'laugh' } },
+    { n: 'بيبي بنت', k: 'c', age: 1, ch: { s: 1, h: 'pigtails', hc: 2, hw: 'bow', wc: 5, o: 'dress', oc: 5, e: 'laugh' } }
+  ];
+  /* صورة العائلة فوق الرئيسية: تتركّب تلقائياً من شخصيات الأفراد (الأب والأم ورا، والعيال قدّام بطول أعمارهم).
+     ولي الأمر يقدر يختار خلفية، ويخفي أحد، ويضيف أحد مو في التطبيق (جد، جدة، بيبي) أو حيوان أليف — أو يرفع صورة حقيقية */
+  function famPortrait(gIn, wIn) {
+    var g = gIn || S.prof.group || {};
     if (g.ph) return '<div class="fp4 ph"><img src="' + esc(g.ph) + '" alt="صورة العائلة"></div>';
-    var ids = live(), par = ids.filter(isParent), kids = ids.filter(function (id) { return !isParent(id); });
-    par.sort(function (a, b) { return (member(a).g === 'f') - (member(b).g === 'f'); });
-    var ageOf = function (id) { var i = bdInfo(id); return i && i.age ? i.age : 9; };
-    kids.sort(function (a, b) { return ageOf(b) - ageOf(a); });
-    if (kids.length > 1) { var mid = [], k2 = kids.slice(); while (k2.length) { mid.push(k2.shift()); if (k2.length) mid.unshift(k2.shift()); } kids = mid; }
-    var W = Math.max(260, Math.min(380, (window.innerWidth || 390) - 24)), H = 188;
-    var fig = function (id, sz, x, bottom, z) {
-      var a = (member(id) || {}).av || {}, m = member(id) || {};
-      var inner = a.ch && window.CH ? CH.svg(a.ch) : (!a.photo && !a.e && !a.a && window.CH) ? CH.svg(CH.presetFor(isParent(id) ? 'parent' : 'child', m.g).ch) : '<span class="fphd">' + av(id, Math.round(sz * .56)) + '</span>';
-      return '<span class="fpf" style="width:' + sz + 'px;height:' + sz + 'px;left:' + Math.round(x - sz / 2) + 'px;bottom:' + bottom + 'px;z-index:' + z + '">' + inner + '</span>';
+    var hide = g.hide || [], add = g.add || [];
+    var ids = live().filter(function (id) { return hide.indexOf(id) < 0; });
+    var P = [], K = [], pets = [];
+    ids.forEach(function (id) { var m = member(id) || {}, a = m.av || {}, bi = bdInfo(id); (isParent(id) ? P : K).push({ id: id, g: m.g, a: a, age: bi && bi.age ? bi.age : 9, par: isParent(id) }); });
+    add.forEach(function (x) { if (x.k === 'pet') pets.push(x); else (x.k === 'p' ? P : K).push({ a: { ch: x.ch }, age: x.age || (x.k === 'p' ? 40 : 9), par: x.k === 'p' }); });
+    P.sort(function (a, b) { return (a.g === 'f') - (b.g === 'f'); });
+    K.sort(function (a, b) { return b.age - a.age; });
+    if (K.length > 1) { var mid = [], k2 = K.slice(); while (k2.length) { mid.push(k2.shift()); if (k2.length) mid.unshift(k2.shift()); } K = mid; }
+    if (!P.length && !K.length && !pets.length) return '';
+    var W = wIn || Math.max(260, Math.min(360, (window.innerWidth || 390) - 40)), H = Math.round(W * .47);
+    var u = H / 172;   // كل المقاسات نسبةً للارتفاع
+    var bg = FPBG[g.bg] && g.bg ? FPBG[g.bg] : null;
+    var fig = function (f, sz, x, bottom, z) {
+      var a = f.a || {}, inner;
+      if (f.pet) inner = '<svg viewBox="0 0 64 64" aria-hidden="true">' + (AVATARS[f.pet] || AVATARS.cat).s + '</svg>';
+      else if (a.ch && window.CH) inner = CH.svg(a.ch);
+      else if (!a.photo && !a.e && !a.a && window.CH) inner = CH.svg(CH.presetFor(f.par ? 'parent' : 'child', f.g).ch);
+      else inner = '<span class="fphd">' + av(f.id, Math.round(sz * .56)) + '</span>';
+      return '<span class="fpf' + (f.pet ? ' pet' : '') + '" style="width:' + sz + 'px;height:' + sz + 'px;left:' + Math.round(x - sz / 2) + 'px;bottom:' + bottom + 'px;z-index:' + z + '">' + inner + '</span>';
     };
-    var row = function (list, sizeOf, step) {
-      var sz = list.map(sizeOf), w = sz.reduce(function (n, v, i) { return n + (i ? (sz[i - 1] + v) / 2 * step : 0); }, 0);
-      return { sz: sz, w: w + (sz[0] || 0) * .9 };
+    var kSize = function (f) { var a = f.age; return (a < 3 ? 76 : a < 6 ? 86 : a < 9 ? 94 : a < 12 ? 102 : 110) * u; };
+    var widthOf = function (sz, step) { var w = sz[0] || 0; for (var i = 1; i < sz.length; i++) w += (sz[i - 1] + sz[i]) / 2 * step; return w; };
+    var pS = P.map(function () { return 122 * u; }), kS = K.map(kSize), pet = 64 * u;
+    var kW = widthOf(kS, .7) + pets.length * pet * .8;
+    var k = Math.min(bg ? .88 : 1, (W - (bg ? 24 : 0)) / Math.max(widthOf(pS, .66), kW, 1));
+    var out = '', place = function (list, sz, step, bottom, z0, shift) {
+      var tot = widthOf(sz.map(function (v) { return v * k; }), step) - (sz[0] || 0) * k;
+      var x = W / 2 - tot / 2 + (shift || 0);
+      list.forEach(function (f, i) { if (i) x += (sz[i - 1] + sz[i]) / 2 * step * k; out += fig(f, Math.round(sz[i] * k), x, bottom, z0 + (i === Math.floor(list.length / 2) ? 2 : 1)); });
+      return [W / 2 - tot / 2 + (shift || 0), x];
     };
-    var kSize = function (id) { var a = ageOf(id); return a < 4 ? 92 : a < 7 ? 100 : a < 10 ? 108 : a < 13 ? 116 : 124; };
-    var pSize = function () { return 140; };
-    var P = row(par, pSize, .66), K = row(kids, kSize, .7);
-    var k = Math.min(1, W / Math.max(P.w, K.w, 1));
-    if (!kids.length && !par.length) return '';
-    var out = '', place = function (list, R, step, bottom, z0) {
-      var tot = 0; R.sz.forEach(function (v, i) { if (i) tot += (R.sz[i - 1] + v) / 2 * step * k; });
-      var x = W / 2 - tot / 2;
-      list.forEach(function (id, i) { if (i) x += (R.sz[i - 1] + R.sz[i]) / 2 * step * k; out += fig(id, Math.round(R.sz[i] * k), x, bottom, z0 + (i === Math.floor(list.length / 2) ? 2 : 1)); });
-    };
-    place(par, P, .66, kids.length ? 56 : 0, 1);
-    place(kids, K, .7, -6, 4);
-    return '<div class="fp4" style="width:' + W + 'px;height:' + H + 'px"><img class="fpd d1" src="icons/3d/yheart.png" alt=""><img class="fpd d2" src="icons/3d/heart.png" alt=""><img class="fpd d3" src="icons/3d/sparkles.png" alt="">' + out + '</div>';
+    place(P, pS, .66, K.length ? Math.round(46 * u) : 0, 1);
+    var ends = place(K, kS, .7, Math.round(-6 * u), 4);
+    // الحيوانات الأليفة على الأطراف قدّام
+    pets.forEach(function (x, i) {
+      var left = i % 2 === 0, n = Math.floor(i / 2), sz = Math.round(pet * k);
+      var cx = K.length ? (left ? ends[0] - (kS[0] || 0) * k * .42 - sz * (.38 + n * .7) : ends[1] + (kS[kS.length - 1] || 0) * k * .42 + sz * (.38 + n * .7)) : W / 2 + (left ? -1 : 1) * sz * (.6 + n);
+      cx = Math.max(sz / 2 + 4, Math.min(W - sz / 2 - 4, cx));
+      out += fig({ pet: x.a }, sz, cx, Math.round(4 * u), 8);
+    });
+    var deco = bg ? '' : '<img class="fpd d1" src="icons/3d/yheart.png" alt=""><img class="fpd d2" src="icons/3d/heart.png" alt=""><img class="fpd d3" src="icons/3d/sparkles.png" alt="">';
+    return '<div class="fp4' + (bg ? ' scn' : '') + '" style="width:' + W + 'px;height:' + H + 'px">' + (bg ? '<svg class="fpbg" viewBox="0 0 380 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">' + bg.s + '</svg>' : '') + deco + out + '</div>';
   }
   var PULSE = '<svg class="pulse2" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 27C7 20.5 3.5 16.4 3.5 11.6A6.6 6.6 0 0 1 16 8.4a6.6 6.6 0 0 1 12.5 3.2c0 1.2-.2 2.3-.7 3.4"/><path d="M14 17h3l2-4 3 8 2-4h5"/></svg>';
   var TABI = {
@@ -964,6 +1000,8 @@ var A = (function () {
       '<button class="fxt gl2 t-gr" id="taskB"><span class="fxi"><img src="icons/3d/check.png" alt=""></span><b>مهامي</b><small id="taskN">مهام اليوم</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="taskC" hidden></span></button></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2 hm');
     $('#sw', el).onclick = function () { picker(); };
+    // ولي الأمر: يضغط على صورة العائلة ويعدّلها
+    if (isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0 && A.portraitSheet) { var hf = $('.h4fam', el); hf.classList.add('ed'); hf.onclick = function () { A.portraitSheet(); }; }
     $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
     $('#buyB', el).onclick = buyScreen; $('#taskB', el).onclick = tasksScreen;
     var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
@@ -2126,7 +2164,7 @@ var A = (function () {
     S: S, $: $, esc: esc, rid: rid, api: api, ic: ic, IC: IC, av: av, nm: nm, fem: fem, live: live, role: role, member: member, toast: toast, sheet: sheet, show: show,
     fmtDate: fmtDate, fmtTime: fmtTime, ago: ago, num: num, plat: plat, isParent: isParent, isOwner: isOwner, isAdmin: isAdmin, kindLabel: kindLabel,
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
-    copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
+    copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, famPortrait: famPortrait, FPBG: FPBG, FPX: FPX, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
     sendMsg: sendMsg, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
     standalone: standalone, plat: plat,

@@ -74,7 +74,7 @@
       (admin ? '<span class="tiny muted">اضغط على أي فرد لتعديل اسمه وصورته وصلاحياته</span>' : '') + '</div>' +
       (admin ? '<div class="list"><button id="goDev">' + ic('phone') + '<span class="grow">أجهزة العائلة</span><span class="tiny muted">التحديث والحذف والصلاحيات</span>' + ic('back', 'style="transform:scaleX(-1);color:var(--soft)"') + '</button>' +
         '<button id="goLink">' + ic('key') + '<span class="grow">ربط جهاز جديد</span>' + ic('back', 'style="transform:scaleX(-1);color:var(--soft)"') + '</button></div>' : '') +
-      (parent ? '<div class="list"><button id="goBak">' + ic('down') + '<span class="grow">النسخ الاحتياطي' + (admin ? ' وكود العائلة' : '') + '</span>' + ic('back', 'style="transform:scaleX(-1);color:var(--soft)"') + '</button></div>' : '') +
+      (parent ? '<div class="list"><button id="goFp"><img src="icons/3d/house.png" alt="" style="width:24px;height:24px"><span class="grow">صورة العائلة في الرئيسية</span><span class="tiny muted">خلفية، ومين يطلع فيها</span>' + ic('back', 'style="transform:scaleX(-1);color:var(--soft)"') + '</button><button id="goBak">' + ic('down') + '<span class="grow">النسخ الاحتياطي' + (admin ? ' وكود العائلة' : '') + '</span>' + ic('back', 'style="transform:scaleX(-1);color:var(--soft)"') + '</button></div>' : '') +
       '<span class="label">التنبيهات</span><div class="list"><div id="nrow">' + ic('bell') + '<span class="grow" id="nst">…</span></div></div>' +
       '<span class="label">التخزين</span><div class="list"><div class="col" style="align-items:stretch;gap:8px"><span class="row" style="justify-content:space-between"><span>على هذا الجهاز</span><span class="small muted" id="sz">…</span></span><span class="bar"><i id="szb" style="display:block;width:0;background:var(--accent)"></i></span></div>' +
       '<div>' + ic('shield') + '<span class="grow col" style="gap:0"><span>الرسالة في السيرفر</span><span class="tiny muted">مشفّرة، وتنحذف أول ما توصل، وبحد أقصى ٣ أيام</span></span></div>' +
@@ -101,6 +101,7 @@
     if ($('#goDev')) $('#goDev').onclick = A.devices;
     if ($('#goLink')) $('#goLink').onclick = linkSheet;
     if ($('#goBak')) $('#goBak').onclick = A.backup;
+    if ($('#goFp')) $('#goFp').onclick = portraitSheet;
     if ($('#myAv')) $('#myAv').onclick = A.editMe;
     if ($('#chPin')) $('#chPin').onclick = function () {
       A.setPin('رمزك السري الجديد', function (p) { A.api('/pin', { member: S.me, pin: p }).then(function () { A.toast('تغيّر الرمز ✓'); }, function () { A.toast('ما قدرنا نغيّره'); }); });
@@ -170,15 +171,63 @@
         return '<button data-ge="' + i + '" class="' + ((g.e || '') === e ? 'on' : '') + '" style="width:44px;height:44px;font-size:24px;line-height:1;background:var(--card);box-shadow:0 1px 0 var(--line)" aria-label="' + (e || 'بيت') + '">' + (e || '<svg class="ic" viewBox="0 0 24 24">' + A.IC.home + '</svg>') + '</button>';
       }).join('') + '</div></div>' +
       '<div class="field"><span>اللون</span><div class="row" style="justify-content:space-between">' + GC.map(function (c) { return '<button data-gc="' + c + '" aria-label="لون" style="width:38px;height:38px;border-radius:50%;background:' + c + ';border:3px solid var(--card);outline:' + ((g.c || GC[0]) === c ? '3px solid var(--ink)' : '0') + '"></button>'; }).join('') + '</div></div>' +
-      '<div class="field"><span>صورة العائلة في الرئيسية</span><div class="row" style="gap:8px"><button class="chip' + (g.ph ? '' : ' on') + '" id="phA" style="flex:1">🎨 من شخصياتنا</button><button class="chip' + (g.ph ? ' on' : '') + '" id="phB" style="flex:1">📷 صورة من جهازك</button></div>' +
-      '<div id="phv" style="margin-top:8px"></div><input type="file" id="phF" accept="image/*" hidden><small class="muted">«من شخصياتنا» تنرسم تلقائياً من شخصية كل فرد، وتتغيّر لحالها لو تغيّرت.</small></div>' +
       '<button class="btn block" id="gs">حفظ</button>');
-    function phv() {
-      $('#phA', sh).classList.toggle('on', !g.ph); $('#phB', sh).classList.toggle('on', !!g.ph);
-      $('#phv', sh).innerHTML = g.ph ? '<img src="' + esc(g.ph) + '" alt="" style="width:100%;aspect-ratio:1.74;object-fit:cover;border-radius:18px;display:block">' : '';
+    function pv() {
+      var keep = S.prof.group; S.prof.group = g;
+      $('#gpv', sh).innerHTML = '<div class="chatcard fam" style="background:' + A.grp().c + ';pointer-events:none">' + A.grpIcon(56, 20) + '<span class="grow col" style="gap:2px"><span class="nm">' + esc(A.grp().name) + '</span><span class="pv">معاينة</span></span></div>';
+      S.prof.group = keep;
     }
-    $('#phA', sh).onclick = function () { g.ph = ''; phv(); };
-    $('#phB', sh).onclick = function () { $('#phF', sh).click(); };
+    $('#x', sh).onclick = function () { sh.remove(); };
+    $('#gn', sh).oninput = function () { g.name = this.value.trim(); pv(); };
+    sh.querySelectorAll('[data-ge]').forEach(function (b) { b.onclick = function () { g.e = GE[+b.dataset.ge]; sh.querySelectorAll('[data-ge]').forEach(function (x) { x.classList.toggle('on', x === b); }); pv(); }; });
+    sh.querySelectorAll('[data-gc]').forEach(function (b) { b.onclick = function () { g.c = b.dataset.gc; sh.querySelectorAll('[data-gc]').forEach(function (x) { x.style.outline = x === b ? '3px solid var(--ink)' : '0'; }); pv(); }; });
+    $('#gs', sh).onclick = function () {
+      var oldG = S.prof.group, oldN = S.prof.name, nn = $('#fn2', sh).value.trim();
+      A.saveProfile({}, function () { S.prof.group = Object.assign({}, S.prof.group || {}, { name: g.name || '', e: g.e || '', c: g.c || '' }); if (nn) S.prof.name = nn; })
+        .then(function () { sh.remove(); A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.group = oldG; S.prof.name = oldN; A.toast('ما قدرنا نحفظ'); });
+    };
+    pv();
+  }
+
+
+  /* ----- صورة العائلة في الرئيسية: خلفية، ومين يطلع، وإضافة أحد مو في التطبيق أو حيوان أليف، أو صورة حقيقية ----- */
+  function portraitSheet() {
+    var cur = S.prof.group || {};
+    var p = { ph: cur.ph || '', bg: cur.bg || '', hide: (cur.hide || []).slice(), add: (cur.add || []).map(function (x) { return Object.assign({}, x); }) };
+    var sh = A.sheet('<div class="row"><h2 class="grow fd" style="font-size:22px">صورة العائلة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+      '<div class="fpprev" id="fpv"></div>' +
+      '<div class="row" style="gap:8px"><button class="chip" id="mA" style="flex:1">🎨 من شخصياتنا</button><button class="chip" id="mB" style="flex:1">📷 صورة من جهازك</button></div>' +
+      '<input type="file" id="phF" accept="image/*" hidden>' +
+      '<div id="fpo" class="col" style="gap:14px"></div>' +
+      '<button class="btn block" id="fs">حفظ</button>');
+    function draw() {
+      $('#mA', sh).classList.toggle('on', !p.ph); $('#mB', sh).classList.toggle('on', !!p.ph);
+      $('#fpv', sh).innerHTML = A.famPortrait(p, Math.min(320, window.innerWidth - 72)) || '<span class="small muted">ما فيه أحد في الصورة</span>';
+      var o = $('#fpo', sh);
+      if (p.ph) { o.innerHTML = '<button class="btn ghost block" id="rep">' + ic('photo') + ' غيّر الصورة</button><small class="muted">الصورة تنحفظ مشفّرة مع بيانات العائلة، وتطلع لكل أفراد العائلة.</small>'; $('#rep', o).onclick = pick; return; }
+      var ids = A.live();
+      o.innerHTML = '<div class="field"><span>الخلفية</span><div class="fpbgs">' + Object.keys(A.FPBG).map(function (k) { return '<button data-bg="' + k + '" class="' + (p.bg === k ? 'on' : '') + '"><i style="background:' + A.FPBG[k].sw + '"></i><small>' + A.FPBG[k].n + '</small></button>'; }).join('') + '</div></div>' +
+        '<div class="field"><span>مين يطلع في الصورة؟</span><div class="fpwho">' + ids.map(function (id) { return '<button data-hm="' + id + '" class="' + (p.hide.indexOf(id) < 0 ? 'on' : '') + '">' + av(id, 30) + '<span>' + esc(nm(id)) + '</span></button>'; }).join('') + '</div></div>' +
+        '<div class="field"><span>نضيف للصورة</span><div class="fpwho">' + p.add.map(function (x, i) { return '<button data-rx="' + i + '" class="on" aria-label="شيل ' + esc(x.n || '') + '"><span class="fpmini">' + mini(x) + '</span><span>' + esc(x.n || '') + '</span><b aria-hidden="true">✕</b></button>'; }).join('') +
+        (p.add.length < 8 ? '<button id="addX" class="fpadd">＋ جد، جدة، بيبي، أو حيوان أليف</button>' : '') + '</div></div>';
+      o.querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { p.bg = b.dataset.bg; draw(); }; });
+      o.querySelectorAll('[data-hm]').forEach(function (b) { b.onclick = function () { var id = b.dataset.hm, i = p.hide.indexOf(id); if (i < 0) p.hide.push(id); else p.hide.splice(i, 1); draw(); }; });
+      o.querySelectorAll('[data-rx]').forEach(function (b) { b.onclick = function () { p.add.splice(+b.dataset.rx, 1); draw(); }; });
+      if ($('#addX', o)) $('#addX', o).onclick = addSheet;
+    }
+    function mini(x) { return x.k === 'pet' ? '<svg viewBox="0 0 64 64">' + (AVATARS[x.a] || AVATARS.cat).s + '</svg>' : CH.svg(x.ch); }
+    function addSheet() {
+      var s2 = A.sheet('<div class="row"><h2 class="grow fd" style="font-size:20px">مين نضيف للصورة؟</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
+        '<span class="label">أشخاص</span><div class="fpgrid">' + A.FPX.map(function (x, i) { return '<button data-x="' + i + '"><span class="fpmini">' + CH.svg(x.ch) + '</span><small>' + esc(x.n) + '</small></button>'; }).join('') + '</div>' +
+        '<span class="label">حيوانات أليفة</span><div class="fpgrid">' + Object.keys(AVATARS).map(function (k) { return '<button data-pet="' + k + '"><span class="fpmini" style="background:' + AVATARS[k].bg + '"><svg viewBox="0 0 64 64">' + AVATARS[k].s + '</svg></span><small>' + esc(AVATARS[k].n) + '</small></button>'; }).join('') + '</div>');
+      $('#x', s2).onclick = function () { s2.remove(); };
+      s2.querySelectorAll('[data-x]').forEach(function (b) { b.onclick = function () { var x = A.FPX[+b.dataset.x]; p.add.push({ n: x.n, k: x.k, ch: x.ch, age: x.age }); s2.remove(); draw(); }; });
+      s2.querySelectorAll('[data-pet]').forEach(function (b) { b.onclick = function () { var k = b.dataset.pet; p.add.push({ n: AVATARS[k].n, k: 'pet', a: k }); s2.remove(); draw(); }; });
+    }
+    function pick() { $('#phF', sh).click(); }
+    $('#x', sh).onclick = function () { sh.remove(); };
+    $('#mA', sh).onclick = function () { p.ph = ''; draw(); };
+    $('#mB', sh).onclick = function () { if (p.ph) return; pick(); };
     $('#phF', sh).onchange = function () {
       var f = this.files[0]; this.value = ''; if (!f) return;
       var u = URL.createObjectURL(f), im = new Image();
@@ -191,29 +240,27 @@
         URL.revokeObjectURL(u);
         var q = .8, d = c.toDataURL('image/jpeg', q);
         while (d.length > 90000 && q > .4) { q -= .1; d = c.toDataURL('image/jpeg', q); }
-        g.ph = d; phv();
+        p.ph = d; draw();
       };
       im.onerror = function () { URL.revokeObjectURL(u); A.toast('ما قدرنا نفتح الصورة'); };
       im.src = u;
     };
-    phv();
-    function pv() {
-      var keep = S.prof.group; S.prof.group = g;
-      $('#gpv', sh).innerHTML = '<div class="chatcard fam" style="background:' + A.grp().c + ';pointer-events:none">' + A.grpIcon(56, 20) + '<span class="grow col" style="gap:2px"><span class="nm">' + esc(A.grp().name) + '</span><span class="pv">معاينة</span></span></div>';
-      S.prof.group = keep;
-    }
-    $('#x', sh).onclick = function () { sh.remove(); };
-    $('#gn', sh).oninput = function () { g.name = this.value.trim(); pv(); };
-    sh.querySelectorAll('[data-ge]').forEach(function (b) { b.onclick = function () { g.e = GE[+b.dataset.ge]; sh.querySelectorAll('[data-ge]').forEach(function (x) { x.classList.toggle('on', x === b); }); pv(); }; });
-    sh.querySelectorAll('[data-gc]').forEach(function (b) { b.onclick = function () { g.c = b.dataset.gc; sh.querySelectorAll('[data-gc]').forEach(function (x) { x.style.outline = x === b ? '3px solid var(--ink)' : '0'; }); pv(); }; });
-    $('#gs', sh).onclick = function () {
-      var oldG = S.prof.group, oldN = S.prof.name, nn = $('#fn2', sh).value.trim();
-      A.saveProfile({}, function () { S.prof.group = { name: g.name || '', e: g.e || '', c: g.c || '' }; if (g.ph) S.prof.group.ph = g.ph; if (nn) S.prof.name = nn; })
-        .then(function () { sh.remove(); A.toast('انحفظ ✓'); A.settings(); }, function () { S.prof.group = oldG; S.prof.name = oldN; A.toast('ما قدرنا نحفظ'); });
+    $('#fs', sh).onclick = function () {
+      var before = S.prof.group;
+      A.saveProfile({}, function () {
+        var g = Object.assign({}, S.prof.group || {});
+        ['ph', 'bg', 'hide', 'add'].forEach(function (k) { delete g[k]; });
+        if (p.ph) g.ph = p.ph;
+        if (p.bg) g.bg = p.bg;
+        if (p.hide.length) g.hide = p.hide.filter(function (id) { return A.live().indexOf(id) >= 0; });
+        if (p.add.length) g.add = p.add;
+        S.prof.group = g;
+      }).then(function () { sh.remove(); A.toast('انحفظت صورة العائلة ✓'); if (S.view === 'home') A.home(); else A.settings(); },
+        function () { S.prof.group = before; A.toast('ما قدرنا نحفظ، جرّب مرة ثانية'); });
     };
-    pv();
+    draw();
   }
-
+  A.portraitSheet = portraitSheet;
   /* ----- ربط جهاز ----- */
   function linkSheet() {
     var sh = A.sheet('<h2 class="fd" style="font-size:22px">ربط جهاز جديد</h2>' +
