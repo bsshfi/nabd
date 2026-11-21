@@ -106,11 +106,11 @@ async function onPush(data) {
         // «نبي» والمهام: النص جاهز ومشفّر في p، ويوصل بس لصاحب الشأن
         let x = '', kind = 'buy';
         try { x = (await NB.decJSON(it.p)).x || ''; } catch (e) {}
-        try { kind = JSON.parse(NB.unpack(await NB.dec(it.b)).head.text).t === 'task' ? 'task' : 'buy'; } catch (e) {}
+        try { const t = JSON.parse(NB.unpack(await NB.dec(it.b)).head.text).t; kind = t === 'task' || t === 'rw' ? t : 'buy'; } catch (e) {}
         if (!x) continue;
         opt.data = Object.assign({}, it, { ev: kind });
         Object.assign(opt, { tag: 'ev-' + kind, renotify: true, timestamp: Date.now() });
-        shown.push(self.registration.showNotification(kind === 'task' ? '✅ مهامي' : '🛒 نبي من البقالة', Object.assign(opt, { body: x })));
+        shown.push(self.registration.showNotification(kind === 'task' ? '✅ مهامي' : kind === 'rw' ? '🎁 المكافآت' : '🛒 نبي من البقالة', Object.assign(opt, { body: x })));
         continue;
       }
       if (it.k === 'react') {
@@ -160,7 +160,7 @@ self.addEventListener('notificationclick', (e) => {
   const it = e.notification.data || {};
   let q = '';
   if (it.t === 'n') q = '#nudge=' + it.id + '&f=' + it.f + '&to=' + it.to;
-  else if (it.t === 'm' && it.k === 'ev') q = '#' + (it.ev === 'task' ? 'tasks' : 'buy');
+  else if (it.t === 'm' && it.k === 'ev') q = '#' + (it.ev === 'task' ? 'tasks' : it.ev === 'rw' ? 'rewards' : 'buy');
   else if (it.t === 'm') q = '#chat=' + encodeURIComponent(it.chat);
   else if (it.t === 'b') q = '#backup';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {

@@ -672,7 +672,7 @@ var A = (function () {
       box.innerHTML = '<div class="gal">' + all.map(function (m, i) {
         var u = URL.createObjectURL(NB.media(m)); urls.push(u);
         var n = Object.keys(m.re).filter(function (k) { return m.re[k] === '⭐'; }).length;
-        return '<button data-i="' + i + '" class="' + (m.k === 'sticker' ? 'stkc' : '') + '"><img src="' + u + '" alt="" loading="lazy"><em>' + (n > 1 ? '⭐'.repeat(Math.min(3, n)) : '⭐') + '</em><span>' + av(m.s, 24) + esc(nm(m.s)) + '</span></button>';
+        return '<button data-i="' + i + '" class="' + (m.k === 'sticker' ? 'stkc' : '') + '"><img src="' + u + '" alt="" loading="lazy"' + (m.fr > 1 ? ' style="object-position:0 50%"' : '') + '><em>' + (n > 1 ? '⭐'.repeat(Math.min(3, n)) : '⭐') + '</em><span>' + av(m.s, 24) + esc(nm(m.s)) + '</span></button>';
       }).join('') + '</div>';
       box.querySelectorAll('[data-i]').forEach(function (b) { b.onclick = function () { viewMedia(all[+b.dataset.i], b.querySelector('img').src); }; });
     });
@@ -724,6 +724,13 @@ var A = (function () {
       if (e.a === 'no') return ['❌ ' + n + ' ما ' + (f ? 'وافقت' : 'وافق') + ' على: ' + e.name, [e.by]];
       return null;
     }
+    if (e.t === 'rw') {
+      var rn = (e.e ? e.e + ' ' : '') + e.n;
+      if (e.a === 'req') return ['🎁 ' + n + ' ' + (f ? 'تبي' : 'يبي') + ' مكافأة: ' + rn + ' (' + e.c + ' ⭐)', parentsIds()];
+      if (e.a === 'ok') return ['🎉 ' + n + ' ' + (f ? 'وافقت' : 'وافق') + ' على مكافأتك: ' + rn, [e.who]];
+      if (e.a === 'no') return ['⏳ ' + n + ' ' + (f ? 'أجّلت' : 'أجّل') + ' مكافأتك: ' + rn, [e.who]];
+      return null;
+    }
     if (e.t === 'task') {
       if (e.a === 'new') return ['📌 مهمة من ' + n + ': ' + e.text, e.to];
       if (e.a === 'done') return ['🙌 ' + n + ' ' + (f ? 'خلّصت' : 'خلّص') + ': ' + e.text, parentsIds()];
@@ -739,7 +746,7 @@ var A = (function () {
   function evState() {
     return NB.msgs.all().then(function (all) {
       var now = Date.now(), m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0);
-      var buy = {}, tasks = {}, stars = {};
+      var buy = {}, tasks = {}, stars = {}, rw = {}, spent = {};
       all.filter(function (m) { return m.k === 'ev' && m.t > now - 32 * DAY; }).sort(function (a, b) { return a.t - b.t; }).forEach(function (m) {
         var e; try { e = JSON.parse(m.text); } catch (x) { return; }
         var par = isParent(m.s);
@@ -755,28 +762,33 @@ var A = (function () {
           else if (k && e.a === 'undo' && k.to.indexOf(m.s) >= 0 && !k.ok[m.s]) delete k.done[m.s];
           else if (k && e.a === 'ok' && par && k.done[e.who] && !k.ok[e.who]) { k.ok[e.who] = m.t; if (m.t >= +m0) stars[e.who] = (stars[e.who] || 0) + k.st; }
           else if (k && e.a === 'del' && par) delete tasks[e.id];
+        } else if (e.t === 'rw') {
+          var r = rw[e.id];
+          if (e.a === 'req' && !par && !r) rw[e.id] = { id: e.id, who: m.s, n: String(e.n || '').slice(0, 40), e: String(e.e || '').slice(0, 8), c: Math.max(1, e.c | 0), t: m.t, st: 'req' };
+          else if (r && par && r.st === 'req' && /^(ok|no)$/.test(e.a)) { r.st = e.a; r.by = m.s; r.at = m.t; if (e.a === 'ok' && r.t >= +m0) spent[r.who] = (spent[r.who] || 0) + r.c; }
         }
       });
       var vals = function (o) { return Object.keys(o).map(function (x) { return o[x]; }); };
       return {
         buy: vals(buy).filter(function (b) { return b.t > now - DAY; }).sort(function (a, b) { return b.t - a.t; }),
         tasks: vals(tasks).filter(function (k) { return k.t > now - DAY; }).sort(function (a, b) { return b.t - a.t; }),
-        stars: stars
+        stars: stars, spent: spent,
+        rw: vals(rw).filter(function (r) { return r.t >= +m0 || r.st === 'req'; }).sort(function (a, b) { return b.t - a.t; })
       };
     });
   }
   function evAlert(list) {
     var mine = list.filter(function (m) { return m.s !== S.me; });
     if (!mine.length) return;
-    if (S.view === 'buy' || S.view === 'tasks' || S.view === 'home') refreshView();
+    if (S.view === 'buy' || S.view === 'tasks' || S.view === 'rewards' || S.view === 'home') refreshView();
     var hit = null;
     mine.forEach(function (m) { var e; try { e = JSON.parse(m.text); } catch (x) { return; } var n = evNote(e, m.s); if (n && (n[1] || []).some(function (id) { return S.dev.members.indexOf(id) >= 0; })) hit = [n[0], e.t]; });
     if (!hit || document.visibilityState !== 'visible') return;
     ding(true);
     var old = document.querySelector('.inbanner'); if (old) old.remove();
     var b = document.createElement('button'); b.className = 'inbanner';
-    b.innerHTML = '<span style="font-size:30px">' + (hit[1] === 'task' ? '✅' : '🛒') + '</span><span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + (hit[1] === 'task' ? 'مهامي' : 'نبي من البقالة') + '</b><span class="small muted">' + esc(hit[0]) + '</span></span>';
-    b.onclick = function () { b.remove(); if (hit[1] === 'task') tasksScreen(); else buyScreen(); };
+    b.innerHTML = '<span style="font-size:30px">' + (hit[1] === 'task' ? '✅' : hit[1] === 'rw' ? '🎁' : '🛒') + '</span><span class="grow col" style="gap:0;text-align:start;min-width:0"><b>' + (hit[1] === 'task' ? 'مهامي' : hit[1] === 'rw' ? 'المكافآت' : 'نبي من البقالة') + '</b><span class="small muted">' + esc(hit[0]) + '</span></span>';
+    b.onclick = function () { b.remove(); if (hit[1] === 'task') tasksScreen(); else if (hit[1] === 'rw') rewardsScreen(); else buyScreen(); };
     document.body.appendChild(b); setTimeout(function () { b.remove(); }, 6000);
   }
   function whenAgo(t) { var d = (Date.now() - t) / 6e4; return d < 1 ? 'الحين' : d < 60 ? 'قبل ' + Math.round(d) + ' د' : 'قبل ' + Math.round(d / 60) + ' س'; }
@@ -832,6 +844,81 @@ var A = (function () {
     });
   }
 
+  /* ---- 🎁 مكافآت النجوم ----
+     الأب/الأم يحددون المكافآت (تنحفظ مع بيانات العائلة). الطفل يجمع نجوم الشهر (⭐ على رسايله ورسماته + نجوم المهام)
+     ولما تكفي يطلب المكافأة، والأب/الأم يوافقون — والنجوم تنخصم. كل شهر يبدأ من جديد */
+  var RWQ = [['🍦', 'آيسكريم', 10], ['📺', 'فيلم مع العائلة', 12], ['🎮', 'ساعة ألعاب', 15], ['🍕', 'بيتزا', 25], ['🏞️', 'طلعة', 30], ['🧸', 'لعبة جديدة', 40]];
+  function rewards() { return (S.prof.rw || []).slice().sort(function (a, b) { return a.c - b.c; }); }
+  /* نجوم الشهر لفرد: ⭐ على رسايله (من اللي عندي على الجهاز) + نجوم المهام − اللي صرفها */
+  function starBal(id) {
+    return Promise.all([NB.msgs.all(), evState()]).then(function (r) {
+      var m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0);
+      var msg = 0;
+      r[0].forEach(function (m) { if (m.s === id && m.t >= +m0 && m.re && m.k !== 'react' && m.k !== 'ev') Object.keys(m.re).forEach(function (k) { if (m.re[k] === '⭐') msg++; }); });
+      var E = r[1], earned = msg + (E.stars[id] || 0), spent = E.spent[id] || 0;
+      return { earned: earned, spent: spent, bal: Math.max(0, earned - spent), E: E };
+    });
+  }
+  function rewardsScreen() {
+    if (!S.me) return home();
+    S.view = 'rewards';
+    var p = isParent(S.me), canEdit = p && S.dev.trusted.indexOf(S.me) >= 0;
+    var el = show('<div class="row"><button class="icb" id="bk" aria-label="رجوع">' + ic('back') + '</button><span class="fd grow" style="font-size:25px;font-weight:800">🎁 المكافآت</span></div>' +
+      '<div id="rwl" class="col" style="gap:12px"></div>', 'sub');
+    fastTap($('#bk', el), function () { home(); });
+    renderRewards();
+  }
+  function renderRewards() {
+    var box = $('#rwl'); if (!box || S.view !== 'rewards') return;
+    var p = isParent(S.me), canEdit = p && S.dev.trusted.indexOf(S.me) >= 0, list = rewards();
+    starBal(S.me).then(function (B) {
+      if (S.view !== 'rewards') return;
+      var E = B.E, html = '';
+      if (!p) {
+        var mine = E.rw.filter(function (r) { return r.who === S.me; });
+        var pend = mine.filter(function (r) { return r.st === 'req'; });
+        html += '<div class="rwbal"><img src="icons/3d/star.png" alt=""><span class="col" style="gap:0"><b>' + B.bal + '</b><small>' + (B.bal === 1 ? 'نجمة' : 'نجوم') + ' عندك هالشهر</small></span></div>';
+        if (!list.length) html += '<div class="card col center" style="gap:6px;padding:26px 16px;text-align:center"><span style="font-size:44px">🎁</span><b>لسى ما فيه مكافآت</b><span class="small muted">قول لبابا أو ماما يضيفون مكافآت</span></div>';
+        html += list.map(function (w) {
+          var pct = Math.min(100, Math.round(B.bal / w.c * 100)), ok = B.bal >= w.c, wait = pend.some(function (r) { return r.n === w.n; });
+          return '<div class="card rwc' + (ok ? ' can' : '') + '"><span class="rwe">' + esc(w.e) + '</span><span class="grow col" style="gap:4px;min-width:0"><b>' + esc(w.n) + '</b>' +
+            '<span class="rwbar"><i style="width:' + pct + '%"></i></span><small class="muted">' + (ok ? 'تقدر تاخذها! 🎉' : 'باقي ' + (w.c - B.bal) + ' ⭐') + '</small></span>' +
+            '<span class="col center" style="gap:6px"><span class="rwcost">' + w.c + ' ⭐</span>' + (wait ? '<span class="tchip">⏳ تنتظر</span>' : ok ? '<button class="btn sm" data-want="' + esc(w.id) + '">أبيها!</button>' : '') + '</span></div>';
+        }).join('');
+        var done = mine.filter(function (r) { return r.st !== 'req'; });
+        if (done.length) html += '<span class="label">هالشهر</span>' + done.map(function (r) { return '<div class="card row" style="gap:10px;padding:10px 14px"><span style="font-size:26px">' + esc(r.e) + '</span><span class="grow">' + esc(r.n) + '</span>' + (r.st === 'ok' ? '<span class="tchip tok">🎉 وافق' + (fem(r.by) ? 'ت' : '') + ' ' + esc(nm(r.by)) + '</span>' : '<span class="tchip">⏳ بعدين</span>') + '</div>'; }).join('');
+      } else {
+        var req = E.rw.filter(function (r) { return r.st === 'req'; });
+        if (req.length) html += '<span class="label">⏳ طلبات تنتظرك</span>' + req.map(function (r) {
+          return '<div class="card row" style="gap:10px;padding:12px 14px">' + av(r.who, 40) + '<span class="grow col" style="gap:0;min-width:0"><b>' + esc(nm(r.who)) + ' ' + (fem(r.who) ? 'تبي' : 'يبي') + ' ' + esc(r.e) + ' ' + esc(r.n) + '</b><small class="muted">' + r.c + ' ⭐ · ' + whenAgo(r.t) + '</small></span>' +
+            (canEdit ? '<button class="bok" data-rok="' + r.id + '" aria-label="موافق">✓</button><button class="bno" data-rno="' + r.id + '" aria-label="بعدين">✕</button>' : '') + '</div>';
+        }).join('');
+        // نجوم كل طفل
+        var kids = live().filter(function (id) { return !isParent(id); });
+        html += '<span class="label">⭐ نجوم العيال هالشهر</span><div class="card col" style="gap:8px;padding:12px 14px" id="kst">' + kids.map(function (id) { return '<div class="row" style="gap:10px">' + av(id, 32) + '<span class="grow">' + esc(nm(id)) + '</span><b class="kb" data-kb="' + id + '">…</b></div>'; }).join('') + '</div>';
+        html += '<span class="label">🎁 المكافآت</span>' + (list.length ? list.map(function (w) { return '<div class="card row" style="gap:10px;padding:10px 14px"><span style="font-size:28px">' + esc(w.e) + '</span><span class="grow">' + esc(w.n) + '</span><span class="rwcost">' + w.c + ' ⭐</span>' + (canEdit ? '<button class="bdel" data-rdel="' + esc(w.id) + '" aria-label="حذف">✕</button>' : '') + '</div>'; }).join('') : '<div class="card small muted" style="padding:14px;text-align:center">ما فيه مكافآت — أضف أول وحدة 👇</div>');
+        if (canEdit) html += '<div class="card col" style="gap:10px;padding:12px"><b>أضف مكافأة</b><div class="bq">' + RWQ.map(function (q, i) { return '<button data-rq="' + i + '">' + q[0] + ' ' + q[1] + ' · ' + q[2] + '⭐</button>'; }).join('') + '</div>' +
+          '<div class="row" style="gap:8px"><input class="inp" id="rwe" maxlength="4" placeholder="🎁" style="width:58px;text-align:center;flex:none"><input class="inp" id="rwn" maxlength="40" placeholder="اسم المكافأة"><input class="inp" id="rwc" type="number" inputmode="numeric" min="1" max="500" placeholder="⭐" style="width:76px;flex:none"></div>' +
+          '<button class="btn block" id="rwadd">أضف</button></div>';
+      }
+      box.innerHTML = html;
+      if (p) live().filter(function (id) { return !isParent(id); }).forEach(function (id) { starBal(id).then(function (b) { var x = box.querySelector('[data-kb="' + id + '"]'); if (x) x.textContent = b.bal + ' ⭐'; }); });
+      var byId = function (id) { return list.filter(function (w) { return w.id === id; })[0]; };
+      box.querySelectorAll('[data-want]').forEach(function (b) { b.onclick = function () { var w = byId(b.dataset.want); if (!w) return; sendEv({ t: 'rw', a: 'req', id: rid(8), n: w.n, e: w.e, c: w.c }); if (navigator.vibrate) navigator.vibrate(15); toast('وصل طلبك لبابا وماما 🎁'); }; });
+      var fr = function (id) { return E.rw.filter(function (r) { return r.id === id; })[0]; };
+      box.querySelectorAll('[data-rok]').forEach(function (b) { b.onclick = function () { var r = fr(b.dataset.rok); sendEv({ t: 'rw', a: 'ok', id: r.id, who: r.who, n: r.n, e: r.e, c: r.c }); toast('🎉 وافقت'); }; });
+      box.querySelectorAll('[data-rno]').forEach(function (b) { b.onclick = function () { var r = fr(b.dataset.rno); sendEv({ t: 'rw', a: 'no', id: r.id, who: r.who, n: r.n, e: r.e, c: r.c }); }; });
+      var save = function (fn) { return saveProfile({}, function () { S.prof.rw = (S.prof.rw || []).slice(); fn(S.prof.rw); }).then(function () { renderRewards(); }, function () { toast('ما قدرنا نحفظ'); }); };
+      box.querySelectorAll('[data-rdel]').forEach(function (b) { b.onclick = function () { if (!confirm('تحذف المكافأة؟')) return; save(function (a) { for (var i = a.length - 1; i >= 0; i--) if (a[i].id === b.dataset.rdel) a.splice(i, 1); }); }; });
+      box.querySelectorAll('[data-rq]').forEach(function (b) { b.onclick = function () { var q = RWQ[+b.dataset.rq]; $('#rwe').value = q[0]; $('#rwn').value = q[1]; $('#rwc').value = q[2]; }; });
+      if ($('#rwadd')) $('#rwadd').onclick = function () {
+        var n = $('#rwn').value.trim(), c = parseInt($('#rwc').value, 10), e = $('#rwe').value.trim() || '🎁';
+        if (!n) return toast('اكتب اسم المكافأة'); if (!(c > 0)) return toast('كم نجمة تحتاج؟');
+        if ((S.prof.rw || []).length >= 12) return toast('أقصى شي ١٢ مكافأة');
+        save(function (a) { a.push({ id: rid(6), n: n.slice(0, 40), e: e.slice(0, 8), c: Math.min(500, c) }); }).then(function () { toast('انضافت 🎁'); });
+      };
+    });
+  }
   /* ---- ✅ المهام ---- */
   var TASKQ = ['🧹 نظّفوا الغرفة', '📚 ذاكروا', '✏️ حلّوا الواجب', '🕌 صلّوا', '🛏️ رتّبوا السرير', '🧸 رتّبوا الألعاب', '📖 اقرأوا قصة', '🦷 فرّشوا أسنانكم'];
   function tasksScreen() {
@@ -992,18 +1079,20 @@ var A = (function () {
       '<div class="hband"><header class="hero4"><div class="h4brand"><div class="bw2"><h1 class="logo2">نَبْض</h1>' + PULSE + '</div><div class="h4tag">مع عائلتي دائماً</div><div class="ptitle2">' + greet() + ' يا ' + esc(nm(S.me)) + ' 👋</div></div>' +
       '<div class="h4fam">' + famPortrait() + '</div>' +
       '<button class="mebig" id="sw" aria-label="غيّر الشخص">' + av(S.me, 58) + ((bdInfo(S.me) || {}).days === 0 ? '<span class="cake">🎂</span>' : '<span class="swb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>') + '</button></header>' +
-      '<div class="chips2"><div class="chip2" id="starC"><img class="i3" src="icons/3d/star.png" alt=""><span>نجوم هالشهر</span></div>' +
-      '<div class="chip2" id="todayC"><img class="i3" src="icons/3d/mail.png" alt=""><span>رسائل اليوم</span></div></div></div>' +
+      '<div class="chips2"><button class="chip2" id="starC"><img class="i3" src="icons/3d/star.png" alt=""><span>نجوم هالشهر</span></button>' +
+      '<button class="chip2" id="rwC"><span style="font-size:19px">🎁</span><span>المكافآت</span></button></div></div>' +
       '<div id="bdc"></div>' +
       '<div class="fx3"><button class="fxt gl2 t-or" id="drawBig"><span class="fxi"><img src="icons/3d/palette.png" alt=""></span><b>ارسم للعائلة</b><small>فُرش وتلوين</small><span class="fxg">' + CHEV + '</span></button>' +
       '<button class="fxt gl2 t-bl" id="buyB"><span class="fxi"><img src="icons/3d/cart.png" alt=""></span><b>نبي من البقالة</b><small id="buyN">اطلب من البقالة</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="buyC" hidden></span></button>' +
       '<button class="fxt gl2 t-gr" id="taskB"><span class="fxi"><img src="icons/3d/check.png" alt=""></span><b>مهامي</b><small id="taskN">مهام اليوم</small><span class="fxg">' + CHEV + '</span><span class="fxn" id="taskC" hidden></span></button></div>' +
+      '<div id="wk"></div>' +
       '<div class="col" id="chats" style="gap:10px"></div><div id="hn"></div>' + tabBar('home'), 'v2 hm');
     $('#sw', el).onclick = function () { picker(); };
     // ولي الأمر: يضغط على صورة العائلة ويعدّلها
     if (isParent(S.me) && S.dev.trusted.indexOf(S.me) >= 0 && A.portraitSheet) { var hf = $('.h4fam', el); hf.classList.add('ed'); hf.onclick = function () { A.portraitSheet(); }; }
     $('#drawBig', el).onclick = function () { openChat('g', 'draw'); };
     $('#buyB', el).onclick = buyScreen; $('#taskB', el).onclick = tasksScreen;
+    $('#starC', el).onclick = rewardsScreen; $('#rwC', el).onclick = rewardsScreen;
     var bc = bdayCard(); $('#bdc', el).outerHTML = bc || '';
     el.querySelectorAll('[data-bdc]').forEach(function (b) { b.onclick = function () { var id = b.dataset.bdn; S.chat = b.dataset.bdc; sendMsg('text', { text: 'كل عام و' + (fem(id) ? 'أنتِ' : 'أنت') + ' بخير يا ' + nm(id) + ' 🎂🎉' }); toast('انرسلت التهنئة 🎉'); }; });
     if ((bdInfo(S.me) || {}).days === 0) { var k = 'nabd-bd:' + S.me + ':' + new Date().getFullYear(); try { if (!localStorage.getItem(k)) { localStorage.setItem(k, 1); setTimeout(function () { starBurst('🎂 كل عام وأنت بخير يا ' + nm(S.me) + '!'); }, 600); } } catch (e) {} }
@@ -1041,7 +1130,37 @@ var A = (function () {
         if (tn) tn.textContent = p ? (nt ? nt + ' تنتظرك' : E.tasks.length ? E.tasks.length + ' اليوم' : 'أعطهم مهام') : (nt ? 'باقي ' + nt : E.tasks.some(function (k) { return k.to.indexOf(S.me) >= 0; }) ? 'خلّصتها 👏' : 'ما فيه مهام');
       });
       if (sc) sc.innerHTML = '<img class="i3" src="icons/3d/star.png" alt=""><b>' + stars + '</b><span>' + (stars === 1 ? 'نجمة' : 'نجوم') + ' هالشهر</span>';
-      var tc = $('#todayC'); if (tc) tc.innerHTML = '<img class="i3" src="icons/3d/mail.png" alt=""><b>' + today + '</b><span>' + (today === 1 ? 'رسالة' : 'رسائل') + ' جديدة اليوم</span>';
+      // شريحة المكافآت: للطفل كم باقي للمكافأة الجاية، وللأب/الأم الطلبات اللي تنتظر
+      var rc = $('#rwC'), rl = rewards();
+      if (rc) starBal(S.me).then(function (B) {
+        if (S.view !== 'home') return;
+        var txt;
+        if (isParent(S.me)) { var nreq = B.E.rw.filter(function (r) { return r.st === 'req'; }).length; txt = nreq ? '<span style="font-size:19px">🎁</span><b>' + nreq + '</b><span>' + (nreq === 1 ? 'طلب مكافأة' : 'طلبات مكافآت') + '</span>' : '<span style="font-size:19px">🎁</span><span>المكافآت</span>'; rc.classList.toggle('hot', !!nreq); }
+        else if (!rl.length) txt = '<span style="font-size:19px">🎁</span><span>المكافآت</span>';
+        else {
+          var nx = rl.filter(function (w) { return w.c > B.bal; })[0], can = rl.filter(function (w) { return w.c <= B.bal; }).pop();
+          txt = can ? '<span style="font-size:19px">' + esc(can.e) + '</span><span>تقدر تاخذ ' + esc(can.n) + '!</span>' : '<span style="font-size:19px">' + esc(nx.e) + '</span><span>باقي <b>' + (nx.c - B.bal) + '</b> ⭐ لـ' + esc(nx.n) + '</span>';
+          rc.classList.toggle('hot', !!can);
+        }
+        rc.innerHTML = txt;
+      });
+      // رسّام الأسبوع: الرسمة اللي أخذت أكثر ⭐ في آخر ٧ أيام
+      var wk = $('#wk');
+      if (wk) {
+        var w7 = Date.now() - 7 * 864e5, best = null, bestN = 0;
+        lists.forEach(function (ms) { ms.forEach(function (m) {
+          if (m.k !== 'draw' || m.t < w7 || !m.re || !NB.mediaSize(m)) return;
+          var n = Object.keys(m.re).filter(function (k) { return m.re[k] === '⭐'; }).length;
+          if (n > bestN || (n === bestN && n && m.t > best.t)) { best = m; bestN = n; }
+        }); });
+        if (best && wk.dataset.id === best.id + ':' + bestN) {}
+        else if (best) {
+          if (wk._u) URL.revokeObjectURL(wk._u);
+          var u = wk._u = URL.createObjectURL(NB.media(best)); wk.dataset.id = best.id + ':' + bestN;
+          wk.innerHTML = '<button class="wk4" id="wkB"><span class="wkimg">' + (best.fr > 1 ? animHTML(best, u, 'width:100%;height:100%', true) : '<img src="' + u + '" alt="رسمة ' + esc(nm(best.s)) + '">') + '</span><span class="grow col" style="gap:2px;min-width:0;text-align:start"><small class="lbl2">👑 رسّام الأسبوع</small><span class="row" style="gap:8px">' + av(best.s, 30) + '<b class="wkn">' + esc(nm(best.s)) + '</b></span><span class="wks">' + '⭐'.repeat(Math.min(5, bestN)) + (bestN > 5 ? ' ×' + bestN : '') + '</span></span><span class="go4">' + CHEV + '</span></button>';
+          var bc0 = best.chat; $('#wkB').onclick = function () { openChat(bc0); };
+        } else { wk.innerHTML = ''; wk.dataset.id = ''; }
+      }
       var g = items.shift();
       items.sort(function (a, b) { return b.t - a.t; });
       var kid = !isParent(S.me);
@@ -1054,7 +1173,7 @@ var A = (function () {
         '<span class="pv2' + (g.unread ? ' un' : '') + '">' + (g.last ? previewOf(g.last) : 'ابدأوا السوالف 👋') + '</span></span>' +
         '<span class="house4"><img src="icons/3d/house.png" alt=""></span>' + meta(g) + '<span class="go4">' + CHEV + '</span></button>' +
         '<div class="faces2">' + fam.slice(0, 7).map(function (id) { return '<span style="--cc:' + colorOf(id) + '">' + av(id, 36) + '</span>'; }).join('') + (fam.length > 7 ? '<span class="more2">+' + (fam.length - 7) + '</span>' : '') +
-        '<small class="cnt4"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9" r="2.6"/><path d="M2.5 19c.4-3.6 3.2-5.6 6.5-5.6s6.1 2 6.5 5.6zM15.6 13.6c2.9-.3 5.5 1.3 5.9 4.9h-4.6c-.2-1.9-.6-3.5-1.3-4.9z"/></svg>' + fam.length + ' في العائلة</small></div>' + quick('g') + '</div>';
+        '<small class="cnt4"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9" r="2.6"/><path d="M2.5 19c.4-3.6 3.2-5.6 6.5-5.6s6.1 2 6.5 5.6zM15.6 13.6c2.9-.3 5.5 1.3 5.9 4.9h-4.6c-.2-1.9-.6-3.5-1.3-4.9z"/></svg>' + fam.length + ' في العائلة</small></div>' + '</div>';
       var rows = items.map(function (it) {
         var o = otherOf(it.c), col = colorOf(o);
         return '<div class="row2 gl2' + (it.unread ? ' hot2' : '') + '" style="--cc:' + col + '"><button class="rowb" data-c="' + esc(it.c) + '"><span class="ring2">' + av(o, 50) + '</span>' +
@@ -1190,6 +1309,10 @@ var A = (function () {
     var mb = NB.media(m); if (!mb) return '';
     return (urlCache[m.id] = URL.createObjectURL(mb));
   }
+  /* 🎞️ رسمة متحركة: الشريط داخل إطار، ونحرّكه لقطة لقطة */
+  function animHTML(m, u, style, noView) {
+    return '<div class="anim" style="' + style + ';aspect-ratio:' + m.w + '/' + m.h + '"' + (noView ? '' : ' data-view="' + m.id + '"') + ' role="img" aria-label="رسمة متحركة"><img src="' + u + '" alt="" style="width:' + (m.fr * 100) + '%;animation-duration:' + (m.fr * .4).toFixed(2) + 's;animation-timing-function:steps(' + m.fr + ')"></div>';
+  }
   function msgHTML(m) {
     var mine = m.s === S.me, group = m.chat === 'g';
     var body = '';
@@ -1197,7 +1320,11 @@ var A = (function () {
     else if (m.k === 'sticker') { var su = mediaUrl(m); body = '<div class="stkmsg">' + (su ? '<img src="' + su + '" data-view="' + m.id + '" alt="ملصق">' : '') + '</div>'; }
     else if (m.k === 'photo' || m.k === 'draw') {
       var u = mediaUrl(m);
-      body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
+      var bw = m.w ? Math.round(Math.min(240, 240 * Math.min(1, (m.w / m.h) / 0.75))) : 0;
+      if (u && m.fr > 1) body = '<div class="bub media">' + animHTML(m, u, 'width:' + (bw || 240) + 'px;max-width:62vw') + '</div>';
+      else body = '<div class="bub media">' + (u ? '<img src="' + u + '" data-view="' + m.id + '" alt="' + (m.k === 'draw' ? 'رسمة' : 'صورة') + '" style="' + (m.w ? 'width:' + bw + 'px;max-width:62vw;height:auto;max-height:none;aspect-ratio:' + m.w + '/' + m.h : '') + '">' : '<span class="small muted" style="padding:20px;display:block">جاري التحميل…</span>') + '</div>';
+      // 🤝 رسمة مشتركة: مين رسم فيها + زر «كمّلها»
+      if (m.k === 'draw' && m.cm && m.cm.length && u) body += '<div class="cmrow">' + m.cm.slice(-5).map(function (id) { return av(id, 22); }).join('') + '<span>' + (m.cm.length > 1 ? '🤝 رسمة مشتركة' : '🤝 تنتظر أحد يكمّلها') + '</span>' + (mine ? '' : '<button class="cmb" data-cm="' + m.id + '">🖍️ كمّلها</button>') + '</div>';
     } else if (m.k === 'voice') {
       var wf = m.wf || [], played = (m.st || {});
       body = '<div class="bub">' + (m.bed ? '<div class="bedtag">🌙 رسالة النوم' + (mine ? '' : ' من ' + esc(nm(m.s))) + '</div>' : '') + '<div class="voice" data-voice="' + m.id + '"><button class="pl" aria-label="تشغيل الرسالة الصوتية" style="color:' + (mine ? 'var(--accent)' : '#fff') + '">' + PLAY + '</button>' +
@@ -1208,7 +1335,8 @@ var A = (function () {
     var re = m.re ? Object.keys(m.re) : [];
     if (re.length) {
       var cnt = {}; re.forEach(function (k) { cnt[m.re[k]] = (cnt[m.re[k]] || 0) + 1; });
-      body = body.slice(0, -6) + '<span class="reacts" title="' + esc(re.map(function (k) { return nm(k) + ' ' + m.re[k]; }).join('، ')) + '">' + Object.keys(cnt).map(function (e) { return e + (cnt[e] > 1 ? '<i>' + num(cnt[e]) + '</i>' : ''); }).join('') + '</span></div>';
+      var cmi = body.indexOf('<div class="cmrow">'), tail = cmi >= 0 ? body.slice(cmi) : ''; if (cmi >= 0) body = body.slice(0, cmi);
+      body = body.slice(0, -6) + '<span class="reacts" title="' + esc(re.map(function (k) { return nm(k) + ' ' + m.re[k]; }).join('، ')) + '">' + Object.keys(cnt).map(function (e) { return e + (cnt[e] > 1 ? '<i>' + num(cnt[e]) + '</i>' : ''); }).join('') + '</span></div>' + tail;
     }
     return '<div class="m' + (mine ? ' me' : '') + (sched ? ' sched' : '') + '" data-id="' + m.id + '"' + (mine ? '' : ' style="--sc:' + colorOf(m.s) + '"') + '>' + (!mine && group ? av(m.s, 32) : '') +
       '<div class="col" style="gap:0;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';min-width:0">' + (!mine && group ? '<span class="who2" style="color:' + colorOf(m.s) + '">' + esc(nm(m.s)) + '</span>' : '') + (m.cap ? '<span class="cap">' + esc(m.cap) + '</span>' : '') + body + meta + '</div></div>';
@@ -1233,6 +1361,9 @@ var A = (function () {
   function fmtDur(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
   function bindMsgs(box, ms) {
     var byId = {}; ms.forEach(function (m) { byId[m.id] = m; });
+    box.querySelectorAll('[data-cm]').forEach(function (b) {
+      b.onclick = function () { var m = byId[b.dataset.cm]; if (m) completeDraw(m); };
+    });
     box.querySelectorAll('[data-view]').forEach(function (img) {
       img.onclick = function () { var m = byId[img.dataset.view]; if (m) viewMedia(m, img.src); };
     });
@@ -1451,7 +1582,7 @@ var A = (function () {
           var mo = new Date(m.t).toLocaleDateString(LOC, { month: 'long', year: 'numeric' });
           if (mo !== last) { html += (last ? '</div>' : '') + '<b class="small muted">' + mo + '</b><div class="agrid">'; last = mo; }
           var u = URL.createObjectURL(NB.media(m)); urls.push(u);
-          html += '<button data-i="' + i + '" class="' + (m.k === 'sticker' ? 'stkc' : '') + '"><img src="' + u + '" alt="" loading="lazy"><span>' + av(m.s, 22) + '</span></button>';
+          html += '<button data-i="' + i + '" class="' + (m.k === 'sticker' ? 'stkc' : '') + '"><img src="' + u + '" alt="" loading="lazy"' + (m.fr > 1 ? ' style="object-position:0 50%"' : '') + '><span>' + av(m.s, 22) + '</span></button>';
         });
         box.innerHTML = html + '</div>';
         box.querySelectorAll('[data-i]').forEach(function (b) { b.onclick = function () { viewMedia(all[+b.dataset.i], b.querySelector('img').src); }; });
@@ -1460,14 +1591,19 @@ var A = (function () {
     el.querySelectorAll('[data-f]').forEach(function (b) { b.onclick = function () { f = b.dataset.f; el.querySelectorAll('[data-f]').forEach(function (x) { x.classList.toggle('on', x === b); }); paint(); }; });
     paint();
   }
+  /* كمّل رسمة: تفتح الرسمة كورقة، واللي يرسله يصير ردّ عليها — والرسمة المشتركة تكمل سلسلتها */
+  function completeDraw(m, src) {
+    var u = src || mediaUrl(m); if (!u) return;
+    var im = new Image(); im.onload = function () { S.chat = m.chat; drawScreen({ base: im, rp: m.id, cap: '🖍️ ' + (fem(S.me) ? 'كمّلت' : 'كمّل') + ' رسمة ' + nm(m.s), cmw: m.cm ? m.cm.slice() : [m.s] }); }; im.src = u;
+  }
   function viewMedia(m, src) {
     var v = document.createElement('div'); v.className = 'viewer';
     var canDraw = m.k === 'draw' && chatsFor(S.me).indexOf(m.chat) >= 0;
-    v.innerHTML = '<img src="' + src + '" alt=""><div class="vbar" style="flex-direction:column;align-items:stretch"><span class="small" style="color:#fff">' + esc(nm(m.s)) + ' · ' + fmtDay(m.t) + ' ' + fmtTime(m.t) + '</span><div class="vbtns">' +
-      (canDraw ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
+    v.innerHTML = (m.fr > 1 ? animHTML(m, src, 'width:min(92vw,520px)', true) : '<img src="' + src + '" alt="">') + '<div class="vbar" style="flex-direction:column;align-items:stretch"><span class="small" style="color:#fff">' + esc(nm(m.s)) + ' · ' + fmtDay(m.t) + ' ' + fmtTime(m.t) + '</span><div class="vbtns">' +
+      (canDraw && !(m.fr > 1) ? '<button class="btn sm" id="vd">🖍️ كمّل الرسمة</button>' : '') + '<button class="btn sm" id="vs">حفظ</button></div></div>';
     v.onclick = function (e) { if (!e.target.closest('button')) v.remove(); };
     if ($('#vd', v)) $('#vd', v).onclick = function () {
-      var im = new Image(); im.onload = function () { v.remove(); S.chat = m.chat; drawScreen({ base: im, rp: m.id, cap: '🖍️ كمّل رسمة ' + nm(m.s) }); }; im.src = src;
+      v.remove(); completeDraw(m, src);
     };
     document.body.appendChild(v);
     $('#vs', v).onclick = function () {
@@ -1483,7 +1619,7 @@ var A = (function () {
     new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); if (bytes) out.set(bytes, 4 + h.length);
     return out;
   }
-  var XTRA = ['ch', 'rp', 'cap', 'bed'];
+  var XTRA = ['ch', 'rp', 'cap', 'bed', 'cm', 'fr'];
   function sendMsg(kind, o, blob) {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: o.at || Date.now(), st: {}, r: [S.me], out: 1 };
     if (o.at) m.sched = o.at;
@@ -1857,7 +1993,7 @@ var A = (function () {
   }
   function refreshView() {
     if (S.view === 'chat') renderMsgs(); else if (S.view === 'home') renderChats();
-    else if (S.view === 'buy') renderBuy(); else if (S.view === 'tasks') renderTasks();
+    else if (S.view === 'buy') renderBuy(); else if (S.view === 'tasks') renderTasks(); else if (S.view === 'rewards') renderRewards();
     else if (S.view === 'picker') picker();
     if (A.onSync) A.onSync();
   }
@@ -1958,7 +2094,7 @@ var A = (function () {
     if (!days || deviceHasAdmin()) return Promise.resolve(0);
     var cut = Date.now() - days * 864e5;
     return NB.msgs.all().then(function (all) {
-      var old = all.filter(function (m) { return m.t < cut && !m.out && !((m.k === 'draw' || m.k === 'photo' || m.k === 'sticker') && hasStar(m)); });
+      var old = all.filter(function (m) { return m.t < cut && !m.out && !((m.k === 'draw' || m.k === 'photo' || m.k === 'sticker') && hasStar(m)) && !(m.k === 'ev' && m.t > Date.now() - 32 * 864e5); });
       return Promise.all(old.map(function (m) { return NB.msgs.del(m.id); })).then(function () { return old.length; });
     });
   }
@@ -2146,7 +2282,7 @@ var A = (function () {
       history.replaceState(null, '', location.pathname);
       home(); showNudge({ id: m[1], f: m[2], to: m[3] }); return true;
     }
-    if (/^#?(buy|tasks)$/.test(hash)) { history.replaceState(null, '', location.pathname); if (S.me) { if (/buy/.test(hash)) buyScreen(); else tasksScreen(); return true; } }
+    if (/^#?(buy|tasks|rewards)$/.test(hash)) { history.replaceState(null, '', location.pathname); if (S.me) { if (/buy/.test(hash)) buyScreen(); else if (/rewards/.test(hash)) rewardsScreen(); else tasksScreen(); return true; } }
     if ((m = /chat=([^&]+)/.exec(hash))) {
       history.replaceState(null, '', location.pathname);
       var c = decodeURIComponent(m[1]);
@@ -2166,7 +2302,7 @@ var A = (function () {
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, famPortrait: famPortrait, FPBG: FPBG, FPX: FPX, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
-    sendMsg: sendMsg, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
+    sendMsg: sendMsg, sendReact: sendReact, starBurst: starBurst, rewardsScreen: rewardsScreen, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
     standalone: standalone, plat: plat,
     installPrompt: function () { if (!deferredInstall) return Promise.resolve(false); deferredInstall.prompt(); return deferredInstall.userChoice.then(function (c) { deferredInstall = null; return c && c.outcome === 'accepted'; }, function () { return false; }); },
     canInstall: function () { return !!deferredInstall; },

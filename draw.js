@@ -76,7 +76,7 @@ var DR = (function () {
     heart: { c: 'n', n: 'قلب', p: ['M50 88C20 66 8 50 12 33C16 18 36 14 50 30C64 14 84 18 88 33C92 50 80 66 50 88z', 'M50 70C36 60 30 52 32 44C34 37 44 35 50 43C56 35 66 37 68 44C70 52 64 60 50 70z'] },
     star: { c: 'n', n: 'نجمة', p: [STAR(50, 52, 42, 5, .48), STAR(50, 54, 20, 5, .48), C(14, 14, 2), C(88, 86, 2)] }
   };
-  var CATS = [['h', '🐪 تراثنا'], ['a', '🐱 حيوانات'], ['v', '🚀 فضاء ومركبات'], ['n', '🌈 أشياء حلوة'], ['fam', '👨‍👩‍👧 العائلة'], ['photo', '📷 صورتك'], ['bg', '🎨 لون الورقة']];
+  var CATS = [['learn', '👣 تعلّم ترسم'], ['abc', '✏️ الحروف والأرقام'], ['h', '🐪 تراثنا'], ['a', '🐱 حيوانات'], ['v', '🚀 فضاء ومركبات'], ['n', '🌈 أشياء حلوة'], ['fam', '👨‍👩‍👧 العائلة'], ['photo', '📷 صورتك'], ['bg', '🎨 لون الورقة']];
 
   var COLORS = ['#1B2333', '#E53935', '#FF7043', '#FF8A3D', '#F5B62A', '#FFE14D', '#8BD346', '#23854D', '#00A896', '#3FC1C9', '#9AD3F5', '#2F6FDB', '#3D3DB4', '#7E57C2', '#A13D8F', '#F28AB2', '#FFD6E7', '#8A5A3C', '#C49A6C', '#FFE0B2', '#9E9E9E', '#FFFFFF'];
   // لوحة الألوان الكاملة (٧٢ لون في مجموعات)
@@ -93,6 +93,34 @@ var DR = (function () {
   var PATS = [['star', '⭐'], ['heart', '❤️'], ['flower', '🌸'], ['dot', '⚪'], ['rb', '🌈']];
   var SHAPES = [['circle', '⚪', 'دائرة'], ['rect', '⬜', 'مربع'], ['star', '⭐', 'نجمة'], ['heart', '❤️', 'قلب'], ['tri', '🔺', 'مثلث'], ['line', '➖', 'خط']];
   var SIZES = [.012, .026, .05, .09];
+  /* 👣 تعلّم ترسم خطوة بخطوة: كل درس خطوات (مسارات على ورقة ١٠٠×١٠٠). الخطوة الحالية تطلع منقّطة والطفل يمشي عليها */
+  var LESSONS = [
+    { k: 'cat', n: 'قطة', e: '🐱', s: [[C(50, 54, 22)], ['M33 40 L29 18 L46 33', 'M67 40 L71 18 L54 33'], [C(41, 50, 3.5), C(59, 50, 3.5)], ['M47 59 L53 59 L50 63 Z', 'M50 63 Q45 68 41 65', 'M50 63 Q55 68 59 65'], ['M38 60 L20 57', 'M38 63 L20 66', 'M62 60 L80 57', 'M62 63 L80 66']] },
+    { k: 'house', n: 'بيت', e: '🏠', s: [['M25 50 H75 V86 H25 Z'], ['M18 52 L50 22 L82 52'], ['M44 86 V66 H56 V86'], ['M30 57 H40 V67 H30 Z', 'M60 57 H70 V67 H60 Z'], ['M63 36 V24 H71 V44']] },
+    { k: 'fish', n: 'سمكة', e: '🐟', s: [[E(45, 50, 26, 16)], ['M70 50 L88 35 L88 65 Z'], [C(32, 46, 3)], ['M40 35 Q48 24 58 35'], ['M44 50 q5 -5 10 0', 'M50 58 q5 -5 10 0', 'M52 42 q5 -5 10 0', C(14, 34, 3), C(10, 24, 2)]] },
+    { k: 'sun', n: 'شمس', e: '☀️', s: [[C(50, 50, 18)], [RAYS(50, 50, 24, 36, 8)], [C(44, 46, 2.5), C(56, 46, 2.5), 'M42 55 Q50 62 58 55']] },
+    { k: 'flower', n: 'وردة', e: '🌸', s: [[C(50, 36, 7)], [C(50, 22, 7), C(63, 31, 7), C(58, 47, 7), C(42, 47, 7), C(37, 31, 7)], ['M50 54 Q47 72 50 92'], ['M49 76 Q35 66 32 74 Q40 84 49 78', 'M51 68 Q65 58 68 66 Q60 76 51 70']] },
+    { k: 'car', n: 'سيارة', e: '🚗', s: [['M12 62 Q12 56 18 56 H82 Q88 56 88 62 V72 H12 Z'], ['M28 56 L36 42 H64 L74 56'], [C(30, 74, 8), C(70, 74, 8)], ['M39 55 L43 46 H49 V55 Z', 'M53 55 V46 H61 L67 55 Z'], [C(84, 63, 2), 'M12 64 H16']] },
+    { k: 'rainbow', n: 'قوس قزح', e: '🌈', s: [['M14 74 A36 36 0 0 1 86 74'], ['M22 74 A28 28 0 0 1 78 74'], ['M30 74 A20 20 0 0 1 70 74'], ['M6 78 Q6 68 16 70 Q20 61 28 66 Q36 66 34 78 Z', 'M66 78 Q64 66 72 66 Q80 61 84 70 Q94 68 94 78 Z']] },
+    { k: 'butterfly', n: 'فراشة', e: '🦋', s: [[E(50, 52, 3, 18)], ['M50 44 C36 18 12 26 18 44 C22 56 40 54 50 50', 'M50 44 C64 18 88 26 82 44 C78 56 60 54 50 50'], ['M50 54 C38 58 24 68 30 78 C36 86 48 72 50 60', 'M50 54 C62 58 76 68 70 78 C64 86 52 72 50 60'], ['M49 35 Q44 24 39 21', 'M51 35 Q56 24 61 21'], [C(30, 40, 4), C(70, 40, 4), C(38, 70, 3), C(62, 70, 3)]] }
+  ];
+  /* ✏️ تتبّع الحروف والأرقام */
+  var LETTERS = 'ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي'.split(' ');
+  var DIGITS = '١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩ ١٠'.split(' ');
+  /* نرسم الكلمة/الحرف: تعبئة فاتحة تحت الرسم (base) + حدود منقّطة فوقه (lines) + قناع للتحقق */
+  function traceArt(text) {
+    var big = text.length <= 2, fs = big ? 640 : 300, f = '800 ' + fs + 'px "IBM Plex Sans Arabic", system-ui, sans-serif';
+    var m = document.createElement('canvas').getContext('2d'); m.font = f;
+    var tw = Math.ceil(m.measureText(text).width), W = Math.max(big ? 900 : 600, tw + 160), H = big ? 900 : 520;
+    var mk = function (fn) { var c = document.createElement('canvas'); c.width = W; c.height = H; var x = c.getContext('2d'); x.font = f; x.textAlign = 'center'; x.textBaseline = 'middle'; x.direction = 'rtl'; fn(x); return c; };
+    var y = H / 2 + fs * .06;
+    return {
+      base: mk(function (x) { x.fillStyle = '#ECE6FB'; x.fillText(text, W / 2, y); }),
+      lines: mk(function (x) { x.lineWidth = Math.max(5, fs / 70); x.setLineDash([fs / 26, fs / 34]); x.strokeStyle = '#8E7BD6'; x.lineJoin = 'round'; x.strokeText(text, W / 2, y); }),
+      mask: mk(function (x) { x.fillStyle = '#000'; x.fillText(text, W / 2, y); })
+    };
+  }
+  function traceReady() { try { return document.fonts && document.fonts.load ? document.fonts.load('800 100px "IBM Plex Sans Arabic"').catch(function () {}) : Promise.resolve(); } catch (e) { return Promise.resolve(); } }
   var SPARK = ['#FFD54A', '#FFFFFF', '#FF8AD8', '#8AE8FF', '#B9F27C'];
 
   /* ---------- المحرّك (نفسه للرسم وللتشغيل) ---------- */
@@ -209,7 +237,7 @@ var DR = (function () {
     };
     E.drawBase = function () {
       var W = cv.width, H = cv.height, bi = E.base; if (!bi) return;
-      var k0 = Math.min(W / bi.width, H / bi.height); ctx.drawImage(bi, (W - bi.width * k0) / 2, (H - bi.height * k0) / 2, bi.width * k0, bi.height * k0);
+      var k0 = Math.min(W / bi.width, H / bi.height) * (E.baseK || 1); ctx.drawImage(bi, (W - bi.width * k0) / 2, (H - bi.height * k0) / 2, bi.width * k0, bi.height * k0);
     };
     E.clear = function () { var W = cv.width, H = cv.height; ctx.save(); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.fillStyle = E.bg(); ctx.fillRect(0, 0, W, H); ctx.restore(); E.drawBase(); E.drawLines(); };
     // رسم عملية كاملة
@@ -346,18 +374,20 @@ var DR = (function () {
       '<div class="d2top"><button class="icb" id="dx" aria-label="إغلاق">' + ic('close') + '</button><span class="fd grow d2title">' + (opt.base ? '🖍️ كمّل الرسمة' : '🎨 ارسم لـ' + esc(A.chatTitle(chat))) + '</span>' +
       '<button class="icb" id="dsd" aria-label="رسوماتي">💾</button><button class="icb" id="dsn" aria-label="الأصوات">' + (snd.on ? '🔊' : '🔇') + '</button>' +
       '<button class="icb" id="du" aria-label="تراجع">' + ic('undo') + '</button><button class="icb" id="dr" aria-label="إعادة" style="transform:scaleX(-1)">' + ic('undo') + '</button></div>' +
-      '<div class="d2wrap" id="dw"><div class="d2zoom" id="dz"><canvas id="cv"></canvas><svg class="d2guide" id="dg" preserveAspectRatio="none" viewBox="0 0 100 100"></svg></div>' +
+      '<div class="d2wrap" id="dw"><div class="d2zoom" id="dz"><canvas id="cv"></canvas><svg class="d2guide" id="dg" preserveAspectRatio="none" viewBox="0 0 100 100"></svg><svg class="d2lesson" id="dlg" viewBox="-4 -4 108 108" preserveAspectRatio="xMidYMid meet" hidden></svg></div>' +
+      '<div class="d2step" id="dstep" hidden></div><div class="d2fr" id="dfr" hidden></div><div class="d2cmtag" id="dcmt" hidden>🤝 يقدرون يكمّلونها</div>' +
       '<button class="d2zr" id="dzr" hidden>🔍 رجّع الحجم</button><div class="d2resume" id="dres" hidden></div></div>' +
       '<div class="d2panel">' +
       '<div class="d2tools" id="dtl">' + BRUSHES.map(function (t) { return '<button data-tool="' + t[0] + '"' + (t[0] === st.tool ? ' class="on"' : '') + '><span>' + t[1] + '</span>' + t[2] + '</button>'; }).join('') + '</div>' +
       '<div id="dctx" class="d2ctx"></div>' +
-      '<div class="d2row"><div class="d2sizes">' + SIZES.map(function (s, i) { return '<button data-s="' + i + '"' + (i === st.size ? ' class="on"' : '') + ' aria-label="حجم ' + (i + 1) + '"><i style="width:' + [6, 11, 17, 24][i] + 'px;height:' + [6, 11, 17, 24][i] + 'px"></i></button>'; }).join('') + '</div>' +
-      '<button class="d2b" id="dm" aria-label="المرآة">🪞<b id="dmv">لا</b></button><button class="d2b" id="dp" aria-label="الورقة">📄<b>ورقة</b></button><button class="d2b" id="dv" aria-label="صوت مع الرسمة">🎤<b id="dvv">صوت</b></button>' +
+      '<div class="d2row"><button class="d2b d2sz" id="dsz" aria-label="حجم القلم"><i id="dszi"></i><b>الحجم</b></button>' +
+      '<button class="d2b" id="dm" aria-label="المرآة">🪞<b id="dmv">لا</b></button><button class="d2b" id="dp" aria-label="الورقة">📄<b>ورقة</b></button><button class="d2b" id="dmore" aria-label="المزيد">✨<b>المزيد</b></button><button class="d2b" id="dv" aria-label="صوت مع الرسمة">🎤<b id="dvv">صوت</b></button>' +
       '<span class="grow"></span><button class="btn d2send" id="ds" aria-label="إرسال">' + ic('send', 'style="transform:scaleX(-1)"') + '</button></div></div>', 'd2');
     el.style.height = '100dvh';
     var cv = $('#cv'), wrap = $('#dw'), zoom = $('#dz'), dpr = Math.min(2, window.devicePixelRatio || 1);
     var E = Engine(cv, { dpr: dpr });
     if (opt.base) E.base = opt.base;
+    if (opt.cmw) { st.cm = true; setTimeout(function () { var t = $('#dcmt'); if (t) t.hidden = false; }, 0); }
     var cur = null, snap = null;
 
     function fit() {
@@ -374,7 +404,8 @@ var DR = (function () {
       $('#dm').classList.toggle('on', !!m);
     }
     function changed() {
-      st.dirty = true; st.redo = []; updBtns();
+      st.dirty = true; st.redo = []; st.frDirty = true; updBtns();
+      clearTimeout(st.trT); st.trT = setTimeout(checkTrace, 350);
       clearTimeout(st.saveT); st.saveT = setTimeout(autoSave, 1500);
     }
     function updBtns() { $('#du').disabled = !E.ops.some(function (o) { return o.t !== 'pg'; }); $('#dr').disabled = !st.redo.length; }
@@ -383,7 +414,7 @@ var DR = (function () {
     function autoSave() {
       if (!hasInk()) return Promise.resolve();
       var d = { id: st.draftId, chat: chat, t: Date.now(), ops: JSON.parse(encode(E.ops, cv.width / cv.height)), thumb: thumb() };
-      if (E.page() === 'photo' && st.photo) d.photo = st.photo.toDataURL('image/png');
+      if ((E.page() === 'photo' || E.page() === 'img') && st.photo) d.photo = st.photo.toDataURL(E.page() === 'img' ? 'image/jpeg' : 'image/png', .85);
       return saveDraft(d);
     }
     function loadDraft(d) {
@@ -391,7 +422,10 @@ var DR = (function () {
       var dd = decode({ v: 1, r: 1, o: JSON.parse(JSON.stringify(d.ops.o || d.ops)) });
       E.ops = dd.o; E.lines = null;
       var k = E.page(), go = function () { E.redraw(); updBtns(); };
+      E.base = null; E.baseK = 1;
       if (k === 'photo' && d.photo) { var im = new Image(); im.onload = function () { st.photo = im; E.lines = im; go(); }; im.src = d.photo; }
+      else if (k === 'img' && d.photo) { var im2 = new Image(); im2.onload = function () { st.photo = im2; E.base = im2; go(); }; im2.src = d.photo; }
+      else if (k && /^tr:/.test(k)) traceReady().then(function () { var t = traceArt(k.slice(3)); E.base = t.base; E.baseK = .92; E.lines = t.lines; st.mask = t.mask; go(); });
       else if (k && /^av:/.test(k)) famLines(k.slice(3)).then(function (c) { E.lines = c; go(); });
       else go();
     }
@@ -496,48 +530,70 @@ var DR = (function () {
       var on = box.querySelector('.d2colors .on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) {}
       box.querySelectorAll('[data-pt]').forEach(function (b) { b.onclick = function () { st.pat = b.dataset.pt; paintCtx(); }; });
       box.querySelectorAll('[data-sh]').forEach(function (b) { b.onclick = function () { st.shape = b.dataset.sh; paintCtx(); }; });
+      sizeDot();
       var cp = $('#dcp'); if (cp) cp.onchange = function () { setColor(cp.value.toUpperCase()); };
       if (cp) cp.oninput = function () { st.color = cp.value.toUpperCase(); var l = cp.parentNode; l.style.background = st.color; box.querySelectorAll('.sw').forEach(function (x) { x.classList.toggle('on', x === l); }); };
     }
-    function setTool(t) { st.tool = t; el.querySelectorAll('[data-tool]').forEach(function (x) { x.classList.toggle('on', x.dataset.tool === t); }); paintCtx(); }
+    function setTool(t) { st.tool = t; el.querySelectorAll('[data-tool]').forEach(function (x) { x.classList.toggle('on', x.dataset.tool === t); }); paintCtx(); sizeDot(); }
     el.querySelectorAll('[data-tool]').forEach(function (b) { b.onclick = function () { setTool(b.dataset.tool); pop(600); }; });
-    el.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { st.size = +b.dataset.s; el.querySelectorAll('[data-s]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
+    function sizeDot() { var d = [6, 11, 17, 24][st.size], i = $('#dszi'); i.style.width = i.style.height = d + 'px'; i.style.background = st.tool === 'erase' ? 'var(--muted)' : st.color; }
+    $('#dsz').onclick = function () { st.size = (st.size + 1) % SIZES.length; sizeDot(); pop(460 + st.size * 90); };
     $('#dm').onclick = function () { st.mirror = { 0: 2, 2: 4, 4: 8, 8: 0 }[st.mirror]; guides(); pop(700); if (st.mirror === 2 && !st.mirTip) { st.mirTip = 1; A.toast('🪞 ارسم بجهة وتنعكس على الثانية!'); } };
     $('#du').onclick = function () { for (var i = E.ops.length - 1; i >= 0; i--) if (E.ops[i].t !== 'pg') { st.redo.push(E.ops.splice(i, 1)[0]); break; } E.redraw(); updBtns(); pop(400); clearTimeout(st.saveT); st.saveT = setTimeout(autoSave, 1500); };
     $('#dr').onclick = function () { var o = st.redo.pop(); if (!o) return; E.ops.push(o); if (o.t === 'bg') E.redraw(); else E.op(o); updBtns(); pop(500); };
     $('#dsn').onclick = function () { snd.on = !snd.on; try { localStorage.setItem('nabd-dsnd', snd.on ? '1' : '0'); } catch (e) {} this.textContent = snd.on ? '🔊' : '🔇'; if (!snd.on) sndClose(); };
 
     /* ---- الورقة: صفحات تلوين، العائلة، صورتك، لون الورقة ---- */
-    function startPage(op, lines) {
+    function startPage(op, lines, base, baseK, keepTool, after) {
       var go = function () {
-        st.draftId = A.rid(8); st.redo = []; var keepBg = E.bg();
+        st.draftId = A.rid(8); st.redo = []; st.traced = false; st.mask = null; var keepBg = E.bg();
         E.ops = keepBg !== '#FFFFFF' && op.t === 'pg' ? [{ t: 'bg', c: keepBg }] : [];
-        E.lines = lines || null; E.ops.push(op); E.redraw(); updBtns(); if (op.t === 'pg') setTool('fill');
+        E.lines = lines || null; E.base = base || null; E.baseK = baseK || 1; E.ops.push(op); E.redraw(); updBtns();
+        if (op.t === 'pg' && !keepTool) setTool('fill');
+        endLesson();
+        if (after) after();
       };
       if (hasInk()) { autoSave().then(function () { A.toast('رسمتك السابقة انحفظت في 💾 رسوماتي'); go(); }); } else go();
     }
-    function pageSheet() {
-      var tab = 'h';
+    function pageSheet(t0) {
+      var tab = typeof t0 === 'string' ? t0 : 'h';
       var sh = A.sheet('<div class="row"><h2 class="grow" style="font-size:22px">📄 ورقة جديدة</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div>' +
         '<div class="chips d2cats">' + CATS.map(function (c) { return '<button class="chip' + (c[0] === tab ? ' on' : '') + '" data-cat="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div><div id="pgl"></div>');
       $('#x', sh).onclick = function () { sh.remove(); };
       function paint() {
         var box = $('#pgl', sh), h = '';
         if (tab === 'fam') h = '<div class="d2pages">' + A.live().map(function (id) { return '<button data-av="' + id + '">' + A.av(id, 64) + '<span>' + esc(A.nm(id)) + '</span></button>'; }).join('') + '</div><p class="small muted" style="margin:8px 2px 0">شخصية أي واحد من العائلة تصير صفحة تلوين 🖍️</p>';
-        else if (tab === 'photo') h = '<div class="col" style="gap:10px;text-align:center;padding:10px 0"><span style="font-size:52px">📷</span><b>صوّر أي شي وتصير صفحة تلوين</b><span class="small muted">وجهك، لعبتك، قطوتك… وبعدين لوّنها</span><button class="btn block" id="phg">📷 اختر صورة أو صوّر</button><input type="file" accept="image/*" id="phf" hidden></div>';
+        else if (tab === 'photo') h = '<div class="col" style="gap:10px;text-align:center;padding:10px 0"><span style="font-size:52px">📷</span><b>صوّر أي شي وتصير صفحة تلوين</b><span class="small muted">وجهك، لعبتك، قطوتك… وبعدين لوّنها</span><button class="btn block" id="phg">🖍️ صفحة تلوين من صورة</button><button class="btn ghost block" id="phd">🖌️ ارسم على الصورة نفسها</button><span class="small muted">شنب، نظارة، تاج… على صورة أخوك 😄</span><input type="file" accept="image/*" id="phf" hidden></div>';
         else if (tab === 'bg') h = '<div class="d2colors" style="flex-wrap:wrap">' + BGS.map(function (c) { return '<button class="sw' + (c === E.bg() ? ' on' : '') + '" data-bgc="' + c + '" style="background:' + c + ';width:44px;height:44px"></button>'; }).join('') + '</div><p class="small muted" style="margin:8px 2px 0">لون الورقة يتغيّر ورسمتك تبقى فوقه</p>';
+        else if (tab === 'learn') h = '<div class="d2pages">' + LESSONS.map(function (l, i) { return '<button data-ls="' + i + '"><svg viewBox="-4 -4 108 108"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' + [].concat.apply([], l.s).map(function (d) { return '<path d="' + d + '"/>'; }).join('') + '</g></svg><span>' + l.e + ' ' + l.n + '</span></button>'; }).join('') + '</div><p class="small muted" style="margin:8px 2px 0">نرسمها مع بعض خطوة خطوة 👣</p>';
+        else if (tab === 'abc') h = '<b class="small muted">✍️ الأسماء</b><div class="d2abc">' + A.live().map(function (id) { return '<button data-tr="' + esc(A.nm(id)) + '" class="wide">' + esc(A.nm(id)) + '</button>'; }).join('') + '</div>' +
+          '<b class="small muted">الحروف</b><div class="d2abc">' + LETTERS.map(function (c) { return '<button data-tr="' + c + '">' + c + '</button>'; }).join('') + '</div>' +
+          '<b class="small muted">الأرقام</b><div class="d2abc">' + DIGITS.map(function (c) { return '<button data-tr="' + c + '">' + c + '</button>'; }).join('') + '</div>';
         else h = '<div class="d2pages">' + Object.keys(PAGES).filter(function (k) { return PAGES[k].c === tab; }).map(function (k) { return '<button data-pg="' + k + '">' + svgThumb(k) + '<span>' + PAGES[k].n + '</span></button>'; }).join('') + '</div>';
         box.innerHTML = h;
         box.querySelectorAll('[data-pg]').forEach(function (b) { b.onclick = function () { sh.remove(); startPage({ t: 'pg', k: b.dataset.pg }); pop(700); }; });
         box.querySelectorAll('[data-av]').forEach(function (b) { b.onclick = function () { sh.remove(); var id = b.dataset.av; A.toast('نجهّز الصفحة…', 1200); famLines(id).then(function (c) { startPage({ t: 'pg', k: 'av:' + id }, c); }); }; });
+        box.querySelectorAll('[data-ls]').forEach(function (b) { b.onclick = function () { sh.remove(); startLesson(+b.dataset.ls); }; });
+        box.querySelectorAll('[data-tr]').forEach(function (b) { b.onclick = function () { sh.remove(); startTrace(b.dataset.tr); }; });
         box.querySelectorAll('[data-bgc]').forEach(function (b) { b.onclick = function () { sh.remove(); if (b.dataset.bgc !== E.bg()) { E.ops.push({ t: 'bg', c: b.dataset.bgc }); E.redraw(); changed(); } }; });
         var pf = $('#phf', sh);
         if (pf) {
-          $('#phg', sh).onclick = function () { pf.click(); };
+          var onImg = 'lines';
+          $('#phg', sh).onclick = function () { onImg = 'lines'; pf.click(); };
+          $('#phd', sh).onclick = function () { onImg = 'img'; pf.click(); };
           pf.onchange = function () {
             var f = pf.files && pf.files[0]; if (!f) return;
             var u = URL.createObjectURL(f), im = new Image();
-            im.onload = function () { URL.revokeObjectURL(u); sh.remove(); var c = lineArt(im, true); st.photo = c; startPage({ t: 'pg', k: 'photo' }, c); A.toast('🖍️ لوّن صورتك!'); };
+            im.onload = function () {
+              URL.revokeObjectURL(u); sh.remove();
+              if (onImg === 'img') {
+                // الصورة نفسها تحت الرسم (نصغّرها عشان الذاكرة)
+                var k = Math.min(1, 1280 / Math.max(im.width, im.height)), c2 = document.createElement('canvas');
+                c2.width = Math.round(im.width * k); c2.height = Math.round(im.height * k); c2.getContext('2d').drawImage(im, 0, 0, c2.width, c2.height);
+                startPage({ t: 'pg', k: 'img' }, null, c2, 1, true, function () { st.photo = c2; setTool('pen'); A.toast('🖌️ ارسم على الصورة!'); }); return;
+              }
+              var c = lineArt(im, true); st.photo = c; startPage({ t: 'pg', k: 'photo' }, c); A.toast('🖍️ لوّن صورتك!');
+            };
             im.onerror = function () { A.toast('ما قدرنا نفتح الصورة'); };
             im.src = u;
           };
@@ -546,8 +602,103 @@ var DR = (function () {
       sh.querySelectorAll('[data-cat]').forEach(function (b) { b.onclick = function () { tab = b.dataset.cat; sh.querySelectorAll('[data-cat]').forEach(function (x) { x.classList.toggle('on', x === b); }); paint(); }; });
       paint();
     }
-    $('#dp').onclick = pageSheet;
+    $('#dp').onclick = function () { pageSheet(); };
 
+
+    /* ---- 👣 تعلّم ترسم خطوة بخطوة ---- */
+    function startLesson(i) {
+      startPage({ t: 'bg', c: E.bg() }, null, null, 1, true, function () {
+        setTool('pen');
+        st.lesson = { i: i, s: 0 }; showLesson(); pop(700);
+      });
+    }
+    function showLesson() {
+      var L = st.lesson, g = $('#dlg'), bar = $('#dstep'); if (!L) return;
+      var l = LESSONS[L.i], done = [].concat.apply([], l.s.slice(0, L.s)), cur = l.s[L.s] || [];
+      g.removeAttribute('hidden');
+      g.innerHTML = '<g fill="none" stroke-linecap="round" stroke-linejoin="round">' + done.map(function (d) { return '<path d="' + d + '" stroke="rgba(120,100,200,.22)" stroke-width="1.6"/>'; }).join('') +
+        cur.map(function (d) { return '<path class="lsn" d="' + d + '" stroke="#7C4DFF" stroke-width="2.2" stroke-dasharray="3 3"/>'; }).join('') + '</g>';
+      var last = L.s >= l.s.length - 1;
+      bar.hidden = false;
+      bar.innerHTML = '<span class="d2sn">' + l.e + ' ' + l.n + ' · الخطوة ' + (L.s + 1) + ' من ' + l.s.length + '</span>' +
+        (L.s ? '<button class="icb" id="lsP" aria-label="الخطوة السابقة">' + ic('back', 'style="transform:scaleX(-1)"') + '</button>' : '') +
+        '<button class="btn sm" id="lsN">' + (last ? 'خلصت ✓' : 'التالي') + '</button><button class="icb flat" id="lsX" aria-label="إغلاق الدرس">' + ic('close') + '</button>';
+      $('#lsN').onclick = function () { if (last) { endLesson(); A.toast('🎉 برافو! لوّنها وأرسلها'); pop(990); setTimeout(function () { pop(1320); }, 120); return; } L.s++; showLesson(); pop(660 + L.s * 60); };
+      if ($('#lsP')) $('#lsP').onclick = function () { L.s--; showLesson(); };
+      $('#lsX').onclick = endLesson;
+    }
+    function endLesson() { st.lesson = null; var g = $('#dlg'), b = $('#dstep'); if (g) { g.setAttribute('hidden', ''); g.innerHTML = ''; } if (b) { b.hidden = true; b.innerHTML = ''; } }
+
+    /* ---- ✏️ تتبّع الحروف والأرقام والأسماء: ولما يغطي أغلب الحرف ياخذ ⭐ ---- */
+    function startTrace(text) {
+      A.toast('نجهّز الصفحة…', 900);
+      traceReady().then(function () {
+        var t = traceArt(text);
+        startPage({ t: 'pg', k: 'tr:' + text }, t.lines, t.base, .92, true, function () {
+          st.mask = t.mask; setTool('pen'); if (st.size < 2) { st.size = 2; sizeDot(); }
+          A.toast('✏️ امشِ على النقاط');
+        });
+      });
+    }
+    function checkTrace() {
+      var k = E.page(); if (!k || !/^tr:/.test(k) || st.traced || !st.mask) return;
+      var W = cv.width, H = cv.height, m = st.mask, s2 = Math.min(W / m.width, H / m.height) * .92, w2 = m.width * s2, h2 = m.height * s2;
+      var mc = document.createElement('canvas'); mc.width = W; mc.height = H; var mx = mc.getContext('2d'); mx.drawImage(m, (W - w2) / 2, (H - h2) / 2, w2, h2);
+      var md = mx.getImageData(0, 0, W, H).data, cd = E.ctx.getImageData(0, 0, W, H).data, step = Math.max(3, Math.round(4 * dpr)), tot = 0, hit = 0, outT = 0, outH = 0;
+      for (var y = 0; y < H; y += step) for (var x = 0; x < W; x += step) {
+        var i = (y * W + x) * 4;
+        if (md[i + 3] < 200) { var r0 = cd[i], g0 = cd[i + 1], b0 = cd[i + 2]; outT++; if (Math.abs(r0 - 255) + Math.abs(g0 - 255) + Math.abs(b0 - 255) > 60 && Math.abs(r0 - 236) + Math.abs(g0 - 230) + Math.abs(b0 - 251) > 60) outH++; continue; }
+        tot++;
+        // الحبر = أي لون يختلف عن تعبئة الحرف الفاتحة (#ECE6FB) — نشيك النقطة وجيرانها (الشمع والبخاخ فيها فراغات)
+        var ink = false;
+        for (var d = 0; d < 5 && !ink; d++) {
+          var xx = Math.min(W - 1, Math.max(0, x + [0, step, -step, 0, 0][d])), yy = Math.min(H - 1, Math.max(0, y + [0, 0, 0, step, -step][d])), j = (yy * W + xx) * 4;
+          if (Math.abs(cd[j] - 236) + Math.abs(cd[j + 1] - 230) + Math.abs(cd[j + 2] - 251) > 60 && Math.abs(cd[j] - 255) + Math.abs(cd[j + 1] - 255) + Math.abs(cd[j + 2] - 255) > 30) ink = true;
+        }
+        if (ink) hit++;
+      }
+      if (outT && outH / outT > .35 && E.bg() === '#FFFFFF') return;   // خربش الورقة كلها؟ ما تنحسب
+      if (tot && hit / tot >= .55) { st.traced = true; if (A.starBurst) A.starBurst('⭐ برافو! كتبت «' + k.slice(3) + '»'); pop(990); setTimeout(function () { pop(1320); }, 140); }
+    }
+
+    /* ---- 🎞️ حرّك رسمتك: لقطات (فليب بوك) تنرسل كصورة وحدة وتتحرك في المحادثة ---- */
+    st.frames = null;
+    function frameShot() { var k = Math.min(1, 540 / Math.max(cv.width, cv.height)), c = document.createElement('canvas'); c.width = Math.round(cv.width * k); c.height = Math.round(cv.height * k); c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height); return c; }
+    function framesUI() {
+      var b = $('#dfr'); if (!st.frames) { b.hidden = true; b.innerHTML = ''; return; }
+      b.hidden = false;
+      b.innerHTML = st.frames.map(function (c, i) { return '<span class="d2fi"><img src="' + c.toDataURL('image/jpeg', .6) + '" alt="لقطة ' + (i + 1) + '"><i>' + (i + 1) + '</i></span>'; }).join('') +
+        (st.frames.length < 6 ? '<button class="btn sm" id="frA">📸 لقطة</button>' : '') + (st.frames.length ? '<button class="icb" id="frP" aria-label="شغّل">▶️</button>' : '') + '<button class="icb flat" id="frX" aria-label="إلغاء الحركة">' + ic('close') + '</button>';
+      if ($('#frA')) $('#frA').onclick = function () { if (!hasInk()) return A.toast('ارسم شي أول 🎨'); st.frames.push(frameShot()); st.frDirty = false; framesUI(); pop(990); A.toast(st.frames.length === 1 ? '📸 الحين غيّر شي صغير وخذ لقطة ثانية' : '📸 لقطة ' + st.frames.length); };
+      if ($('#frP')) $('#frP').onclick = playFrames;
+      $('#frX').onclick = function () { st.frames = null; framesUI(); };
+    }
+    function playFrames() {
+      var list = st.frames.slice(); if (st.frDirty) list.push(frameShot());
+      var ov = document.createElement('div'); ov.className = 'd2play'; var im = document.createElement('img'); ov.appendChild(im); wrap.appendChild(ov);
+      var i = 0, n = 0, t = setInterval(function () { im.src = list[i % list.length].toDataURL('image/jpeg', .8); i++; if (++n > list.length * 3) { clearInterval(t); ov.remove(); } }, 380);
+      ov.onclick = function () { clearInterval(t); ov.remove(); };
+    }
+
+    function liveStart() { if (A.live2) A.live2.start({ E: E, cv: cv, st: st, chat: chat, redraw: function () { E.redraw(); updBtns(); }, changed: changed, el: el }); }
+    /* ---- ✨ المزيد ---- */
+    function moreSheet() {
+      var sh = A.sheet('<div class="row"><h2 class="grow" style="font-size:22px">✨ المزيد</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div><div class="d2more">' +
+        '<button id="mAn"><span>🎞️</span><b>حرّك رسمتك</b><small>لقطات ورا بعض تصير رسمة تتحرك</small></button>' +
+        '<button id="mCm" class="' + (st.cm ? 'on' : '') + '"><span>🤝</span><b>خلّهم يكمّلونها</b><small>' + (st.cm ? 'شغّال ✓' : 'ترسل نص رسمة والباقين يكمّلونها') + '</small></button>' +
+        (A.liveOk ? '<button id="mLv"><span>👥</span><b>ارسم مع أحد الحين</b><small>نفس الورقة، كل واحد من جهازه</small></button>' : '') +
+        '<button id="mLs"><span>👣</span><b>تعلّم ترسم</b><small>قطة، بيت، فراشة… خطوة خطوة</small></button>' +
+        '<button id="mTr"><span>✏️</span><b>تتبّع الحروف</b><small>الحروف والأرقام واسمك</small></button>' +
+        '<button id="mPh"><span>📷</span><b>ارسم على صورة</b><small>شنب ونظارة على صورة 😄</small></button></div>');
+      $('#x', sh).onclick = function () { sh.remove(); };
+      $('#mAn', sh).onclick = function () { sh.remove(); if (!st.frames) st.frames = []; framesUI(); A.toast('🎞️ ارسم وخذ لقطة، وبعدين غيّر شي وخذ لقطة ثانية'); };
+      $('#mCm', sh).onclick = function () { sh.remove(); st.cm = !st.cm; $('#dcmt').hidden = !st.cm; A.toast(st.cm ? '🤝 بعد الإرسال يقدرون يكمّلونها' : 'رجعت رسمة عادية'); };
+      if ($('#mLv', sh)) $('#mLv', sh).onclick = function () { sh.remove(); liveStart(); };
+      $('#mLs', sh).onclick = function () { sh.remove(); pageSheet('learn'); };
+      $('#mTr', sh).onclick = function () { sh.remove(); pageSheet('abc'); };
+      $('#mPh', sh).onclick = function () { sh.remove(); pageSheet('photo'); };
+    }
+    $('#dmore').onclick = moreSheet;
     /* ---- رسوماتي ---- */
     function draftSheet() {
       drafts().then(function (a) {
@@ -597,13 +748,18 @@ var DR = (function () {
     };
     $('#ds').onclick = function () {
       if (!hasInk()) return A.toast('ارسم شي أول 🎨');
-      var k = Math.min(1, 1080 / Math.max(cv.width, cv.height)), c2 = document.createElement('canvas');
-      c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height);
-      var voice = st.voice, did = st.draftId;
+      var k = Math.min(1, 1080 / Math.max(cv.width, cv.height)), c2 = document.createElement('canvas'), fr = 0, fw = 0, fh = 0;
+      if (st.frames && st.frames.length) {
+        // حرّك رسمتك: اللقطات جنب بعض في صورة وحدة (شريط)، والمحادثة تشغّلها
+        var list = st.frames.slice(); if (st.frDirty || list.length < 2) list.push(frameShot());
+        if (list.length >= 2) { fr = list.length; fw = list[0].width; fh = list[0].height; c2.width = fw * fr; c2.height = fh; var x2 = c2.getContext('2d'); list.forEach(function (c, i) { x2.drawImage(c, i * fw, 0, fw, fh); }); }
+      }
+      if (!fr) { c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k); c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height); }
+      var voice = st.voice, did = st.draftId, cmw = st.cm ? (opt.cmw || []).filter(function (x) { return x !== S.me; }).concat([S.me]).slice(-8) : null;
       leave();
       c2.toBlob(function (b) {
         S.chat = chat; A.openChat(chat);
-        A.sendMsg('draw', { w: c2.width, h: c2.height, rp: opt.rp, cap: opt.cap }, b);
+        A.sendMsg('draw', { w: fr ? fw : c2.width, h: fr ? fh : c2.height, fr: fr || undefined, cm: cmw || undefined, rp: opt.rp, cap: opt.cap }, b);
         if (voice) setTimeout(function () { A.sendMsg('voice', { dur: voice.dur, wf: voice.wf, cap: '🎤 عن الرسمة' }, voice.blob); }, 250);
         dropDraft(did);
       }, 'image/jpeg', .88);
