@@ -1316,7 +1316,8 @@ var A = (function () {
   function msgHTML(m) {
     var mine = m.s === S.me, group = m.chat === 'g';
     var body = '';
-    if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
+    if (m.k === 'text' && m.lv) body = '<div class="bub lvinv"><span style="font-size:30px">👥🎨</span><b>' + esc(m.text || '') + '</b>' + (Date.now() - m.t < 3 * 36e5 ? '<button class="cmb" data-lv="' + esc(m.lv) + '" data-lvc="' + esc(m.chat) + '">' + (mine ? 'ارجع للرسم' : 'انضم للرسم') + '</button>' : '<small>انتهت الجلسة</small>') + '</div>';
+    else if (m.k === 'text') { var en = emojiOnly(m.text); body = en ? '<div class="bub emo" style="font-size:' + (en <= 3 ? 52 : en <= 6 ? 40 : 32) + 'px">' + esc(m.text.trim()) + '</div>' : '<div class="bub">' + esc(m.text || '') + '</div>'; }
     else if (m.k === 'sticker') { var su = mediaUrl(m); body = '<div class="stkmsg">' + (su ? '<img src="' + su + '" data-view="' + m.id + '" alt="ملصق">' : '') + '</div>'; }
     else if (m.k === 'photo' || m.k === 'draw') {
       var u = mediaUrl(m);
@@ -1361,6 +1362,9 @@ var A = (function () {
   function fmtDur(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
   function bindMsgs(box, ms) {
     var byId = {}; ms.forEach(function (m) { byId[m.id] = m; });
+    box.querySelectorAll('[data-lv]').forEach(function (b) {
+      b.onclick = function () { S.chat = b.dataset.lvc; drawScreen({ live: b.dataset.lv }); };
+    });
     box.querySelectorAll('[data-cm]').forEach(function (b) {
       b.onclick = function () { var m = byId[b.dataset.cm]; if (m) completeDraw(m); };
     });
@@ -1619,7 +1623,7 @@ var A = (function () {
     new DataView(out.buffer).setUint32(0, h.length); out.set(h, 4); if (bytes) out.set(bytes, 4 + h.length);
     return out;
   }
-  var XTRA = ['ch', 'rp', 'cap', 'bed', 'cm', 'fr'];
+  var XTRA = ['ch', 'rp', 'cap', 'bed', 'cm', 'fr', 'lv'];
   function sendMsg(kind, o, blob) {
     var m = { id: rid(12), chat: S.chat, s: S.me, k: kind, t: o.at || Date.now(), st: {}, r: [S.me], out: 1 };
     if (o.at) m.sched = o.at;
@@ -2302,7 +2306,7 @@ var A = (function () {
     memberForm: memberForm, saveProfile: saveProfile, loadFamily: loadFamily, home: home, picker: picker, welcome: welcome, pinPad: pinPad, setPin: setPin,
     copy: copy, shareCode: shareCode, editMe: editMe, parentGate: parentGate, theme: theme, setTheme: setTheme, grp: grp, grpIcon: grpIcon, famPortrait: famPortrait, FPBG: FPBG, FPX: FPX, showCode: showCode, wrapKey: wrapKey, newCode: newCode, normCode: normCode, enableNotif: enableNotif, notifState: notifState, notifPerm: notifPerm,
     checkUpdate: checkUpdate, doReload: doReload, pack: pack, unpack: NB.unpack, syncNow: syncNow, refreshRoles: refreshRoles, deviceHasAdmin: deviceHasAdmin, colorOf: colorOf,
-    sendMsg: sendMsg, sendReact: sendReact, starBurst: starBurst, rewardsScreen: rewardsScreen, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
+    sendMsg: sendMsg, sendReact: sendReact, starBurst: starBurst, liveOk: !!window.WebSocket, rewardsScreen: rewardsScreen, openChat: openChat, chatTitle: chatTitle, avatarImage: avatarImage, analyze: analyze, fmtDur: fmtDur,
     standalone: standalone, plat: plat,
     installPrompt: function () { if (!deferredInstall) return Promise.resolve(false); deferredInstall.prompt(); return deferredInstall.userChoice.then(function (c) { deferredInstall = null; return c && c.outcome === 'accepted'; }, function () { return false; }); },
     canInstall: function () { return !!deferredInstall; },

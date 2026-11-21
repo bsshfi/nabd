@@ -318,9 +318,9 @@ var DR = (function () {
   function encode(ops, aspect) {
     var out = [];
     ops.forEach(function (o) {
-      if (o.t === 's') { var f = []; o.p.forEach(function (p) { f.push(q(p[0]), q(p[1])); }); out.push({ t: 's', b: o.b, c: o.c, w: q(o.w), m: o.m || 0, sd: o.sd, h: o.h, pt: o.pt, p: f }); }
-      else if (o.t === 'sh') out.push({ t: 'sh', k: o.k, c: o.c, w: q(o.w), m: o.m || 0, a: [q(o.a[0]), q(o.a[1])], b: [q(o.b[0]), q(o.b[1])] });
-      else if (o.t === 'f') out.push({ t: 'f', x: q(o.x), y: q(o.y), c: o.c, m: o.m || 0 });
+      if (o.t === 's') { var f = []; o.p.forEach(function (p) { f.push(q(p[0]), q(p[1])); }); out.push({ t: 's', id: o.id, b: o.b, c: o.c, w: q(o.w), m: o.m || 0, sd: o.sd, h: o.h, pt: o.pt, p: f }); }
+      else if (o.t === 'sh') out.push({ t: 'sh', id: o.id, k: o.k, c: o.c, w: q(o.w), m: o.m || 0, a: [q(o.a[0]), q(o.a[1])], b: [q(o.b[0]), q(o.b[1])] });
+      else if (o.t === 'f') out.push({ t: 'f', id: o.id, x: q(o.x), y: q(o.y), c: o.c, m: o.m || 0 });
       else out.push(o.t === 'bg' ? { t: 'bg', c: o.c } : { t: 'pg', k: o.k });
     });
     return JSON.stringify({ v: 1, r: Math.round(aspect * 1000) / 1000, o: out });
@@ -375,7 +375,7 @@ var DR = (function () {
       '<button class="icb" id="dsd" aria-label="رسوماتي">💾</button><button class="icb" id="dsn" aria-label="الأصوات">' + (snd.on ? '🔊' : '🔇') + '</button>' +
       '<button class="icb" id="du" aria-label="تراجع">' + ic('undo') + '</button><button class="icb" id="dr" aria-label="إعادة" style="transform:scaleX(-1)">' + ic('undo') + '</button></div>' +
       '<div class="d2wrap" id="dw"><div class="d2zoom" id="dz"><canvas id="cv"></canvas><svg class="d2guide" id="dg" preserveAspectRatio="none" viewBox="0 0 100 100"></svg><svg class="d2lesson" id="dlg" viewBox="-4 -4 108 108" preserveAspectRatio="xMidYMid meet" hidden></svg></div>' +
-      '<div class="d2step" id="dstep" hidden></div><div class="d2fr" id="dfr" hidden></div><div class="d2cmtag" id="dcmt" hidden>🤝 يقدرون يكمّلونها</div>' +
+      '<div class="d2step" id="dstep" hidden></div><div class="d2fr" id="dfr" hidden></div><div class="d2cmtag" id="dcmt" hidden>🤝 يقدرون يكمّلونها</div><button class="d2live" id="dlive" hidden></button>' +
       '<button class="d2zr" id="dzr" hidden>🔍 رجّع الحجم</button><div class="d2resume" id="dres" hidden></div></div>' +
       '<div class="d2panel">' +
       '<div class="d2tools" id="dtl">' + BRUSHES.map(function (t) { return '<button data-tool="' + t[0] + '"' + (t[0] === st.tool ? ' class="on"' : '') + '><span>' + t[1] + '</span>' + t[2] + '</button>'; }).join('') + '</div>' +
@@ -392,7 +392,11 @@ var DR = (function () {
 
     function fit() {
       var r = wrap.getBoundingClientRect(); if (!r.width) return;
-      cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+      var w = r.width, h = r.height;
+      // الرسم مع بعض: نفس شكل الورقة عند الكل (٣:٤) عشان الرسمة ما تتمطّط بين جوال وآيباد
+      if (st.aspect) { if (w / h > st.aspect) w = h * st.aspect; else h = w / st.aspect; }
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + 'px'; cv.style.height = h + 'px';
+      cv.style.marginLeft = Math.round((r.width - w) / 2) + 'px'; cv.style.marginTop = Math.round((r.height - h) / 2) + 'px';
       E.redraw();
     }
     function guides() {
@@ -449,7 +453,7 @@ var DR = (function () {
       var ids = Object.keys(ptrs);
       if (ids.length === 2) {
         // إصبعين = تكبير/تحريك، ونلغي الخط القصير اللي بدأ بالإصبع الأول
-        if (cur && cur.t === 's' && cur.p.length < 10) { E.ops.pop(); E.redraw(); }
+        if (cur && cur.t === 's' && cur.p.length < 10) { E.ops.pop(); E.redraw(); lvSend({ k: 'u', id: cur.id }); }
         else if (cur && cur.t === 'sh') { E.ops.pop(); E.redraw(); }
         cur = null; snap = null; scribble(0);
         var a = ptrs[ids[0]], b = ptrs[ids[1]];
@@ -459,9 +463,9 @@ var DR = (function () {
       if (ids.length > 2 || pinch) return;
       sndInit();
       var p = pt(e), t = st.tool, size = SIZES[st.size];
-      if (t === 'fill') { var o = { t: 'f', x: p[0], y: p[1], c: st.color, m: st.mirror }; E.ops.push(o); E.op(o); pop(520); if (navigator.vibrate) navigator.vibrate(12); changed(); return; }
-      if (t === 'shape') { cur = { t: 'sh', k: st.shape, c: st.color, w: size * .7, m: st.mirror, a: p, b: p }; E.ops.push(cur); takeSnap(); return; }
-      cur = { t: 's', b: t, c: st.color, w: t === 'erase' ? Math.max(.04, size * 1.6) : size, m: st.mirror, sd: Math.floor(Math.random() * 1e6), h: Math.floor(Math.random() * 360), pt: st.pat, p: [p] };
+      if (t === 'fill') { var o = { t: 'f', id: A.rid(6), x: p[0], y: p[1], c: st.color, m: st.mirror }; E.ops.push(o); E.op(o); lvSend({ k: 'op', o: o }); pop(520); if (navigator.vibrate) navigator.vibrate(12); changed(); return; }
+      if (t === 'shape') { cur = { t: 'sh', id: A.rid(6), k: st.shape, c: st.color, w: size * .7, m: st.mirror, a: p, b: p }; E.ops.push(cur); takeSnap(); return; }
+      cur = { t: 's', id: A.rid(6), b: t, c: st.color, w: t === 'erase' ? Math.max(.04, size * 1.6) : size, m: st.mirror, sd: Math.floor(Math.random() * 1e6), h: Math.floor(Math.random() * 360), pt: st.pat, p: [p] };
       E.ops.push(cur); E.seg(cur, 0); lastP = p; lastT = performance.now();
     });
     wrap.addEventListener('pointermove', function (e) {
@@ -481,7 +485,7 @@ var DR = (function () {
       if (cur.t === 'sh') { cur.b = p; var c2 = cv.getContext('2d'); c2.drawImage(snap, 0, 0); E.shape(cur); E.drawLines(); return; }
       var lp = cur.p[cur.p.length - 1];
       if (Math.abs(lp[0] - p[0]) + Math.abs(lp[1] - p[1]) < .0025) return;
-      cur.p.push(p); E.seg(cur, cur.p.length - 1);
+      cur.p.push(p); E.seg(cur, cur.p.length - 1); lvStroke(cur);
       var now = performance.now(), sp = Math.hypot(p[0] - lastP[0], p[1] - lastP[1]) / Math.max(1, now - lastT) * 1000; lastP = p; lastT = now;
       scribble(cur.b === 'erase' ? sp * .02 : sp * .035);
     });
@@ -491,6 +495,7 @@ var DR = (function () {
       if (!cur) return;
       scribble(0);
       if (cur.t === 'sh') { if (Math.hypot(cur.b[0] - cur.a[0], cur.b[1] - cur.a[1]) < .01) cur.b = [cur.a[0] + .08, cur.a[1] + .08]; cv.getContext('2d').drawImage(snap, 0, 0); E.shape(cur); pop(760); snap = null; }
+      if (cur.t === 'sh') lvSend({ k: 'op', o: cur }); else lvStroke(cur, true);
       E.drawLines(); cur = null; changed();
     }
     wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
@@ -539,8 +544,8 @@ var DR = (function () {
     function sizeDot() { var d = [6, 11, 17, 24][st.size], i = $('#dszi'); i.style.width = i.style.height = d + 'px'; i.style.background = st.tool === 'erase' ? 'var(--muted)' : st.color; }
     $('#dsz').onclick = function () { st.size = (st.size + 1) % SIZES.length; sizeDot(); pop(460 + st.size * 90); };
     $('#dm').onclick = function () { st.mirror = { 0: 2, 2: 4, 4: 8, 8: 0 }[st.mirror]; guides(); pop(700); if (st.mirror === 2 && !st.mirTip) { st.mirTip = 1; A.toast('🪞 ارسم بجهة وتنعكس على الثانية!'); } };
-    $('#du').onclick = function () { for (var i = E.ops.length - 1; i >= 0; i--) if (E.ops[i].t !== 'pg') { st.redo.push(E.ops.splice(i, 1)[0]); break; } E.redraw(); updBtns(); pop(400); clearTimeout(st.saveT); st.saveT = setTimeout(autoSave, 1500); };
-    $('#dr').onclick = function () { var o = st.redo.pop(); if (!o) return; E.ops.push(o); if (o.t === 'bg') E.redraw(); else E.op(o); updBtns(); pop(500); };
+    $('#du').onclick = function () { for (var i = E.ops.length - 1; i >= 0; i--) if (E.ops[i].t !== 'pg' && !(lv && E.ops[i]._r)) { var u0 = E.ops.splice(i, 1)[0]; st.redo.push(u0); if (u0.id) lvSend({ k: 'u', id: u0.id }); break; } E.redraw(); updBtns(); pop(400); clearTimeout(st.saveT); st.saveT = setTimeout(autoSave, 1500); };
+    $('#dr').onclick = function () { var o = st.redo.pop(); if (!o) return; E.ops.push(o); lvSend({ k: 'op', o: o }); if (o.t === 'bg') E.redraw(); else E.op(o); updBtns(); pop(500); };
     $('#dsn').onclick = function () { snd.on = !snd.on; try { localStorage.setItem('nabd-dsnd', snd.on ? '1' : '0'); } catch (e) {} this.textContent = snd.on ? '🔊' : '🔇'; if (!snd.on) sndClose(); };
 
     /* ---- الورقة: صفحات تلوين، العائلة، صورتك، لون الورقة ---- */
@@ -552,6 +557,7 @@ var DR = (function () {
         if (op.t === 'pg' && !keepTool) setTool('fill');
         endLesson();
         if (after) after();
+        if (lv && !lv.applying) lvSend({ k: 'pg', ops: encode(E.ops, cv.width / cv.height) });
       };
       if (hasInk()) { autoSave().then(function () { A.toast('رسمتك السابقة انحفظت في 💾 رسوماتي'); go(); }); } else go();
     }
@@ -575,7 +581,7 @@ var DR = (function () {
         box.querySelectorAll('[data-av]').forEach(function (b) { b.onclick = function () { sh.remove(); var id = b.dataset.av; A.toast('نجهّز الصفحة…', 1200); famLines(id).then(function (c) { startPage({ t: 'pg', k: 'av:' + id }, c); }); }; });
         box.querySelectorAll('[data-ls]').forEach(function (b) { b.onclick = function () { sh.remove(); startLesson(+b.dataset.ls); }; });
         box.querySelectorAll('[data-tr]').forEach(function (b) { b.onclick = function () { sh.remove(); startTrace(b.dataset.tr); }; });
-        box.querySelectorAll('[data-bgc]').forEach(function (b) { b.onclick = function () { sh.remove(); if (b.dataset.bgc !== E.bg()) { E.ops.push({ t: 'bg', c: b.dataset.bgc }); E.redraw(); changed(); } }; });
+        box.querySelectorAll('[data-bgc]').forEach(function (b) { b.onclick = function () { sh.remove(); if (b.dataset.bgc !== E.bg()) { var bo = { t: 'bg', c: b.dataset.bgc }; E.ops.push(bo); E.redraw(); changed(); lvSend({ k: 'op', o: bo }); } }; });
         var pf = $('#phf', sh);
         if (pf) {
           var onImg = 'lines';
@@ -680,7 +686,79 @@ var DR = (function () {
       ov.onclick = function () { clearInterval(t); ov.remove(); };
     }
 
-    function liveStart() { if (A.live2) A.live2.start({ E: E, cv: cv, st: st, chat: chat, redraw: function () { E.redraw(); updBtns(); }, changed: changed, el: el }); }
+    /* ---- 👥 الرسم مع بعض في نفس اللحظة ----
+       غرفة على السيرفر (Durable Object) تمرّر رسائل الرسم. كل رسالة مشفّرة بمفتاح العائلة، فالسيرفر ما يشوف الرسمة */
+    var lv = null;
+    function liveStart(room) {
+      if (lv) return liveSheet();
+      if (!window.WebSocket || !S.acct || !S.acct.token) return A.toast('ما يمديك الحين');
+      var invite = !room;
+      lv = { room: room || A.rid(10), ws: null, q: Promise.resolve(), rq: Promise.resolve(), rem: {}, peers: [], tries: 0, got: invite, last: 0 };
+      st.aspect = .75; fit();
+      if (invite) { S.chat = chat; A.sendMsg('text', { text: '🎨 تعالوا نرسم مع بعض الحين!', lv: lv.room }); A.toast('👥 أرسلنا دعوة في ' + A.chatTitle(chat) + '، انتظرهم يدخلون'); }
+      liveConnect(); liveUI();
+    }
+    function liveConnect() {
+      var url = CONFIG.API.replace(/^http/, 'ws') + '/live?r=' + lv.room + '&m=' + encodeURIComponent(S.me) + '&t=' + encodeURIComponent(S.acct.token);
+      var ws; try { ws = new WebSocket(url); } catch (e) { return; }
+      lv.ws = ws;
+      ws.onopen = function () { if (!lv || lv.ws !== ws) return; lv.tries = 0; lvSend({ k: 'hi' }); liveUI(); };
+      ws.onmessage = function (ev) {
+        if (!lv || lv.ws !== ws) return;
+        var j; try { j = JSON.parse(ev.data); } catch (e) { return; }
+        if (j.k === 'peers') { var before = lv.peers.length; lv.peers = j.who || []; liveUI(); if (lv.peers.length > before && before) pop(880); return; }
+        if (j.k === 'm') lv.rq = lv.rq.then(function () { return NB.decJSON(j.d); }).then(function (o) { liveIn(o, j.who); }, function () {});
+      };
+      ws.onclose = function () { if (!lv || lv.ws !== ws) return; lv.peers = []; liveUI(); if (lv.tries++ < 6) setTimeout(function () { if (lv && lv.ws === ws) liveConnect(); }, 800 * lv.tries); };
+    }
+    function liveStop() { if (!lv) return; var w = lv.ws; lv = null; try { w && w.close(); } catch (e) {} }
+    function lvSend(o) {
+      if (!lv) return;
+      lv.q = lv.q.then(function () { return NB.encJSON(o); }).then(function (d) { if (lv && lv.ws && lv.ws.readyState === 1) lv.ws.send(d); }, function () {});
+    }
+    // الخط: نرسل النقاط الجديدة كل ٦٠ م.ث تقريباً وهو يرسم، والباقي لما يرفع إصبعه
+    function lvStroke(o, end) {
+      if (!lv) return;
+      var now = Date.now(); if (!end && now - lv.last < 60) return; lv.last = now;
+      var from = o._sent || 0; if (from >= o.p.length && !end) return;
+      lvSend({ k: 's', id: o.id, i: from, o: { b: o.b, c: o.c, w: o.w, m: o.m, sd: o.sd, h: o.h, pt: o.pt }, p: o.p.slice(from) }); o._sent = o.p.length;
+    }
+    function liveIn(o, who) {
+      if (!lv || !o) return;
+      var find = function (id) { for (var i = 0; i < E.ops.length; i++) if (E.ops[i].id === id) return i; return -1; };
+      if (o.k === 'hi') { if (hasInk() || E.ops.length) lvSend({ k: 'st', ops: encode(E.ops, cv.width / cv.height) }); return; }
+      if (o.k === 'st' || o.k === 'pg') {
+        if (o.k === 'st' && (lv.got || hasInk())) return;
+        lv.got = true; lv.applying = true;
+        try { loadDraft({ id: st.draftId, ops: JSON.parse(o.ops) }); } catch (e) {}
+        lv.applying = false; return;
+      }
+      if (o.k === 's') {
+        var op = lv.rem[o.id];
+        if (!op) { op = Object.assign({ t: 's', p: [] }, o.o, { id: o.id, _r: 1 }); lv.rem[o.id] = op; E.ops.push(op); }
+        var i0 = op.p.length; (o.p || []).forEach(function (q2) { op.p.push(q2); });
+        for (var i = i0; i < op.p.length; i++) E.seg(op, i);
+        E.drawLines(); remoteChanged(); return;
+      }
+      if (o.k === 'op' && o.o) { if (o.o.id && find(o.o.id) >= 0) return; o.o._r = 1; E.ops.push(o.o); if (o.o.t === 'bg') E.redraw(); else E.op(o.o); remoteChanged(); return; }
+      if (o.k === 'u') { var ix = find(o.id); if (ix >= 0) { E.ops.splice(ix, 1); delete lv.rem[o.id]; E.redraw(); remoteChanged(); } }
+    }
+    function remoteChanged() { st.dirty = true; st.frDirty = true; updBtns(); clearTimeout(st.saveT); st.saveT = setTimeout(autoSave, 2500); }
+    function liveUI() {
+      var b = $('#dlive'); if (!b) return;
+      if (!lv) { b.hidden = true; return; }
+      b.hidden = false;
+      var on = lv.ws && lv.ws.readyState === 1, others = lv.peers.filter(function (x) { return x !== S.me; });
+      b.innerHTML = '<i class="' + (on ? 'on' : '') + '"></i>' + (others.length ? others.slice(0, 4).map(function (id) { return A.av(id, 24); }).join('') + '<span>معك</span>' : '<span>' + (on ? 'ننتظرهم يدخلون…' : 'نتصل…') + '</span>');
+      b.onclick = liveSheet;
+    }
+    function liveSheet() {
+      var sh = A.sheet('<h2 class="fd" style="font-size:22px">👥 نرسم مع بعض</h2>' +
+        '<div class="col" style="gap:8px">' + (lv.peers.length ? lv.peers.map(function (id) { return '<div class="row" style="gap:10px">' + A.av(id, 34) + '<b class="grow">' + esc(A.nm(id)) + (id === S.me ? ' (أنت)' : '') + '</b><span class="tchip tok">موجود</span></div>'; }).join('') : '<span class="small muted">لسى ما دخل أحد</span>') + '</div>' +
+        '<button class="btn ghost block" id="lvI">📨 أرسل الدعوة مرة ثانية</button><button class="btn block" id="lvS" style="background:var(--chip)!important;color:var(--ink)!important;box-shadow:none!important">أكمل لحالي</button>');
+      $('#lvI', sh).onclick = function () { sh.remove(); S.chat = chat; A.sendMsg('text', { text: '🎨 تعالوا نرسم مع بعض الحين!', lv: lv.room }); A.toast('📨 انرسلت'); };
+      $('#lvS', sh).onclick = function () { sh.remove(); liveStop(); st.aspect = 0; liveUI(); fit(); A.toast('رجعت ترسم لحالك'); };
+    }
     /* ---- ✨ المزيد ---- */
     function moreSheet() {
       var sh = A.sheet('<div class="row"><h2 class="grow" style="font-size:22px">✨ المزيد</h2><button class="icb flat" id="x" aria-label="إغلاق">' + ic('close') + '</button></div><div class="d2more">' +
@@ -741,7 +819,7 @@ var DR = (function () {
     };
 
     /* ---- خروج وإرسال ---- */
-    function leave() { if (rec) { try { rec.mr.stop(); } catch (e) {} } sndClose(); clearTimeout(st.saveT); }
+    function leave() { if (rec) { try { rec.mr.stop(); } catch (e) {} } sndClose(); clearTimeout(st.saveT); liveStop(); }
     $('#dx').onclick = function () {
       if (hasInk()) autoSave().then(function () { A.toast('انحفظت في 💾 رسوماتي'); });
       leave(); A.openChat(chat);
@@ -768,7 +846,8 @@ var DR = (function () {
     paintCtx(); guides(); updBtns();
     setTimeout(function () {
       fit();
-      if (opt.draft) loadDraft(opt.draft);
+      if (opt.live) liveStart(opt.live);
+      else if (opt.draft) loadDraft(opt.draft);
       else if (!opt.base) drafts().then(function (a) {
         var d = a[0]; if (!d || S.view !== 'draw' || hasInk()) return;
         var box = $('#dres'); box.hidden = false;

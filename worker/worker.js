@@ -118,6 +118,20 @@ export default {
         return json({ ok: true, fam: f.id, dev: devId, token: devId + '.' + secret, wrapped: f.wrapped, salt: f.salt, ...(await famView(env, f)) });
       }
 
+      /* ===== 👥 الرسم مع بعض: WebSocket لغرفة رسم (المحتوى مشفّر من الأجهزة، السيرفر يمرّره بس) ===== */
+      if (p === '/live') {
+        if ((req.headers.get('Upgrade') || '').toLowerCase() !== 'websocket') return json({ error: 'upgrade' }, 426);
+        if (origin && origin !== allow) return json({ error: 'origin' }, 403);
+        if (!env.LIVE) return json({ error: 'off' }, 503);
+        const t = q.get('t') || '', room = q.get('r') || '', who = q.get('m') || '';
+        if (!/^[A-Za-z0-9_-]{6,16}$/.test(room) || !okId(who)) return json({ error: 'bad' }, 400);
+        const D2 = await authDevice(new Request(req.url, { headers: { Authorization: 'Bearer ' + t } }), env);
+        if (!D2 || !jarr(D2.members).includes(who)) return json({ error: 'auth' }, 401);
+        const stub = env.LIVE.get(env.LIVE.idFromName(D2.fam + ':' + room));
+        const h = new Headers(req.headers); h.set('X-Who', who);
+        return stub.fetch(new Request('https://live/' + room, { headers: h }));
+      }
+
       /* ===== من هنا: طلبات الأجهزة (توكن) ===== */
       const D = await authDevice(req, env);
       if (!D) return json({ error: 'auth' }, 401);
@@ -916,4 +930,28 @@ async function adminGate(req, db, check) {
   }
   await db.batch(st);
   return 'bad';
+}
+
+/* ===== 👥 غرفة رسم مشتركة (Durable Object) =====
+   كل عائلة/غرفة لها كائن واحد يمرّر رسائل الرسم المشفّرة بين الأجهزة، ويقول مين موجود. ما يخزّن شي */
+export class LiveRoom {
+  constructor(state) { this.state = state; }
+  who() { return this.state.getWebSockets().map((w) => { try { return (w.deserializeAttachment() || {}).who; } catch (e) { return null; } }).filter(Boolean); }
+  send(from, data) { for (const w of this.state.getWebSockets()) if (w !== from) { try { w.send(data); } catch (e) {} } }
+  peers() { const d = JSON.stringify({ k: 'peers', who: this.who() }); for (const w of this.state.getWebSockets()) { try { w.send(d); } catch (e) {} } }
+  async fetch(req) {
+    if (this.state.getWebSockets().length >= 8) return new Response('full', { status: 429 });
+    const pair = new WebSocketPair(), [c, s] = Object.values(pair);
+    this.state.acceptWebSocket(s);
+    s.serializeAttachment({ who: req.headers.get('X-Who') || '' });
+    this.peers();
+    return new Response(null, { status: 101, webSocket: c });
+  }
+  async webSocketMessage(ws, msg) {
+    if (typeof msg !== 'string' || msg.length > 200000) return;
+    let who = ''; try { who = (ws.deserializeAttachment() || {}).who || ''; } catch (e) {}
+    this.send(ws, JSON.stringify({ k: 'm', who, d: msg }));
+  }
+  async webSocketClose(ws) { try { ws.close(); } catch (e) {} this.peers(); }
+  async webSocketError(ws) { try { ws.close(); } catch (e) {} this.peers(); }
 }

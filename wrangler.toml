@@ -29,6 +29,15 @@ database_id = "6f6b4874-c611-4e63-a658-a5ea568af868"
 binding = "SIRAJ"
 service = "siraj-api"
 
+# 👥 الرسم مع بعض: غرفة لكل جلسة رسم (Durable Object بتخزين SQLite — متاح في الخطة المجانية)
+[[durable_objects.bindings]]
+name = "LIVE"
+class_name = "LiveRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveRoom"]
+
 # تشغيل السيرفر قرب قاعدة البيانات = ردود وإشعارات أسرع
 [placement]
 mode = "smart"
